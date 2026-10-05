@@ -373,6 +373,7 @@ export function boot(api, native) {
         <div class="row"><i class="ic-dot gray">${I('clock')}</i><div class="fl"><b>Data di nascita</b><span>${p.dob ? new Date(p.dob).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</span></div></div>
       </div>
       <div class="label">Permessi</div><div class="card">${permRows()}<button class="row add" data-a="perms"><i class="ic-dot gray">${I('lock')}</i><span>Controlla i permessi</span></button></div>
+      <div class="label">Aiuto</div><div class="card"><button class="row" data-a="ai"><i class="ic-dot amber">${I('spark')}</i><div class="fl"><b>Assistente</b><span>Domande sull'app e consigli di sicurezza</span></div>${I('chev', 'chev')}</button></div>
       <div class="label">Account</div><div class="card">
         <button class="row" data-a="logout"><i class="ic-dot gray">${I('out')}</i><div class="fl"><b>Esci</b></div></button>
         <button class="row danger" data-a="delete"><i class="ic-dot red">${I('trash')}</i><div class="fl"><b style="color:var(--red)">Elimina account</b><span>Cancella dati, collegamenti e foto</span></div></button>
@@ -449,6 +450,46 @@ export function boot(api, native) {
     <label class="field"><input id="ph-in" type="tel" inputmode="tel" maxlength="20" placeholder="+39 333 123 4567" value="${esc(st.p.phone || '')}"></label>
     <button class="btn" data-a="phone-save">Salva</button>`, 'phone');
   const inviteText = c => `Ti aggiungo alla mia cerchia su Vicina, l'app SOS. Inserisci questo codice nell'app: ${c}`;
+
+  /* ================= assistente (Gemini) ================= */
+  // La conversazione resta solo su questo telefono. L'assistente non vede posizione, foto o chat.
+  const AI_KEY = () => 'ai:' + (st.uid || 'anon');
+  let aiMsgs = [], aiBusy = false, aiLeft = null;
+  const DANGER = /(aiuto|pericolo|mi segu|seguit|pedin|aggredi|aggression|minacc|picchi|violen|ferit|sangue|svenut|non respira|stupr|molest|rapin|ho paura|mi stanno|mi vuole|mi ha toccat)/i;
+  const AI_CHIPS = ['Come aggiungo una persona alla cerchia?', 'Mi sento seguita/o: cosa faccio?', 'Perché non mi arrivano le notifiche?', "Cosa succede quando premo SOS?"];
+  const aiLoad = () => { try { aiMsgs = JSON.parse(ls.get(AI_KEY()) || '[]'); } catch { aiMsgs = []; } };
+  const aiSave = () => ls.set(AI_KEY(), JSON.stringify(aiMsgs.filter(m => m.role !== 'danger' && m.role !== 'err').slice(-30)));
+  const mdLite = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\n)- (.+)/g, '$1• $2').replace(/\n/g, '<br>');
+  function openAI() { aiLoad(); show('s-ai'); rAI(); setTimeout(() => $('#ai-txt').focus(), 250); }
+  function rAI() {
+    const box = $('#ai-msgs');
+    if (!aiMsgs.length && !aiBusy) {
+      box.innerHTML = `<div class="ai-hello"><i class="ic-dot amber">${I('spark')}</i><b>Ciao${st.p ? ', ' + esc(st.p.name) : ''}!</b><p>Chiedimi come usare Vicina o un consiglio di sicurezza. Non vedo la tua posizione né le tue chat.</p>
+        <div class="chips">${AI_CHIPS.map(c => `<button class="chip" data-a="ai-chip" data-q="${esc(c)}">${esc(c)}</button>`).join('')}</div></div>`;
+      return;
+    }
+    box.innerHTML = aiMsgs.map(m => m.role === 'user' ? `<div class="msg me">${esc(m.text)}</div>`
+      : m.role === 'danger' ? `<div class="msg danger"><b>Se sei in pericolo adesso, non aspettare la risposta:</b> tieni premuto SOS o chiama il 112. Per violenza o stalking c'è anche il 1522, gratis e attivo 24 ore su 24.<div class="row2"><button class="btn red" data-a="ai-sos">${I('alert')}Vai all'SOS</button><a class="btn ghost" href="tel:112">${I('phone')}112</a></div></div>`
+      : m.role === 'err' ? `<div class="msg err">${esc(m.text)}</div>`
+      : `<div class="msg bot">${mdLite(m.text)}</div>`).join('')
+      + (aiBusy ? `<div class="msg bot"><span class="typing"><i></i><i></i><i></i></span></div>` : '')
+      + (aiLeft != null && aiLeft <= 5 ? `<div class="ai-left">Messaggi rimasti oggi: ${aiLeft}</div>` : '');
+    box.scrollTop = 1e9;
+  }
+  async function sendAI(text) {
+    text = (text || '').trim(); if (!text || aiBusy) return;
+    $('#ai-txt').value = '';
+    aiMsgs.push({ role: 'user', text });
+    if (DANGER.test(text)) { aiMsgs.push({ role: 'danger' }); native.vibrate(200); }
+    aiBusy = true; rAI();
+    try {
+      const history = aiMsgs.filter(m => m.role === 'user' || m.role === 'model').slice(-12).map(m => ({ role: m.role, text: m.text }));
+      const r = await api.askAI(history);
+      aiMsgs.push({ role: 'model', text: r.reply }); aiLeft = r.left ?? null;
+    } catch (e) { aiMsgs.push({ role: 'err', text: e?.message || "L'assistente non risponde. Riprova tra poco." }); }
+    aiBusy = false; aiSave(); rAI();
+  }
+  $('#ai-txt').onkeydown = e => { if (e.key === 'Enter') sendAI($('#ai-txt').value); };
 
   /* ================= azioni (delegazione) ================= */
   document.addEventListener('click', async e => {
@@ -544,6 +585,12 @@ export function boot(api, native) {
         case 'in-open': { const s = st.sosIn.find(x => x.id === id); if (s) { st.dismissed.delete(id); showIncoming(s); } break; }
         case 'in-ack': await busy(t, async () => { await api.call('ackSos', { sosId: id }); st.dismissed.add(id); closeIncoming(); toast('Abbiamo avvisato che te ne occupi tu'); }); break;
         case 'in-chat': { const s = st.sosIn.find(x => x.id === id); st.dismissed.add(id); closeIncoming(); const c = s?.chats?.find(c => convs().some(x => x.id === c)); if (c) openThread(c); else tab('chat'); break; }
+        case 'ai': closeSheet(); openAI(); break;
+        case 'ai-back': tab(st.tab || 'home'); break;
+        case 'ai-send': sendAI($('#ai-txt').value); break;
+        case 'ai-chip': sendAI(t.dataset.q); break;
+        case 'ai-sos': tab('home'); toast('Tieni premuto il pulsante SOS'); break;
+        case 'ai-clear': if (await dialog({ title: 'Nuova conversazione?', text: 'La conversazione con l\'assistente verrà cancellata da questo telefono.', ok: 'Cancella', danger: true })) { aiMsgs = []; aiSave(); rAI(); } break;
         case 'phone': sheetPhone(); break;
         case 'phone-save': {
           const v = $('#ph-in').value.trim(); if (v && !/^\+?[\d\s.-]{6,20}$/.test(v)) return toast('Numero non valido');
@@ -621,6 +668,7 @@ export function boot(api, native) {
     if ($('#dlg-scrim').classList.contains('on')) { $('#dlg-scrim').click(); return true; }
     if ($('#scrim').classList.contains('on')) { closeSheet(); return true; }
     if ($('#ov-in').classList.contains('on')) { st.dismissed.add(st.shownIn); closeIncoming(); return true; }
+    if ($('#s-ai').classList.contains('on')) { tab(st.tab || 'home'); return true; }
     if ($('#s-thread').classList.contains('on')) { $('[data-a="thread-back"]').click(); return true; }
     if ($('#s-auth').classList.contains('on')) { show('s-wel'); return true; }
     if ($('#s-setup').classList.contains('on') && st.setup > 1) { setup(st.setup - 1); return true; }

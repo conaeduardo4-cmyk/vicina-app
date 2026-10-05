@@ -30,6 +30,7 @@
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
 <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18.5 9.4l-4.7 1.8L12 16l-1.8-4.8L5.5 9.4l4.7-1.8z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></symbol>
 <symbol id="i-group" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><circle cx="5" cy="10" r="2.2"/><circle cx="19" cy="10" r="2.2"/><path d="M7 20c0-3 2.2-5 5-5s5 2 5 5M1.5 19c0-2 1.5-3.5 3.5-3.5M22.5 19c0-2-1.5-3.5-3.5-3.5"/></symbol>
 </defs></svg>
 
@@ -101,6 +102,7 @@
     <div class="quick">
       <a class="qa" href="tel:112"><i class="ic-dot green"><svg class="i"><use href="#i-phone"/></svg></i><span>Chiama 112</span></a>
       <button class="qa" data-a="add"><i class="ic-dot violet"><svg class="i"><use href="#i-plus"/></svg></i><span>Aggiungi persona</span></button>
+      <button class="qa" data-a="ai"><i class="ic-dot amber"><svg class="i"><use href="#i-spark"/></svg></i><span>Assistente</span></button>
     </div>
   </section>
 
@@ -140,6 +142,17 @@
   <section class="screen tabbed" id="s-me">
     <header class="hh"><h1 class="title">Profilo</h1></header>
     <div class="sc" id="m-body"></div>
+  </section>
+
+  <!-- Assistente (Gemini) -->
+  <section class="screen" id="s-ai">
+    <div class="th"><button class="iconbtn" data-a="ai-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button>
+      <div class="av sm" style="background:linear-gradient(145deg,#FFB547,#FF7A59)"><svg class="i"><use href="#i-spark"/></svg></div>
+      <div class="fl"><b>Assistente</b><span id="ai-sub">Basato su Gemini · può sbagliare</span></div>
+      <button class="iconbtn sm" data-a="ai-clear" aria-label="Nuova conversazione"><svg class="i"><use href="#i-trash"/></svg></button></div>
+    <div class="ai-warn"><svg class="i"><use href="#i-alert"/></svg><span>In pericolo adesso?</span><button data-a="ai-sos">SOS</button><a href="tel:112">112</a></div>
+    <div id="ai-msgs"></div>
+    <div class="cin"><input type="text" id="ai-txt" placeholder="Chiedi qualcosa all'assistente" maxlength="1500" enterkeyhint="send"><button class="sendb ai" data-a="ai-send" aria-label="Invia"><svg class="i"><use href="#i-send"/></svg></button></div>
   </section>
 
   <nav id="nav" hidden>

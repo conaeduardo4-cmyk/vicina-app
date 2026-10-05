@@ -120,6 +120,18 @@ export function createDemoApi() {
       const other = l ? l.uids.find(x => x !== 'me') : g?.memberUids.find(x => x !== 'me');
       if (other) setTimeout(() => push(id, { type: 'text', from: other, text: ['Ok 👍', 'Tutto bene?', 'Ricevuto!', 'Ci sentiamo dopo'][Math.floor(Math.random() * 4)] }), 1800);
     },
+    async askAI(messages) {
+      await wait(1100);
+      const q = messages[messages.length - 1].text.toLowerCase();
+      const reply = /segu|paura|pericol/.test(q)
+        ? "**Prima di tutto:** se ti senti in pericolo adesso tieni premuto il pulsante SOS o chiama il 112.\n- Vai verso un luogo affollato e illuminato, come un bar o un negozio.\n- Chiama qualcuno e resta al telefono mentre cammini.\n- Non tornare a casa se pensi di essere seguita/o: aspetta in un posto sicuro."
+        : /notific/.test(q)
+        ? "Controlla questi punti:\n- **Profilo → Controlla i permessi**: le notifiche devono risultare attive.\n- Su Android togli l'app dal risparmio batteria.\n- Verifica che le notifiche del canale **SOS** siano attive nelle impostazioni dell'app."
+        : /aggiung|cerchia|amic/.test(q)
+        ? "Vai nella scheda **Cerchia** e tocca **+**:\n- **Invita** genera un codice di 6 caratteri valido 10 minuti: condividilo con il pulsante Condividi.\n- Se invece hai ricevuto un codice, scegli **Ho un codice**.\nPer i gruppi, l'admin deve approvare la richiesta."
+        : "Tieni premuto il pulsante SOS per 1,5 secondi: parte subito l'allarme con la tua posizione a tutta la cerchia, poi arrivano due foto. Quando sei al sicuro tocca **Sono al sicuro**. (Risposta di prova: questa è la modalità demo.)";
+      return { reply, left: 27 };
+    },
     async call(name, data = {}) { await wait(250); if (!fns[name]) throw err('not-found', 'Funzione inesistente'); return fns[name](data); },
     async photoUrl(p) { if (p.startsWith('demo/')) return fakePhoto(p.includes('back') ? 'back' : 'front'); if (photos[p]) return photos[p]; throw err('not-found', 'x'); },
     async uploadPhoto(p, dataUrl) { await wait(300); photos[p] = dataUrl; }

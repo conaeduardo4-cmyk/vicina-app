@@ -78,7 +78,8 @@ Ordine:  1. Supabase  →  2. Firebase (solo push)  →  3. Server  →  4. GitH
 4. *(Solo se un giorno avrai l'account Apple a pagamento)*: *Cloud Messaging → App iOS → Chiave APNs* → carica la chiave `.p8`.
 
 ## 3. Pubblica il server (tutto dal browser)
-**a) Database** – Supabase → **SQL Editor** → *New query* → incolla **tutto** `supabase/schema.sql` → **Run**.
+**a) Database** – Supabase → **SQL Editor** → *New query* → incolla **tutto** `supabase/installa.sql` → **Run**.
+(`installa.sql` = `reset.sql` + `schema.sql`: toglie eventuali tabelle vecchie con gli stessi nomi e installa il server. Si può rieseguire.)
 Poi esegui (con i tuoi valori; il segreto inventalo tu, solo lettere e numeri, almeno 32 caratteri):
 ```sql
 select private.configure('https://abcd1234.supabase.co', 'IlTuoSegretoLungoECasuale1234567890');
@@ -152,3 +153,11 @@ Conserva `vicina.jks` e la password. Per distribuire senza Google Play basta con
 - Nessun SMS senza internet: se l'invio fallisce, l'app propone di chiamare il 112.
 - Solo accesso con email e password.
 - Vicina non sostituisce i servizi di emergenza.
+
+## Assistente (Gemini, gratuito)
+1. Vai su **aistudio.google.com** → *Get API key* → *Create API key* (piano gratuito, senza carta).
+2. Supabase → **SQL Editor** → esegui `supabase/assistente.sql` (se hai già eseguito il nuovo `installa.sql` è già incluso).
+3. Supabase → **Edge Functions → Deploy a new function → Via Editor**: nome **`assistente`**, incolla `supabase/functions/assistente/index.ts` → Deploy. Disattiva "Verify JWT" (l'utente viene verificato dentro la funzione).
+4. **Edge Functions → Secrets**: aggiungi `GEMINI_API_KEY` con la chiave. Facoltativi: `AI_DAILY_LIMIT` (messaggi al giorno per utente, predefinito 30) e `GEMINI_MODEL` (predefinito `gemini-flash-latest`).
+
+Note: la chiave resta sul server, mai nell'app. La conversazione è salvata solo sul telefono. L'assistente non riceve posizione, foto o chat, solo il nome di battesimo per rivolgersi all'utente. Se un messaggio fa pensare a un pericolo, l'app mostra subito SOS / 112 / 1522 senza aspettare la risposta.

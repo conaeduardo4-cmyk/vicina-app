@@ -128,6 +128,15 @@ export function createApi(env) {
     },
     async sendText(id, uid, text) { ok(await sb.from('messages').insert({ chat_id: id, type: 'text', from_uid: uid, text })); },
 
+    async askAI(messages) {
+      const { data, error } = await sb.functions.invoke('assistente', { body: { messages } });
+      if (error) {
+        let msg = '';
+        try { msg = (await error.context.json()).error; } catch {}
+        throw Object.assign(new Error(msg || (offline(error.message) ? 'Sei offline. Controlla la connessione.' : "L'assistente non risponde. Riprova tra poco.")), { code: 'unavailable' });
+      }
+      return data;
+    },
     async call(name, data = {}) {
       const m = RPC[name]; if (!m) throw new Error('Funzione sconosciuta: ' + name);
       const [fn, args] = m(data);
