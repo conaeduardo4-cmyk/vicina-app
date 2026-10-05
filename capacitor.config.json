@@ -1,0 +1,13 @@
+{
+  "appId": "it.vicina.app",
+  "appName": "Vicina",
+  "webDir": "dist",
+  "backgroundColor": "#0B0B10",
+  "android": { "backgroundColor": "#0B0B10" },
+  "ios": { "backgroundColor": "#0B0B10", "contentInset": "never" },
+  "plugins": {
+    "FirebaseMessaging": { "presentationOptions": ["alert", "sound", "badge"] },
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#0B0B10", "showSpinner": false },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#0B0B10", "overlaysWebView": false }
+  }
+}

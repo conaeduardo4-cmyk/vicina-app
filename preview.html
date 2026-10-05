@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0B0B10">
+<meta name="color-scheme" content="dark">
+<title>Vicina</title>
+</head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2H9l-5 4z"/></symbol>
+<symbol id="i-people" viewBox="0 0 24 24"><path d="M9 11a3 3 0 100-6 3 3 0 000 6zM3 20c0-3 3-5 6-5s6 2 6 5M17 11a2.5 2.5 0 100-5M17 15c2.5 0 4.5 1.5 4.5 4"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 10-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 018-2.5A4.5 4.5 0 0120 9c0 6-8 11-8 11z"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17v.01"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0112 0v6l2 2H4zM10 21h4"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 002 2h10a2 2 0 002-2v-6"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></symbol>
+<symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-out" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 8l-4 4 4 4M6 12h10"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-group" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><circle cx="5" cy="10" r="2.2"/><circle cx="19" cy="10" r="2.2"/><path d="M7 20c0-3 2.2-5 5-5s5 2 5 5M1.5 19c0-2 1.5-3.5 3.5-3.5M22.5 19c0-2-1.5-3.5-3.5-3.5"/></symbol>
+</defs></svg>
+
+<div id="app">
+  <!-- Caricamento -->
+  <section class="screen on" id="s-load"><div class="center"><div class="logo pulse"><svg class="i"><use href="#i-shield"/></svg></div></div></section>
+
+  <!-- Benvenuto -->
+  <section class="screen" id="s-wel">
+    <div class="wel-hero">
+      <div class="orb"><div class="orb-ring"></div><div class="orb-ring b"></div><div class="logo big"><svg class="i"><use href="#i-shield"/></svg></div></div>
+      <h1 class="display">Qualcuno c'è.<br><span class="grad">Sempre.</span></h1>
+      <p class="lead">Tieni premuto un pulsante: le persone di cui ti fidi ricevono subito la tua posizione e due foto.</p>
+    </div>
+    <ul class="feat">
+      <li><i class="ic-dot red"><svg class="i"><use href="#i-alert"/></svg></i><div><b>Un gesto solo</b><span>Tieni premuto 1,5 secondi. Niente da scrivere.</span></div></li>
+      <li><i class="ic-dot blue"><svg class="i"><use href="#i-pin"/></svg></i><div><b>Posizione e foto</b><span>Fotocamera davanti e dietro, in automatico.</span></div></li>
+      <li><i class="ic-dot violet"><svg class="i"><use href="#i-people"/></svg></i><div><b>La tua cerchia</b><span>Partner, amici e gruppi fino a 8 persone.</span></div></li>
+    </ul>
+    <div class="foot">
+      <button class="btn" data-a="wel-start">Inizia</button>
+      <button class="btn link" data-a="wel-login">Ho già un account</button>
+    </div>
+  </section>
+
+  <!-- Accesso / registrazione -->
+  <section class="screen" id="s-auth">
+    <div class="topbar"><button class="iconbtn" data-a="auth-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button></div>
+    <div class="sc">
+      <h1 class="title" id="auth-title">Crea il tuo account</h1>
+      <p class="sub" id="auth-sub">Serve per collegarti alle persone della tua cerchia.</p>
+      <div class="seg" id="auth-seg"><button data-mode="up" class="on">Registrati</button><button data-mode="in">Accedi</button></div>
+      <label class="field"><span>Email</span><input id="email" type="email" inputmode="email" autocomplete="email" placeholder="nome@esempio.it"></label>
+      <label class="field"><span>Password</span><div class="pw"><input id="pwd" type="password" autocomplete="new-password" placeholder="Almeno 8 caratteri"><button type="button" class="iconbtn sm" data-a="pw-toggle" aria-label="Mostra password"><svg class="i"><use href="#i-eye"/></svg></button></div></label>
+      <button class="btn" id="auth-go" data-a="auth-go">Crea account</button>
+      <button class="btn link" id="auth-reset" data-a="auth-reset" hidden>Password dimenticata?</button>
+      <p class="fine">Continuando accetti l'informativa privacy. Vicina non sostituisce il 112.</p>
+    </div>
+  </section>
+
+  <!-- Configurazione guidata (profilo → permessi → prima persona) -->
+  <section class="screen" id="s-setup">
+    <div class="topbar"><button class="iconbtn" data-a="setup-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button><div class="progress"><i id="setup-bar"></i></div><span class="step-n" id="setup-n">1/3</span></div>
+    <div class="sc" id="setup-body"></div>
+    <div class="foot" id="setup-foot"></div>
+  </section>
+
+  <!-- Home / SOS -->
+  <section class="screen tabbed" id="s-home">
+    <header class="hh">
+      <div><p class="eyebrow" id="h-date"></p><h1 class="title" id="h-name">Ciao</h1></div>
+      <button class="avbtn" data-a="tab" data-tab="me" id="h-av" aria-label="Profilo"></button>
+    </header>
+    <button class="status" id="h-status" data-a="tab" data-tab="circle"></button>
+    <div class="stage" id="h-stage">
+      <div class="sos-wrap" id="sos-wrap">
+        <div class="halo"></div><div class="halo b"></div>
+        <svg class="ring" viewBox="0 0 260 260" aria-hidden="true"><circle cx="130" cy="130" r="122" class="ring-bg"/><circle id="prog" cx="130" cy="130" r="122" class="ring-fg"/></svg>
+        <button id="sos" aria-label="SOS: tieni premuto per inviare l'allarme"><span>SOS</span><small id="sos-hint">tieni premuto</small></button>
+      </div>
+      <p class="hint" id="h-hint">Posizione e foto arrivano a tutta la tua cerchia.</p>
+    </div>
+    <div class="quick">
+      <a class="qa" href="tel:112"><i class="ic-dot green"><svg class="i"><use href="#i-phone"/></svg></i><span>Chiama 112</span></a>
+      <button class="qa" data-a="add"><i class="ic-dot violet"><svg class="i"><use href="#i-plus"/></svg></i><span>Aggiungi persona</span></button>
+    </div>
+  </section>
+
+  <!-- SOS attivo (mio) -->
+  <section class="screen" id="s-active">
+    <div class="active-bg"></div>
+    <div class="sc center-col">
+      <div class="beacon"><i></i><i></i><i></i><svg class="i"><use href="#i-alert"/></svg></div>
+      <h1 class="title">SOS attivo</h1>
+      <p class="sub" id="a-since"></p>
+      <div class="card glass" id="a-info"></div>
+    </div>
+    <div class="foot">
+      <button class="btn green" data-a="safe">Sono al sicuro</button>
+      <div class="row2"><a class="btn ghost" href="tel:112"><svg class="i"><use href="#i-phone"/></svg>112</a><button class="btn ghost" data-a="active-chat"><svg class="i"><use href="#i-chat"/></svg>Chat</button></div>
+    </div>
+  </section>
+
+  <!-- Avvisi / chat -->
+  <section class="screen tabbed" id="s-chat">
+    <header class="hh"><h1 class="title">Avvisi</h1></header>
+    <div class="sc" id="c-list"></div>
+  </section>
+  <section class="screen" id="s-thread">
+    <div class="th"><button class="iconbtn" data-a="thread-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button><div id="t-av"></div><div class="fl"><b id="t-name"></b><span id="t-sub"></span></div></div>
+    <div id="msgs"></div>
+    <div class="cin"><input type="text" id="txt" placeholder="Scrivi un messaggio" maxlength="1000" enterkeyhint="send"><button class="sendb" data-a="send" aria-label="Invia"><svg class="i"><use href="#i-send"/></svg></button></div>
+  </section>
+
+  <!-- Cerchia -->
+  <section class="screen tabbed" id="s-circle">
+    <header class="hh"><h1 class="title">Cerchia</h1><button class="iconbtn solid" data-a="add" aria-label="Aggiungi"><svg class="i"><use href="#i-plus"/></svg></button></header>
+    <div class="sc" id="p-list"></div>
+  </section>
+
+  <!-- Profilo -->
+  <section class="screen tabbed" id="s-me">
+    <header class="hh"><h1 class="title">Profilo</h1></header>
+    <div class="sc" id="m-body"></div>
+  </section>
+
+  <nav id="nav" hidden>
+    <button data-a="tab" data-tab="home" class="sosb"><svg class="i"><use href="#i-shield"/></svg><span>SOS</span></button>
+    <button data-a="tab" data-tab="chat"><svg class="i"><use href="#i-chat"/></svg><span>Avvisi</span><b class="badge" id="badge" hidden></b></button>
+    <button data-a="tab" data-tab="circle"><svg class="i"><use href="#i-people"/></svg><span>Cerchia</span></button>
+    <button data-a="tab" data-tab="me"><svg class="i"><use href="#i-user"/></svg><span>Profilo</span></button>
+  </nav>
+
+  <!-- Invio SOS -->
+  <div class="overlay" id="ov-send">
+    <div class="sc center-col">
+      <div class="beacon small"><i></i><i></i><svg class="i"><use href="#i-send"/></svg></div>
+      <h1 class="title">Invio l'aiuto…</h1>
+      <p class="sub">Tieni l'app aperta, servono pochi secondi.</p>
+      <div class="steps">
+        <div class="step" id="st1"><i><svg class="i"><use href="#i-pin"/></svg></i><span>Posizione attuale</span></div>
+        <div class="step" id="st2"><i><svg class="i"><use href="#i-send"/></svg></i><span>Allarme alla cerchia</span></div>
+        <div class="step" id="st3"><i><svg class="i"><use href="#i-camera"/></svg></i><span>Foto posteriore</span></div>
+        <div class="step" id="st4"><i><svg class="i"><use href="#i-camera"/></svg></i><span>Foto frontale</span></div>
+      </div>
+    </div>
+    <div class="foot"><button class="btn ghost" id="send-cancel" data-a="send-cancel">Annulla</button></div>
+  </div>
+
+  <!-- SOS in arrivo -->
+  <div class="overlay alert" id="ov-in"></div>
+
+  <!-- Bottom sheet e dialoghi -->
+  <div class="scrim" id="scrim"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+  <div class="scrim center" id="dlg-scrim"><div class="dialog" id="dlg" role="alertdialog" aria-modal="true"></div></div>
+  <div class="flash" id="flash"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="demo-tag" id="demo-tag" hidden>DEMO</div>
+</div>
+<link rel="stylesheet" href="./src/style.css">
+<script type="module">import { boot } from "./src/app.js"; import { createDemoApi } from "./src/demo-api.js"; import { webNative } from "./src/native-web.js"; boot(createDemoApi(), webNative);</script>
+</body></html>
