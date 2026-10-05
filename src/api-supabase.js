@@ -11,11 +11,12 @@ export function createApi(env) {
     invalid_credentials: 'auth/invalid-credential', user_already_exists: 'auth/email-already-in-use', email_exists: 'auth/email-already-in-use',
     weak_password: 'auth/weak-password', email_address_invalid: 'auth/invalid-email', validation_failed: 'auth/invalid-email',
     over_email_send_rate_limit: 'auth/too-many-requests', over_request_rate_limit: 'auth/too-many-requests',
-    email_not_confirmed: 'auth/email-not-confirmed', otp_expired: 'auth/otp-expired', same_password: 'auth/same-password'
+    email_not_confirmed: 'auth/email-not-confirmed', otp_expired: 'auth/otp-expired', same_password: 'auth/same-password',
+    signup_disabled: 'auth/signup-disabled', email_provider_disabled: 'auth/email-provider-disabled', unexpected_failure: 'auth/db-error'
   };
   const offline = m => /fetch|network|Load failed/i.test(m || '');
   const aerr = e => Object.assign(new Error(e.message), {
-    code: AUTH[e.code] || (offline(e.message) ? 'auth/network-request-failed' : /Invalid login/i.test(e.message) ? 'auth/invalid-credential' : 'auth/' + (e.code || 'unknown'))
+    code: AUTH[e.code] || (offline(e.message) ? 'auth/network-request-failed' : /Invalid login/i.test(e.message) ? 'auth/invalid-credential' : /api key|apikey|No API key/i.test(e.message) ? 'auth/bad-key' : /Database error/i.test(e.message) ? 'auth/db-error' : 'auth/' + (e.code || 'unknown'))
   });
   const rerr = e => Object.assign(new Error(e.message || 'Errore'), {
     code: e.code === 'P0001' ? 'failed-precondition' : offline(e.message) ? 'unavailable' : e.code === '42501' ? 'permission-denied' : 'internal'
