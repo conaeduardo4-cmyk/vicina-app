@@ -56,8 +56,15 @@ jobs:
           # l'Android SDK è già installato sui server di GitHub: lo indichiamo a Gradle
           SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"; echo "Android SDK: $SDK"
           echo "sdk.dir=$SDK" > android/local.properties
-          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json; else echo "::warning::GOOGLE_SERVICES_JSON assente: notifiche push disattivate su Android."; fi
+          (yes 2>/dev/null | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1) || true
+          # GOOGLE_SERVICES_JSON: va bene sia il contenuto del file così com'è, sia in base64
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            F=android/app/google-services.json
+            if printf '%s' "$GOOGLE_SERVICES_JSON" | grep -q '^[[:space:]]*{'; then printf '%s' "$GOOGLE_SERVICES_JSON" > $F
+            else printf '%s' "$GOOGLE_SERVICES_JSON" | tr -d ' \r\n' | base64 -d > $F 2>/dev/null || true; fi
+            if node -e "const j=JSON.parse(require('fs').readFileSync('$F','utf8')); if(!j.project_info) throw 0" 2>/dev/null; then echo "google-services.json OK"
+            else echo "::warning::GOOGLE_SERVICES_JSON non valido (né JSON né base64 corretto): compilo senza notifiche push"; rm -f $F; fi
+          else echo "::warning::GOOGLE_SERVICES_JSON assente: notifiche push disattivate su Android."; fi
           npm run native
           npx capacitor-assets generate --android --iconBackgroundColor '#0B0B10' --iconBackgroundColorDark '#0B0B10' --splashBackgroundColor '#0B0B10' --splashBackgroundColorDark '#0B0B10' || echo "::warning::Icone non generate, uso quelle predefinite"
           npx cap sync android
@@ -101,8 +108,10 @@ jobs:
           npx cap add ios
           echo "::endgroup::"
           if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
-            echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/App/App/GoogleService-Info.plist
-            plutil -lint ios/App/App/GoogleService-Info.plist || { echo "::warning::GOOGLE_SERVICE_INFO_PLIST non valido: lo ignoro (push disattivate su iOS)"; rm -f ios/App/App/GoogleService-Info.plist; }
+            F=ios/App/App/GoogleService-Info.plist
+            if printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | grep -q '<plist\|<?xml'; then printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" > $F
+            else printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | tr -d ' \r\n' | base64 --decode > $F 2>/dev/null || true; fi
+            plutil -lint $F || { echo "::warning::GOOGLE_SERVICE_INFO_PLIST non valido: lo ignoro (push disattivate su iOS)"; rm -f ios/App/App/GoogleService-Info.plist; }
           else echo "::warning::GOOGLE_SERVICE_INFO_PLIST assente: notifiche push disattivate su iOS."; fi
           echo "::group::permessi e push"
           npm run native
