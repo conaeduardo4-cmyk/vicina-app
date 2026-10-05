@@ -256,3 +256,23 @@ nav button.sosb.on{color:#fff;background:linear-gradient(135deg,var(--red),var(-
 #s-active .sc{position:relative}
 .photos img:not([src]){opacity:0}
 .fl.wrap span{white-space:normal}
+
+/* ===== intro animata all'avvio + ingresso fluido dell'app ===== */
+#intro{position:fixed;inset:0;z-index:300;background:var(--bg);display:flex;align-items:center;justify-content:center}
+#intro video{width:100%;height:100%;object-fit:cover;display:block;background:var(--bg)}
+#intro .intro-skip{position:absolute;left:0;right:0;bottom:calc(22px + var(--sab));text-align:center;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:rgba(255,255,255,.4);opacity:0;animation:skipin .4s 1.2s ease forwards;pointer-events:none}
+@keyframes skipin{to{opacity:1}}
+#intro.out{opacity:0;transition:opacity .32s ease}
+#intro.out-fast{opacity:0;transition:opacity .18s ease}
+body.entering .screen.on>*{animation:appin .75s cubic-bezier(.2,.8,.2,1) both}
+body.entering .screen.on>*:nth-child(2){animation-delay:.06s}
+body.entering .screen.on>*:nth-child(3){animation-delay:.12s}
+body.entering .screen.on>*:nth-child(4){animation-delay:.18s}
+body.entering .screen.on>*:nth-child(5){animation-delay:.24s}
+body.entering #nav:not([hidden]){animation:navin .7s .2s cubic-bezier(.2,.8,.2,1) both}
+body.entering #s-home.on .sos-wrap{animation:sosin .9s .05s cubic-bezier(.2,1.35,.35,1) both}
+body.entering #s-home.on .stage{animation:none}
+@keyframes appin{from{opacity:0;transform:translateY(26px) scale(.985)}}
+@keyframes navin{from{opacity:0;transform:translateY(40px)}}
+@keyframes sosin{0%{opacity:0;transform:scale(.35) rotate(-25deg);filter:brightness(1.6)}60%{opacity:1}100%{transform:none;filter:none}}
+@media(prefers-reduced-motion:reduce){body.entering *{animation:none!important}}

@@ -48,6 +48,37 @@ export function boot(api, native) {
   };
   const unread = id => (st.threads[id] || []).filter(m => m.from !== st.uid && m.at > (seen[id] || 0)).length;
 
+  /* ================= intro animata a ogni avvio ================= */
+  // Verticale (9:16) su telefono, orizzontale (16:9) su tablet/PC. Muta per discrezione.
+  // Si salta toccando lo schermo, e da sola se arriva o è attivo un SOS: in emergenza non deve far perdere tempo.
+  const intro = (() => {
+    const box = $('#intro'), v = $('#intro-video');
+    let finished = false;
+    const done = fast => {
+      if (finished || !box) return; finished = true;
+      native.hideSplash();
+      try { v.pause(); } catch {}
+      box.classList.add(fast ? 'out-fast' : 'out');
+      document.body.classList.add('entering');
+      setTimeout(() => { box.remove(); document.body.classList.remove('entering'); }, 1300);
+    };
+    if (!box) { native.hideSplash(); return { done() {} }; }
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { box.remove(); native.hideSplash(); return { done() {} }; }
+    const base = 'intro/' + (window.innerHeight >= window.innerWidth ? 'intro-9x16' : 'intro-16x9');
+    v.innerHTML = `<source src="${base}.mp4" type="video/mp4"><source src="${base}.webm" type="video/webm">`;
+    v.lastElementChild.addEventListener('error', () => done(true));
+    v.addEventListener('error', () => done(true));
+    v.addEventListener('playing', () => native.hideSplash(), { once: true });
+    v.addEventListener('ended', () => done(false));
+    box.addEventListener('click', () => done(true));
+    v.load();
+    const pl = v.play(); if (pl && pl.catch) pl.catch(() => done(true));
+    setTimeout(() => { if (v.readyState < 2) done(true); }, 2500);   // non parte: si entra subito
+    setTimeout(() => done(false), 8000);                              // limite massimo
+    return { done };
+  })();
+
   /* ================= navigazione ================= */
   const TABS = { home: 's-home', chat: 's-chat', circle: 's-circle', me: 's-me' };
   function show(id) {
@@ -235,6 +266,7 @@ export function boot(api, native) {
     showIncoming(s);
   }
   function showIncoming(s) {
+    intro.done(true);
     const first = st.shownIn !== s.id; st.shownIn = s.id;
     const ov = $('#ov-in');
     ov.innerHTML = `<div class="topbar" style="justify-content:flex-end"><button class="iconbtn" data-a="in-close" aria-label="Chiudi">${I('x')}</button></div>
@@ -550,7 +582,7 @@ export function boot(api, native) {
       sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); checkIncoming(); rChats(); rBadge(); if (st.open) rThread(); },
       sosMine: list => {
         const was = !!st.sosMine; st.sosMine = list.filter(s => Date.now() - s.at < 12 * 36e5).sort((a, b) => b.at - a.at)[0] || null;
-        if (st.sosMine) { rActive(); if (!sending && ['s-home', 's-active'].some(s => $('#' + s).classList.contains('on'))) show('s-active'); }
+        if (st.sosMine) { intro.done(true); rActive(); if (!sending && ['s-home', 's-active'].some(s => $('#' + s).classList.contains('on'))) show('s-active'); }
         else if (was && $('#s-active').classList.contains('on')) tab('home');
       }
     });
@@ -574,6 +606,7 @@ export function boot(api, native) {
       await native.pushInit({
         onToken: tok => st.uid && api.saveToken(st.uid, tok).catch(() => {}),
         onTap: data => {
+          intro.done(true);
           if (!data) return;
           if (data.type === 'sos' && data.sosId) { st.dismissed.delete(data.sosId); const s = st.sosIn.find(x => x.id === data.sosId); if (s) showIncoming(s); }
           else if (data.chatId) setTimeout(() => openThread(data.chatId), 300);

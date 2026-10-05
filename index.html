@@ -33,6 +33,12 @@
 <symbol id="i-group" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><circle cx="5" cy="10" r="2.2"/><circle cx="19" cy="10" r="2.2"/><path d="M7 20c0-3 2.2-5 5-5s5 2 5 5M1.5 19c0-2 1.5-3.5 3.5-3.5M22.5 19c0-2-1.5-3.5-3.5-3.5"/></symbol>
 </defs></svg>
 
+<!-- Intro animata a ogni avvio (tocca per saltare) -->
+<div id="intro" aria-hidden="true">
+  <video id="intro-video" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>
+  <span class="intro-skip">Tocca per saltare</span>
+</div>
+
 <div id="app">
   <!-- Caricamento -->
   <section class="screen on" id="s-load"><div class="center"><div class="logo pulse"><svg class="i"><use href="#i-shield"/></svg></div></div></section>

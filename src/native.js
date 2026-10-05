@@ -5,6 +5,7 @@ import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import { Share } from '@capacitor/share';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { App } from '@capacitor/app';
+import { SplashScreen } from '@capacitor/splash-screen';
 import { webNative, snap, cameraPermission, cameraState } from './native-web.js';
 
 const isNative = Capacitor.isNativePlatform();
@@ -65,6 +66,9 @@ export const native = !isNative ? webNative : {
     const ms = Array.isArray(p) ? p.filter((_, i) => i % 2 === 0).reduce((a, b) => a + b, 0) : p;
     Haptics.vibrate({ duration: Math.min(ms || 300, 1500) }).catch(() => {});
   },
+
+  // Nasconde lo splash nativo appena parte l'intro animata (passaggio senza stacchi)
+  hideSplash() { SplashScreen.hide({ fadeOutDuration: 120 }).catch(() => {}); },
 
   // Tasto "indietro" di Android: se l'app non lo gestisce, la manda in background (non la chiude).
   onBack(cb) { App.addListener('backButton', () => { if (!cb()) App.minimizeApp(); }); },

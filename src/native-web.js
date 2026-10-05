@@ -55,5 +55,6 @@ export const webNative = {
   haptic() { try { navigator.vibrate?.(15); } catch {} },
   vibrate(p) { try { navigator.vibrate?.(p); } catch {} },
   onBack() {},
+  hideSplash() {},
   snap
 };
