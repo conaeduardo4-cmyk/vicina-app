@@ -24,7 +24,7 @@ export function boot(api, native) {
     if (/failed-precondition|unauthenticated|permission|not-found|invalid-argument|resource-exhausted/.test(c) && e.message) return e.message;
     return e?.message && !/internal/i.test(e.message) ? e.message : 'Qualcosa non ha funzionato. Riprova.';
   };
-  const AE = { 'auth/invalid-credential': 'Email o password non corrette', 'auth/wrong-password': 'Email o password non corrette', 'auth/user-not-found': 'Email o password non corrette', 'auth/email-already-in-use': 'Esiste già un account con questa email: accedi', 'auth/weak-password': 'Password troppo debole (minimo 8 caratteri)', 'auth/invalid-email': 'Email non valida', 'auth/network-request-failed': 'Sei offline. Controlla la connessione.', 'auth/too-many-requests': 'Troppi tentativi, riprova tra qualche minuto', 'auth/email-not-confirmed': 'Conferma prima la tua email: controlla la posta (anche lo spam)', 'auth/otp-expired': 'Codice non valido o scaduto', 'auth/same-password': 'Scegli una password diversa da quella vecchia' };
+  const AE = { 'auth/invalid-credential': 'Email o password non corrette', 'auth/wrong-password': 'Email o password non corrette', 'auth/user-not-found': 'Email o password non corrette', 'auth/email-already-in-use': 'Esiste già un account con questa email: accedi', 'auth/weak-password': 'Password troppo debole (minimo 8 caratteri)', 'auth/invalid-email': 'Email non valida', 'auth/network-request-failed': 'Sei offline. Controlla la connessione.', 'auth/too-many-requests': 'Troppi tentativi, riprova tra qualche minuto', 'auth/email-not-confirmed': 'Conferma prima la tua email: controlla la posta (anche lo spam)', 'auth/otp-expired': 'Codice non valido o scaduto', 'auth/same-password': 'Scegli una password diversa da quella vecchia', 'auth/signup-disabled': 'Le registrazioni sono disattivate sul server (Supabase → Authentication → abilita "Allow new users to sign up")', 'auth/email-provider-disabled': 'Accesso con email disattivato sul server (Supabase → Authentication → Providers → Email)', 'auth/bad-key': 'Chiave Supabase non valida: controlla i secrets VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY su GitHub', 'auth/db-error': 'Errore del database durante la registrazione: riesegui installa.sql su Supabase' };
   async function busy(btn, fn) { if (btn) btn.classList.add('busy'); try { return await fn(); } finally { if (btn) btn.classList.remove('busy'); } }
 
   /* ================= stato ================= */
@@ -88,7 +88,7 @@ export function boot(api, native) {
           if (r?.needsConfirm) { authMode('in'); toast('Ti abbiamo inviato un\'email: conferma l\'indirizzo e poi accedi'); }
         } else await api.signIn(em, pw);
       }
-      catch (e) { toast(AE[e.code] || 'Accesso non riuscito'); }
+      catch (e) { console.warn('auth', e); toast(AE[e.code] || ('Accesso non riuscito: ' + (e.message || e.code || 'errore sconosciuto'))); }
     });
   }
 
@@ -432,7 +432,7 @@ export function boot(api, native) {
         case 'auth-reset': {
           const em = $('#email').value.trim(); if (!em) return toast('Scrivi prima la tua email');
           await busy(t, async () => {
-            try { await api.resetPassword(em); sheetReset(em); } catch (x) { toast(AE[x.code] || 'Invio non riuscito'); }
+            try { await api.resetPassword(em); sheetReset(em); } catch (x) { toast(AE[x.code] || ('Invio non riuscito: ' + (x.message || x.code))); }
           });
           break;
         }
