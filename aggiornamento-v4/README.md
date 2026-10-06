@@ -217,4 +217,22 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 3. Le app installate finora sono firmate con una chiave diversa (quella "debug" cambia a ogni build). Quindi **una sola volta** bisogna
    **disinstallare** Vicina e installare la prima versione firmata. Da lì in poi gli aggiornamenti arrivano da soli.
 
+**File da caricare su GitHub** (oltre a `src/`): `vite.config.js` nella cartella principale, `scripts/android/ApkUpdaterPlugin.java`, `scripts/patch-native.mjs` e il nuovo `.github/workflows/build-app.yml` (in questa cartella si trova in `workflow-github/`). Se il workflow resta quello vecchio l'APK non viene firmato e non viene pubblicato `version.json`.
+
 **Requisiti**: il repository deve essere **pubblico**. Le Release di un repository privato non si scaricano senza login, quindi l'app non le vede.
+
+## Termini d'uso
+- Testo in `src/terms.js`. **Prima di pubblicare** completa `[NOME E COGNOME O RAGIONE SOCIALE DEL TITOLARE]` e `[EMAIL DI CONTATTO]`
+  (e, se ce l'hai, `PRIVACY_URL` con il link all'informativa privacy) e fai controllare il testo da un avvocato.
+- Alla creazione di ogni account compare la schermata **"Prima di iniziare"** con i punti chiave e due caselle obbligatorie
+  (accettazione + approvazione specifica delle clausole ex artt. 1341–1342 c.c.). Senza accettare non si entra nell'app.
+- Se cambi i termini in modo importante aumenta `TERMS_VERSION`: a tutti verrà chiesto di accettarli di nuovo.
+- L'accettazione (versione e data) viene salvata nel profilo sul server: esegui `supabase/aggiornamento-termini.sql` nel SQL Editor.
+- Il testo completo si legge sempre da **Impostazioni → Aiuto → Termini d'uso e limiti** e dalla schermata di registrazione.
+
+## Nuovo stile "C morbido" e aggiornamenti su iPhone
+- Interfaccia: fondo nero, rosso pieno, angoli arrotondati; Home con scheda "Sei protetta", pulsanti 112 / Chiedi all'AI / +, grande scheda SOS con barra di avanzamento; nuova schermata "SOS attivo"; barra in basso con 5 voci.
+- **iPhone**: quando c'è un aggiornamento l'app scarica il file **.ipa non firmato** della release e lo salva in **File › Sul mio iPhone › Vicina › Aggiornamenti**; con «Apri con…» lo passi a SideStore/AltStore (o lo trasferisci su computer per Sideloadly). L'installazione la fa l'utente.
+  Serve una build con **iOS** (scegli "ios" o "entrambe" in Compila app): se l'ultima build è solo Android, gli iPhone continuano a vedere l'ultimo IPA pubblicato.
+- **Android**: invariato, aggiornamento con un tocco dentro l'app.
+- Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).

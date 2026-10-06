@@ -83,6 +83,8 @@ if (fs.existsSync(plist)) {
     NSLocationAlwaysAndWhenInUseUsageDescription: '<string>Durante un SOS Vicina aggiorna la tua posizione, anche a schermo spento, finché non tocchi «Sono al sicuro», così la tua cerchia può raggiungerti.</string>',
     UIBackgroundModes: '<array>\n\t\t<string>remote-notification</string>\n\t\t<string>location</string>\n\t</array>',
     ITSAppUsesNonExemptEncryption: '<false/>',
+    UIFileSharingEnabled: '<true/>',                  // la cartella di Vicina compare nell'app File (aggiornamenti .ipa)
+    LSSupportsOpeningDocumentsInPlace: '<true/>',
     UIUserInterfaceStyle: '<string>Dark</string>'
   };
   for (const [k, v] of Object.entries(add))

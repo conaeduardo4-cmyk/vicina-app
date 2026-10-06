@@ -212,13 +212,20 @@ jobs:
           IPA=$(cd files && ls *-unsigned.ipa 2>/dev/null | head -1 || true)
           [ -z "$NOTE" ] && NOTE="$(git log -1 --pretty=%s)"
           PAGE="${SITE_URL:-https://github.com/$GITHUB_REPOSITORY/releases/latest}"
+          # versione iOS precedente: se questa build non ha l'IPA, gli iPhone restano sull'ultimo IPA pubblicato
+          curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/version.json" -o prev.json 2>/dev/null || echo '{}' > prev.json
           python3 - "$APP_VERSION" "${{ github.run_number }}" "$APK" "$SHA" "$PAGE" "${IPA:+$BASE/$IPA}" <<'PY'
           import json, sys, os, datetime
           v, code, apk, sha, page, ipa = sys.argv[1:7]
+          try: prev = json.load(open("prev.json")).get("ios") or {}
+          except Exception: prev = {}
+          note = os.environ.get("NOTE", "")[:2000]
+          ios = {"ipa": ipa, "version": v, "code": int(code), "notes": note, "page": page} if ipa else \
+                {"ipa": prev.get("ipa"), "version": prev.get("version"), "code": prev.get("code", 0), "notes": prev.get("notes", ""), "page": page}
           d = {"version": v, "code": int(code), "date": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-               "notes": os.environ.get("NOTE", "")[:2000], "page": page,
+               "notes": note, "page": page,
                "android": {"apk": apk or None, "sha256": sha or None},
-               "ios": {"ipa": ipa or None, "page": page}}
+               "ios": ios}
           json.dump(d, open("files/version.json", "w"), ensure_ascii=False, indent=2)
           print(json.dumps(d, ensure_ascii=False, indent=2))
           PY

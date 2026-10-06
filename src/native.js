@@ -7,6 +7,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { AppLauncher } from '@capacitor/app-launcher';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { webNative, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
 
 // Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
@@ -115,6 +116,21 @@ export const native = !isNative ? webNative : {
     },
     async canInstall() { try { return (await ApkUpdater.info()).canInstall !== false; } catch { return true; } },
     openInstallSettings: () => ApkUpdater.openInstallSettings(),
+    // iPhone: scarica l'IPA nella cartella Documenti dell'app (visibile in File › Sul mio iPhone › Vicina)
+    async saveIpa(url, name, onProgress) {
+      const path = 'Aggiornamenti/' + name.replace(/[^\w.-]/g, '_');
+      let h = null;
+      try { h = await Filesystem.addListener('progress', e => { if (e?.contentLength) onProgress?.(e.bytes * 100 / e.contentLength); }); } catch {}
+      try {
+        try { await Filesystem.deleteFile({ path, directory: Directory.Documents }); } catch {}
+        await Filesystem.downloadFile({ url, path, directory: Directory.Documents, recursive: true, progress: true });
+        const { uri } = await Filesystem.getUri({ path, directory: Directory.Documents });
+        onProgress?.(100);
+        return { uri, path };
+      } finally { try { h?.remove(); } catch {} }
+    },
+    // foglio di condivisione di iOS: «Salva su File», SideStore, AltStore…
+    async shareFile(uri, title) { await Share.share({ title, files: [uri], dialogTitle: title }); },
     async install(url, onProgress) {
       const h = await ApkUpdater.addListener('progress', e => onProgress?.(e.percent));
       try { await ApkUpdater.downloadAndInstall({ url }); } finally { h.remove(); }
