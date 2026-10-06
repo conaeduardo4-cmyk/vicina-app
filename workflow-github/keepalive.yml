@@ -1,0 +1,21 @@
+# Il piano gratuito di Supabase mette in pausa i progetti senza attività per 7 giorni.
+# Questo controllo giornaliero (gratuito) lo tiene sveglio. Secrets: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY.
+name: Tieni attivo Supabase
+
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ]; then echo "Secrets non impostati, salto."; exit 0; fi
+          curl -fsS -X POST "$URL/rest/v1/rpc/ping" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}'

@@ -1,0 +1,35 @@
+{
+  "appId": "it.vicina.app",
+  "appName": "Vicina",
+  "webDir": "dist",
+  "backgroundColor": "#0B0B10",
+  "android": {
+    "backgroundColor": "#0B0B10",
+    "useLegacyBridge": true
+  },
+  "ios": {
+    "backgroundColor": "#0B0B10",
+    "contentInset": "never"
+  },
+  "plugins": {
+    "FirebaseMessaging": {
+      "presentationOptions": [
+        "alert",
+        "sound",
+        "badge"
+      ]
+    },
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "launchShowDuration": 3000,
+      "backgroundColor": "#0B0B10",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0B0B10",
+      "overlaysWebView": false
+    }
+  }
+}

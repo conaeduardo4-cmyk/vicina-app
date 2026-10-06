@@ -1,0 +1,53 @@
+# Pubblica il server su Supabase (gratis): schema del database + Edge Function per le notifiche push.
+# Secrets necessari: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, SUPABASE_DB_URL,
+#                    VITE_SUPABASE_URL, VICINA_PUSH_SECRET, FCM_SERVICE_ACCOUNT (facoltativo: senza, niente push)
+name: Pubblica server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      URL: ${{ secrets.VITE_SUPABASE_URL }}
+      PUSH_SECRET: ${{ secrets.VICINA_PUSH_SECRET }}
+      FCM_SA: ${{ secrets.FCM_SERVICE_ACCOUNT }}
+      GEMINI: ${{ secrets.GEMINI_API_KEY }}
+      GROQ: ${{ secrets.GROQ_API_KEY }}
+      OPENROUTER: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Controllo secrets
+        run: |
+          for k in SUPABASE_ACCESS_TOKEN REF DB_URL URL PUSH_SECRET; do
+            if [ -z "${!k}" ]; then echo "::error::Manca il secret per $k (vedi README)"; exit 1; fi
+          done
+      - name: Database (schema, sicurezza, funzioni, pulizia automatica)
+        run: |
+          sudo apt-get install -y -qq postgresql-client >/dev/null
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f supabase/schema.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "select private.configure('$URL', '$PUSH_SECRET');"
+      - name: Edge Function "vicina" (notifiche push)
+        run: |
+          supabase functions deploy vicina --project-ref "$REF" --no-verify-jwt
+          if [ -n "$FCM_SA" ]; then
+            supabase secrets set --project-ref "$REF" VICINA_PUSH_SECRET="$PUSH_SECRET" FCM_SERVICE_ACCOUNT="$FCM_SA"
+          else
+            supabase secrets set --project-ref "$REF" VICINA_PUSH_SECRET="$PUSH_SECRET"
+            echo "::warning::FCM_SERVICE_ACCOUNT assente: le notifiche push non verranno inviate."
+          fi
+      - name: Edge Function "assistente" (IA gratuita con riserve)
+        run: |
+          supabase functions deploy assistente --project-ref "$REF" --no-verify-jwt
+          if [ -n "$GROQ" ]; then supabase secrets set --project-ref "$REF" GROQ_API_KEY="$GROQ"; fi
+          if [ -n "$GEMINI" ]; then supabase secrets set --project-ref "$REF" GEMINI_API_KEY="$GEMINI"; fi
+          if [ -n "$OPENROUTER" ]; then supabase secrets set --project-ref "$REF" OPENROUTER_API_KEY="$OPENROUTER"; fi
+          if [ -z "$GROQ$GEMINI$OPENROUTER" ]; then echo "::warning::Nessuna chiave IA (GROQ_API_KEY, GEMINI_API_KEY o OPENROUTER_API_KEY): l'assistente userà solo la guida integrata."; fi
+          sleep 5
+          echo "Verifica assistente:"; curl -s "$URL/functions/v1/assistente?diag=1" || true
