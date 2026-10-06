@@ -10,9 +10,9 @@ const man = 'android/app/src/main/AndroidManifest.xml';
 if (fs.existsSync(man)) {
   console.log('Android');
   let s = read(man);
-  for (const p of ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_LOCATION', 'WAKE_LOCK', 'REQUEST_INSTALL_PACKAGES'])
+  for (const p of ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_LOCATION', 'WAKE_LOCK', 'REQUEST_INSTALL_PACKAGES', 'SEND_SMS'])
     if (!s.includes(`android.permission.${p}"`)) s = s.replace('</manifest>', `    <uses-permission android:name="android.permission.${p}" />\n</manifest>`);
-  for (const f of ['android.hardware.camera', 'android.hardware.location.gps'])
+  for (const f of ['android.hardware.camera', 'android.hardware.location.gps', 'android.hardware.telephony'])
     if (!s.includes(`"${f}"`)) s = s.replace('</manifest>', `    <uses-feature android:name="${f}" android:required="false" />\n</manifest>`);
   if (!s.includes('default_notification_channel_id'))
     s = s.replace(/(<application[^>]*>)/, `$1\n        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="messages" />`);
@@ -48,6 +48,13 @@ if (fs.existsSync(man)) {
       fs.writeFileSync(mainAct, m);
     }
     log(m.includes('ApkUpdaterPlugin') ? 'aggiornamenti automatici (plugin ApkUpdater)' : 'ATTENZIONE: plugin aggiornamenti non registrato in MainActivity');
+    // SMS automatici ai contatti senza app
+    fs.writeFileSync(dir + '/SosSmsPlugin.java', read('scripts/android/SosSmsPlugin.java').replace('__PACKAGE__', pkg));
+    if (!m.includes('SosSmsPlugin') && m.includes('registerPlugin(ApkUpdaterPlugin.class);')) {
+      m = m.replace('registerPlugin(ApkUpdaterPlugin.class);', 'registerPlugin(ApkUpdaterPlugin.class);\n        registerPlugin(SosSmsPlugin.class);');
+      fs.writeFileSync(mainAct, m);
+    }
+    log(m.includes('SosSmsPlugin') ? 'SMS automatici ai contatti senza app (plugin SosSms)' : 'ATTENZIONE: plugin SMS non registrato in MainActivity');
   }
   const fp = 'android/app/src/main/res/xml/file_paths.xml';
   if (fs.existsSync(fp)) {

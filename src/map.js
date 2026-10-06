@@ -15,16 +15,20 @@ async function pickStyle() {
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export async function createMap(el, { onPick, interactive = true } = {}) {
+export async function createMap(el, { onPick, interactive = true, center = null } = {}) {
   const style = await pickStyle();
   if (!style) throw Object.assign(new Error('Mappa non raggiungibile: controlla la connessione.'), { code: 'offline' });
   const map = new maplibregl.Map({
-    container: el, style, center: [12.5, 42.5], zoom: 4.6,
+    container: el, style, center: center ? [center.lng, center.lat] : [12.5, 42.5], zoom: center ? 13.5 : 4.6,
     attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false, cooperativeGestures: false, interactive
   });
   if (interactive) map.touchZoomRotate.disableRotation();
   const ready = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+  // se il riquadro cambia misura (o compare dopo essere stato nascosto) la mappa si ridisegna da sola
+  let ro = null;
+  try { ro = new ResizeObserver(() => { if (el.clientWidth && el.clientHeight) map.resize(); }); ro.observe(el); } catch { /* browser vecchio */ }
   await ready;
+  map.resize();
 
   map.addSource('tracks', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'tracks-glow', type: 'line', source: 'tracks', paint: { 'line-color': '#FF3B4E', 'line-width': 9, 'line-opacity': 0.18 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
@@ -93,6 +97,6 @@ export async function createMap(el, { onPick, interactive = true } = {}) {
     showAll(people, me) { focusId = null; fitted = false; fitAll(people, me); },
     center(lat, lng) { focusId = null; map.flyTo({ center: [lng, lat], zoom: 15.5, duration: 700 }); },
     resize() { map.resize(); },
-    destroy() { map.remove(); }
+    destroy() { try { ro?.disconnect(); } catch {} map.remove(); }
   };
 }

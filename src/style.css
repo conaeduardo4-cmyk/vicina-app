@@ -875,3 +875,53 @@ nav button .i{width:19px;height:19px}
 #s-home #sos{flex:none;width:100%;height:112px}
 #s-home .stage.sos-wrap{flex-direction:column}
 .sos-n{display:none}
+
+/* ===== v7 · Home più ariosa, info spostate in Cerchia, contatti SMS ===== */
+#s-home{gap:14px;padding-left:16px;padding-right:16px}
+#s-home .home-h{padding:18px 2px 2px}
+#s-home .title{font-size:26px;letter-spacing:-.03em}
+#s-home #sos{height:104px;border-radius:26px}
+.sos-text>b{font-size:18px}
+.tiles{gap:12px}
+.tile{flex-direction:column;align-items:flex-start;justify-content:space-between;height:92px;padding:14px;border-radius:22px}
+.tile b{font-size:14.5px}
+.t-ic{width:32px;height:32px;border-radius:11px}
+.tile-badge{top:12px;right:12px}
+.map-widget{min-height:150px;border-radius:24px}
+.mw-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;color:var(--sub);z-index:1;pointer-events:none}
+.mw-empty .i{width:15px;height:15px;color:var(--blue)}
+.mw-state{left:12px;bottom:12px}
+.mw-open{right:12px;bottom:12px;padding:0;width:32px;height:32px;justify-content:center}
+.mw-open .i{width:15px;height:15px}
+
+/* Cerchia: stato e come funziona */
+.c-status{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:20px;background:var(--greenbg);border:1px solid rgba(61,220,132,.28)}
+.c-status.warn{background:var(--amberbg);border-color:rgba(255,181,71,.3)}
+.c-status b{display:block;font-size:14.5px}
+.c-status span{display:block;font-size:12.5px;color:var(--sub);margin-top:1px}
+.c-status .st-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(61,220,132,.18);flex:none}
+.c-status .st-dot.warn{background:var(--amber);box-shadow:0 0 0 4px rgba(255,181,71,.18)}
+.c-how{display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap}
+.c-how span{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:99px;background:var(--s1);border:1px solid var(--line);font-size:11.5px;color:var(--sub);font-weight:600}
+.c-how .i{width:13px;height:13px;color:var(--ink)}
+.empty.sm{padding:22px 16px;border-radius:20px;background:var(--s1);border:1px dashed var(--line2);margin-top:10px}
+.empty.sm .ic-dot{width:44px;height:44px;border-radius:15px;margin-bottom:10px}.empty.sm .ic-dot .i{width:20px;height:20px}
+.empty.sm b{font-size:15px}.empty.sm .btn{margin-top:12px}
+
+/* contatti senza app (SMS) */
+.sms-row{gap:10px}
+.sms-who{flex:1;display:flex;align-items:center;gap:12px;min-width:0;text-align:left;color:inherit}
+.sms-who .fl span{font-variant-numeric:tabular-nums}
+.toggle-row{margin:6px 0 14px;padding:12px;border-radius:16px;background:var(--s1);border:1px solid var(--line)}
+.btn.danger{color:var(--red2)}
+.sheet .btn+.btn{margin-top:8px}
+.sms-btns{padding:4px 0 10px;gap:8px}
+.ic-dot.green{background:var(--greenbg);color:var(--green)}
+
+/* invio SOS: passaggio «premi Invia» */
+.overlay.send .step.wait{opacity:1;transform:none;border-color:rgba(255,181,71,.45);color:var(--ink)}
+.step.wait .st-ic{background:var(--amberbg);color:var(--amber)}
+.step.wait .st-state::before{content:'premi Invia';color:var(--amber)}
+.c-status .fl span,.row.add .fl span{white-space:normal;overflow:visible;text-overflow:clip}
+.row.add .fl b{color:var(--ink)}
+.sos-text{justify-content:center}

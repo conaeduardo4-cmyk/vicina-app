@@ -61,6 +61,12 @@ export const mapsLinks = (lat, lng, name, nav, platform) => {
   return { app: nav ? `google.navigation:q=${ll}&mode=w` : `geo:${ll}?q=${ll}(${q})`, web: nav ? `https://www.google.com/maps/dir/?api=1&destination=${ll}&travelmode=walking` : `https://www.google.com/maps/search/?api=1&query=${ll}` };
 };
 
+// Link per aprire l'app Messaggi già compilata (destinatari + testo). iPhone vuole un formato diverso per più numeri.
+export const smsUrl = (nums, body, apple) => apple
+  ? `sms://open?addresses=${nums.join(',')}&body=${encodeURIComponent(body)}`
+  : `sms:${nums.join(',')}?body=${encodeURIComponent(body)}`;
+const dataUrlToFile = (d, name) => { const [h, b] = d.split(','), bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new File([u], name, { type: (h.match(/:(.*?);/) || [])[1] || 'image/jpeg' }); };
+
 export const webNative = {
   isNative: false, platform: 'web',
   async openMaps(lat, lng, name, nav) { window.open(mapsLinks(lat, lng, name, nav, 'web').web, '_blank', 'noopener'); },
@@ -110,6 +116,19 @@ export const webNative = {
     if (!navigator.geolocation) return () => {};
     const id = navigator.geolocation.watchPosition(p => cb({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }), () => {}, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
     return () => navigator.geolocation.clearWatch(id);
+  },
+  // SMS ai contatti senza app. Nel browser non si possono inviare da soli: si apre l'app Messaggi.
+  sms: {
+    auto: false,
+    async state() { return 'unavailable'; },
+    async request() { return 'unavailable'; },
+    async send() { throw new Error('Invio automatico non disponibile'); }
+  },
+  async composeSms(nums, body) { location.href = smsUrl(nums, body, /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)); },
+  async shareImages(imgs, text) {
+    const files = imgs.map((d, i) => dataUrlToFile(d, `sos-${i + 1}.jpg`));
+    if (navigator.canShare?.({ files })) { try { await navigator.share({ files, text }); return true; } catch (e) { return e?.name !== 'AbortError' ? false : true; } }
+    return false;
   },
   startRecording,
   snap

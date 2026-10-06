@@ -172,8 +172,8 @@ export function createApi(env) {
       const [fn, args] = m(data);
       return ok(await sb.rpc(fn, args));
     },
-    async photoUrl(p) {
-      const { data, error } = await sb.storage.from('sos').createSignedUrl(p.replace(/^sos\//, ''), 3600);
+    async photoUrl(p, secs = 3600) {
+      const { data, error } = await sb.storage.from('sos').createSignedUrl(p.replace(/^sos\//, ''), secs);
       if (error) throw rerr(error); return data.signedUrl;
     },
     async uploadAudio(p, blob, mime) {

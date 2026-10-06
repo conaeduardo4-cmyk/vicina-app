@@ -237,6 +237,20 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 - **Android**: invariato, aggiornamento con un tocco dentro l'app.
 - Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).
 
+## Contatti senza app (SMS)
+
+In **Cerchia → Senza app · via SMS → Aggiungi contatto** inserisci nome e numero e lascia attiva la spunta «Avvisa ad SOS».
+Quando parte un SOS il contatto riceve un SMS con: messaggio di soccorso, link alla posizione (Google Maps, si apre anche su iPhone),
+link alle 2 foto (validi 7 giorni) e il tuo numero.
+
+- **Android**: l'SMS parte da solo (plugin nativo `scripts/android/SosSmsPlugin.java`, permesso «SMS» chiesto la prima volta).
+  Il primo SMS con la posizione parte subito, il secondo con le foto appena sono caricate. Se il permesso è negato si apre Messaggi.
+- **iPhone**: Apple non permette a nessuna app di inviare SMS da sola: si apre Messaggi già compilato con destinatari e testo, basta premere **Invia**.
+- Dalla schermata «SOS attivo»: **Rimanda SMS** (posizione aggiornata) e **Invia le foto** (le foto vere, tramite il foglio di condivisione).
+- I contatti SMS sono salvati sul telefono (non servono modifiche al database). Gli SMS costano come normali messaggi del piano.
+
+File da caricare su GitHub per questa funzione: `scripts/android/SosSmsPlugin.java`, `scripts/patch-native.mjs`, `src/native.js`, `src/native-web.js`, `src/api-supabase.js`, `src/app.js`, `src/style.css`, `src/map.js`, `index.html`.
+
 ## Regole dei file (solo se compare l'avviso "Regole dei file non aggiornate")
 Su alcuni progetti Supabase il database non può modificare le regole dello spazio file: in quel caso la pubblicazione **non si blocca più**,
 ma le regole vanno create una volta a mano. Supabase → **Storage → Policies** → bucket **sos** → **New policy → For full customization**:

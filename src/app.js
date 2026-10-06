@@ -60,6 +60,23 @@ export function boot(api, native) {
     groups().forEach(g => g.on && g.members.forEach(m => m.uid !== st.uid && s.add(m.uid)));
     return s;
   };
+  /* contatti senza app: avvisati via SMS. Restano salvati su questo telefono (servono anche senza internet). */
+  const smsKey = () => 'smsContacts:' + st.uid;
+  const smsList = () => { try { return JSON.parse(ls.get(smsKey()) || '[]'); } catch { return []; } };
+  const smsSave = l => ls.set(smsKey(), JSON.stringify(l));
+  const smsOn = () => smsList().filter(c => c.on && c.phone);
+  const normPhone = v => { let x = String(v || '').replace(/[^\d+]/g, ''); if (x.startsWith('00')) x = '+' + x.slice(2); if (/^3\d{8,9}$/.test(x)) x = '+39' + x; return x; };
+  const canSos = () => recipients().size > 0 || smsOn().length > 0;
+  const mapsLink = p => `https://maps.google.com/?q=${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+  function smsText(pos, links) {
+    const me = `${st.p?.name || ''} ${st.p?.surname || ''}`.trim() || 'Una persona';
+    const L = [`SOS da ${me}: ha bisogno di aiuto. Ti ha scelto come contatto di emergenza (app Vicina).`];
+    L.push(pos ? `Posizione alle ${hhmm(Date.now())} (±${Math.max(5, Math.round(pos.acc || 0))} m): ${mapsLink(pos)}` : 'Posizione non disponibile.');
+    if (links?.length) L.push('Foto: ' + links.join(' '));
+    if (st.p?.phone) L.push('Chiama: ' + st.p.phone);
+    L.push('Se non risponde chiama il 112.');
+    return L.join('\n');
+  }
   const unread = id => (st.threads[id] || []).filter(m => m.from !== st.uid && m.at > (seen[id] || 0)).length;
 
   /* ================= intro animata a ogni avvio ================= */
@@ -114,6 +131,7 @@ export function boot(api, native) {
     if (t === 'home' && st.sosMine) { rActive(); return show('s-active', how); }
     show(TABS[t], how); render();
     if (t === 'map') openMapTab(); else closeMapTab();
+    if (t === 'home') setTimeout(() => homeApi?.resize(), 80);
   }
   const render = () => { rHome(); rChats(); rCircle(); rMe(); rBadge(); if (st.sosMine) rActive(); };
 
@@ -188,70 +206,101 @@ export function boot(api, native) {
   /* ================= home ================= */
   function rHome() {
     if (!st.p) return;
-    const d = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
-    $('#h-date').textContent = d; $('#h-name').textContent = 'Ciao, ' + st.p.name + '.';
+    $('#h-name').textContent = 'Ciao, ' + st.p.name;
     $('#h-av').innerHTML = AV(st.p.name + ' ' + st.p.surname);
-    const r = recipients(), n = r.size, people = convs().filter(c => c.k !== 'g' || c.on);
-    const s = $('#h-status');
-    s.classList.toggle('warn', !n);
-    const nn = String(n).padStart(2, '0');
-    s.innerHTML = n
-      ? `<span class="st-top"><i class="st-dot"></i><b>Sei ${G().prot}</b><span>La tua cerchia</span>${I('chev', 'chev')}</span>
-         <span class="st-grid"><span><b>${nn}</b><small>${n === 1 ? 'PERSONA' : 'PERSONE'}</small></span><span><b class="ok">ON</b><small>GPS + FOTO</small></span><span><b>1,5s</b><small>ALLARME</small></span></span>`
-      : `<span class="st-top"><i class="st-dot warn"></i><b>Nessuno da avvisare</b><span>Aggiungi</span>${I('chev', 'chev')}</span>
-         <span class="st-msg">Aggiungi ${G().amico}, il partner o un gruppo: è a loro che arriva il tuo SOS.</span>`;
-    $('#sos-n').textContent = n ? `→ ${n} ${n === 1 ? 'persona' : 'persone'}` : '';
-    $('#sos-n').hidden = !n;
+    const n = recipients().size + smsOn().length;
+    $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
     $('#sos-wrap').classList.toggle('off', !n);
-    $('#sos-hint').textContent = n ? 'tieni premuto' : 'nessun contatto';
-    $('#h-hint').textContent = n ? 'Posizione live, 2 foto e un vocale, se vuoi.' : 'Prima aggiungi almeno una persona di cui ti fidi.';
+    $('#sos-hint').textContent = n ? 'Tieni premuto' : 'Aggiungi qualcuno';
+    homeMap();
   }
 
   /* ================= SOS: pressione prolungata ================= */
   const HOLD = 1500; let raf, t0 = 0, holding = false, sending = false;
   const sos = $('#sos'), prog = $('#prog');
-  const resetHold = () => { holding = false; cancelAnimationFrame(raf); sos.classList.remove('hold'); prog.style.transition = 'width .25s'; prog.style.width = '0%'; $('#sos-hint').textContent = recipients().size ? 'tieni premuto' : 'nessun contatto'; };
+  const resetHold = () => { holding = false; cancelAnimationFrame(raf); sos.classList.remove('hold'); prog.style.transition = 'width .25s'; prog.style.width = '0%'; $('#sos-hint').textContent = canSos() ? 'Tieni premuto' : 'Aggiungi qualcuno'; };
   function holdLoop() {
     const p = Math.min((performance.now() - t0) / HOLD, 1); prog.style.width = (p * 100) + '%';
-    if (p > 0.05) $('#sos-hint').textContent = 'continua…';
+    if (p > 0.05) $('#sos-hint').textContent = 'Continua…';
     if (p >= 1) { resetHold(); native.haptic('heavy'); trigger(); } else raf = requestAnimationFrame(holdLoop);
   }
   sos.addEventListener('pointerdown', e => {
     if (sending) return; e.preventDefault();
-    if (!recipients().size) { toast('Prima aggiungi qualcuno da avvisare'); return sheetAdd(); }
+    if (!canSos()) { toast('Prima aggiungi qualcuno da avvisare'); return sheetAdd(); }
     holding = true; native.haptic('light'); sos.classList.add('hold'); prog.style.transition = 'none'; t0 = performance.now(); raf = requestAnimationFrame(holdLoop);
   });
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(v => sos.addEventListener(v, () => holding && resetHold()));
   sos.addEventListener('contextmenu', e => e.preventDefault());
-  sos.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && recipients().size) { e.preventDefault(); trigger(); } });
+  sos.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && canSos()) { e.preventDefault(); trigger(); } });
 
-  const stp = (n, c) => $('#st' + n).className = 'step ' + c;
+  const STEPS = [1, 2, 3, 4, 5];
+  const stp = (n, c) => {
+    $('#st' + n).className = 'step ' + c;
+    const vis = STEPS.filter(i => !$('#st' + i).hidden), sts = vis.map(i => $('#st' + i).className), w = 100 / vis.length;
+    const pct = sts.reduce((a, x) => a + (/done|fail|wait/.test(x) ? w : /run/.test(x) ? w * 0.4 : 0), 0);
+    $('#send-prog').style.width = Math.min(100, pct) + '%';
+    const t = $('#send-title'), sub = $('#send-sub');
+    if (sts.every(x => /done|fail|wait/.test(x))) { t.textContent = 'Fatto. Ti stanno cercando.'; sub.textContent = 'Chi ti aiuta ha posizione e foto.'; $('#ov-send').classList.add('ok'); }
+    else if (/done/.test($('#st2').className) || /done/.test($('#st5').className)) { t.textContent = 'Allarme inviato'; sub.textContent = 'Aggiungo le foto per chi ti aiuta…'; }
+    else { t.textContent = 'Invio l\'aiuto…'; sub.textContent = 'Tieni l\'app aperta, servono pochi secondi.'; $('#ov-send').classList.remove('ok'); }
+  };
   const rid = () => (crypto.randomUUID?.() || Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')).replace(/-/g, '');
+  // ultimo SOS: serve per «Rimanda SMS» e «Invia le foto»
+  const lastSms = { pos: null, links: [], imgs: [], at: 0 };
+  async function smsDeliver(text, { auto = true } = {}) {
+    const nums = smsOn().map(c => c.phone); if (!nums.length) return 'none';
+    if (auto && native.sms?.auto && (await native.sms.state()) === 'granted') {
+      try { await native.sms.send(nums, text); return 'sent'; } catch (e) { console.warn('sms', e); }
+    }
+    await native.composeSms(nums, text); return 'compose';
+  }
   async function trigger() {
     if (sending) return;
     sending = true; let cancelled = false;
+    const appN = recipients().size, sms = smsOn(), autoSms = !!native.sms?.auto && sms.length && (await native.sms.state()) === 'granted';
     const cancel = $('#send-cancel'); cancel.hidden = false; cancel.onclick = () => { cancelled = true; };
-    [1, 2, 3, 4].forEach(n => stp(n, '')); $('#ov-send').classList.add('on');
+    $('#st2').hidden = !appN; $('#st5').hidden = !sms.length;
+    $('#st5-sub').textContent = autoSms ? `A ${sms.length} ${sms.length === 1 ? 'contatto' : 'contatti'} senza app` : 'Si apre Messaggi: premi Invia';
+    STEPS.forEach(n => stp(n, '')); $('#ov-send').classList.add('on');
     const sosId = rid(), end = () => { sending = false; $('#ov-send').classList.remove('on'); };
+    let res = null, srvErr = null; const imgs = [], links = [];
     try {
       stp(1, 'run'); const pos = await native.getPos(); if (cancelled) { end(); return toast('SOS annullato'); }
-      stp(1, pos ? 'done' : 'fail');
-      stp(2, 'run'); cancel.hidden = true;
-      const res = await api.call('sendSos', { sosId, lat: pos?.lat ?? null, lng: pos?.lng ?? null, acc: pos?.acc ?? null, live: true });
-      if (res.liveUntil) startLive(sosId, res.liveUntil);
-      stp(2, 'done'); native.vibrate([80, 60, 80]);
+      stp(1, pos ? 'done' : 'fail'); cancel.hidden = true;
+      Object.assign(lastSms, { pos, links: [], imgs: [], at: Date.now() });
+      // Android: il primo SMS con la posizione parte subito, anche senza internet
+      if (autoSms) { stp(5, 'run'); smsDeliver(smsText(pos)).then(r => stp(5, r === 'sent' ? 'done' : 'fail')); }
+      if (appN) {
+        stp(2, 'run');
+        try {
+          res = await api.call('sendSos', { sosId, lat: pos?.lat ?? null, lng: pos?.lng ?? null, acc: pos?.acc ?? null, live: true });
+          if (res.liveUntil) startLive(sosId, res.liveUntil);
+          stp(2, 'done'); native.vibrate([80, 60, 80]);
+        } catch (e) { stp(2, 'fail'); srvErr = e; if (!sms.length) throw e; }
+      }
       for (const [n, facing, file] of [[3, 'environment', 'back'], [4, 'user', 'front']]) {
         stp(n, 'run'); const img = await native.snap(facing);
         if (img) {
-          $('#flash').classList.add('go');
+          imgs.push(img); $('#flash').classList.add('go');
           const path = `sos/${st.uid}/${sosId}/${file}.jpg`;
-          try { await api.uploadPhoto(path, img); await api.call('attachSosPhotos', { sosId, paths: [path] }); stp(n, 'done'); }
-          catch (e) { console.warn('foto', e); stp(n, 'fail'); }
+          try {
+            await api.uploadPhoto(path, img);
+            if (res) await api.call('attachSosPhotos', { sosId, paths: [path] });
+            if (sms.length) { try { links.push(await api.photoUrl(path, 604800)); } catch (e) { console.warn('link foto', e); } }
+            stp(n, 'done');
+          } catch (e) { console.warn('foto', e); stp(n, sms.length ? 'done' : 'fail'); }
           await wait(300); $('#flash').classList.remove('go');
         } else stp(n, 'fail');
       }
+      Object.assign(lastSms, { links, imgs });
+      if (sms.length) {
+        if (autoSms) { if (links.length) { const r = await smsDeliver('Aggiornamento con le foto.\n' + smsText(pos, links)); stp(5, r === 'sent' ? 'done' : 'wait'); } else stp(5, 'done'); }
+        else { stp(5, 'wait'); await wait(500); end(); await smsDeliver(smsText(pos, links), { auto: false }); }
+      }
       await wait(400); end();
-      toast(`SOS inviato a ${res.recipients} ${res.recipients === 1 ? 'persona' : 'persone'}`);
+      const tot = (res?.recipients || 0) + sms.length;
+      if (srvErr) toast('Allarme in app non riuscito: avvisati solo i contatti SMS');
+      else toast(autoSms || !sms.length ? `SOS inviato a ${tot} ${tot === 1 ? 'persona' : 'persone'}` : 'Premi Invia in Messaggi per avvisare i contatti');
       tab('home');
     } catch (e) {
       end(); console.warn(e);
@@ -275,7 +324,9 @@ export function boot(api, native) {
     const ackNames = Object.values(s.acks || {});
     const others = Math.max(0, n - ackNames.length);
     $('#a-info').innerHTML = (ackNames.length ? ackNames.map(nm => `<div class="row">${AV(nm)}<div class="fl"><b>${esc(nm)}</b><span>Se ne sta occupando</span></div><span class="tag green">Ho visto, arrivo</span></div>`).join('') : '')
-      + (others ? `<div class="row"><div class="av more">+${others}</div><div class="fl"><b>${ackNames.length ? 'Gli altri' : 'La tua cerchia'}</b><span>Avvisati · in attesa di risposta</span></div></div>` : '');
+      + (others ? `<div class="row"><div class="av more">+${others}</div><div class="fl"><b>${ackNames.length ? 'Gli altri' : 'La tua cerchia'}</b><span>Avvisati · in attesa di risposta</span></div></div>` : '')
+      + (smsOn().length ? `<div class="row sms-act"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>${smsOn().length} ${smsOn().length === 1 ? 'contatto' : 'contatti'} via SMS</b><span>Senza app · posizione e link alle foto</span></div></div>
+        <div class="row2 sms-btns"><button class="btn ghost sm" data-a="sms-resend">${I('sms')}Rimanda SMS</button>${lastSms.imgs.length ? `<button class="btn ghost sm" data-a="sms-photos">${I('camera')}Invia le foto</button>` : ''}</div>` : '');
     rVoice(s);
     clearInterval(activeTimer); activeTimer = setInterval(() => {
       if (!st.sosMine) return clearInterval(activeTimer);
@@ -474,7 +525,7 @@ export function boot(api, native) {
     if (!force && Date.now() - myPosAt < 30000) return st.myPos;
     myPosAt = Date.now();
     const p = await native.getPos().catch(() => null);
-    if (p) { st.myPos = p; rMap(); }
+    if (p) { st.myPos = p; ls.set('lastPos', JSON.stringify({ lat: p.lat, lng: p.lng })); rMap(); if (curScreen === 's-home') homeMap(); if (homeApi) { homeApi.setData({ me: p, people: mapPeople() }); homeApi.center(p.lat, p.lng); } }
     return p;
   }
   async function openMapTab() {
@@ -490,6 +541,27 @@ export function boot(api, native) {
       .finally(() => { mapLoading = null; });
   }
   function closeMapTab() { clearInterval(mapTimer); }
+  // mini mappa nella Home (widget): stessa mappa, ferma, solo da guardare
+  let homeApi = null, homeLoading = false, homeFailAt = 0;
+  const savedPos = () => { try { const p = JSON.parse(ls.get('lastPos') || 'null'); return p && isFinite(p.lat) && isFinite(p.lng) ? p : null; } catch { return null; } };
+  async function homeMap() {
+    const people = mapPeople(), liveN = st.sosIn.filter(s => s.lat != null).length;
+    const ms = $('#mw-state'); if (ms) { ms.hidden = !liveN; ms.textContent = `${liveN} SOS in corso`; ms.classList.toggle('red', !!liveN); }
+    const empty = $('#mw-empty'), et = $('#mw-empty-t'); if (!empty) return;
+    const where = () => { empty.hidden = !!(st.myPos || people.length); et.textContent = 'Attiva la posizione per vederti qui'; };
+    if (!st.myPos) refreshMyPos();
+    if (homeApi) { homeApi.setData({ me: st.myPos || null, people }); homeApi.resize(); where(); return; }
+    if (homeLoading || Date.now() - homeFailAt < 15000 || curScreen !== 's-home') return;
+    homeLoading = true; empty.hidden = false; et.textContent = 'Carico la mappa…';
+    try {
+      const m = await import('./map.js');
+      homeApi = await m.createMap($('#home-map'), { interactive: false, center: st.myPos || savedPos() });
+      homeApi.setData({ me: st.myPos || null, people: mapPeople() });
+      setTimeout(() => homeApi?.resize(), 300);
+      where();
+    } catch (e) { console.warn('mini mappa', e); homeFailAt = Date.now(); et.textContent = 'Mappa non disponibile, riprovo…'; }
+    homeLoading = false;
+  }
   let pendingFocus = null;
   function mapFocus(id, lat, lng) {
     const p = mapPeople().find(x => x.id === id);
@@ -538,6 +610,7 @@ export function boot(api, native) {
   function rBadge() {
     const n = convs().reduce((a, c) => a + unread(c.id), 0) + st.sosIn.filter(s => !(s.acks || {})[st.uid]).length;
     const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n;
+    const hb = $('#h-badge'); if (hb) { hb.hidden = !n; hb.textContent = n > 9 ? '9+' : n; }
   }
   const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : esc(m.text);
   function rChats() {
@@ -589,33 +662,68 @@ export function boot(api, native) {
 
   /* ================= cerchia ================= */
   function rCircle() {
-    const p = partner(), f = friends(), g = groups();
-    { const n = recipients().size, el = $('#c-count'); if (el) el.innerHTML = `${String(n).padStart(2, '0')}<small> ${n === 1 ? 'persona' : 'persone'}</small>`; }
+    const p = partner(), f = friends(), g = groups(), appN = recipients().size, sl = smsList(), smsN = smsOn().length, n = appN + smsN;
+    { const el = $('#c-count'); if (el) el.innerHTML = `${String(n).padStart(2, '0')}<small> ${n === 1 ? 'persona' : 'persone'}</small>`; }
     const person = x => `<button class="row" data-a="person" data-id="${x.id}">${AV(x.name)}<div class="fl"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div>${I('chev', 'chev')}</button>`;
-    if (!p && !f.length && !g.length) {
-      $('#p-list').innerHTML = `<div class="empty"><i class="ic-dot violet">${I('people')}</i><b>La tua cerchia è vuota</b>Aggiungi il partner, ${G().amico} o crea un gruppo. Nessuno entra senza il consenso di entrambi.<button class="btn" data-a="add">Aggiungi persona</button></div>`;
-      return;
-    }
     const ini = n => esc(initials(n));
-    const hero = p
-      ? `<button class="hero-card" data-a="person" data-id="${p.id}"><span class="deco"></span><span class="hero-av">${ini(p.name)}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>Collegato · riceve sempre i tuoi SOS</span></span>${I('chev', 'chev')}</button>`
-      : `<button class="hero-card empty-hero" data-a="invite" data-k="partner"><span class="hero-av">${I('heart')}</span><span class="fl"><small>PARTNER</small><b>Aggiungi il partner</b><span>Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
-    const grpCard = x => {
-      const ms = (x.members || []).filter(m => m.uid !== st.uid).slice(0, 3);
-      return `<button class="grp-card" data-a="grp" data-id="${x.id}">
-        <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
-        <span class="grp-name">${esc(x.name)}</span><span class="grp-sub">${x.members.length} di 8 persone${x.admin && x.req.length ? ` · <b>${x.req.length} richieste</b>` : ''}</span></button>`;
-    };
-    $('#p-list').innerHTML = hero
-      + `<div class="label">${G() === GG.m ? 'Amici' : 'Amiche e amici'} · ${f.length}</div><div class="card">${f.map(person).join('')}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`
-      + `<div class="label">Gruppi · ${g.length}</div><div class="grp-grid">${g.map(grpCard).join('')}<button class="grp-card add" data-a="newgroup"><span class="grp-plus">${I('plus')}</span><span class="grp-name">Nuovo gruppo</span><span class="grp-sub">Fino a 8 persone</span></button></div>`
+    // stato: le informazioni che prima stavano in Home
+    const status = n
+      ? `<div class="c-status"><i class="st-dot"></i><div class="fl"><b>Sei ${G().prot}</b><span>${n} ${n === 1 ? 'persona riceve' : 'persone ricevono'} il tuo SOS${smsN ? ` · ${appN} in app, ${smsN} via SMS` : ''}</span></div></div>`
+      : `<div class="c-status warn"><i class="st-dot warn"></i><div class="fl"><b>Nessuno da avvisare</b><span>Aggiungi almeno una persona: il tasto SOS si attiva subito.</span></div></div>`;
+    const how = `<div class="c-how"><span>${I('clock')}Tieni premuto 1,5 s</span><span>${I('pin')}Posizione live</span><span>${I('camera')}2 foto</span></div>`;
+    let body;
+    if (!p && !f.length && !g.length) {
+      body = `<div class="empty sm"><i class="ic-dot violet">${I('people')}</i><b>Nessuno con l'app</b>Aggiungi il partner, ${G().amico} o crea un gruppo.<button class="btn" data-a="add">Aggiungi persona</button></div>`;
+    } else {
+      const hero = p
+        ? `<button class="hero-card" data-a="person" data-id="${p.id}"><span class="deco"></span><span class="hero-av">${ini(p.name)}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>Riceve sempre i tuoi SOS</span></span>${I('chev', 'chev')}</button>`
+        : `<button class="hero-card empty-hero" data-a="invite" data-k="partner"><span class="hero-av">${I('heart')}</span><span class="fl"><small>PARTNER</small><b>Aggiungi il partner</b><span>Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
+      const grpCard = x => {
+        const ms = (x.members || []).filter(m => m.uid !== st.uid).slice(0, 3);
+        return `<button class="grp-card" data-a="grp" data-id="${x.id}">
+          <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
+          <span class="grp-name">${esc(x.name)}</span><span class="grp-sub">${x.members.length} di 8 persone${x.admin && x.req.length ? ` · <b>${x.req.length} richieste</b>` : ''}</span></button>`;
+      };
+      body = hero
+        + `<div class="label">${G() === GG.m ? 'Amici' : 'Amiche e amici'} · ${f.length}</div><div class="card">${f.map(person).join('')}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`
+        + `<div class="label">Gruppi · ${g.length}</div><div class="grp-grid">${g.map(grpCard).join('')}<button class="grp-card add" data-a="newgroup"><span class="grp-plus">${I('plus')}</span><span class="grp-name">Nuovo gruppo</span><span class="grp-sub">Fino a 8 persone</span></button></div>`;
+    }
+    const smsRow = c => `<div class="row sms-row"><button class="sms-who" data-a="sms-edit" data-id="${c.id}">${AV(c.name)}<div class="fl"><b>${esc(c.name)}</b><span>${esc(c.phone)}</span></div></button><input type="checkbox" class="switch" data-sms="${c.id}" ${c.on ? 'checked' : ''} aria-label="Avvisa ${esc(c.name)} ad SOS"></div>`;
+    const smsBlock = `<div class="label">Senza app · via SMS · ${sl.length}</div><div class="card">${sl.map(smsRow).join('')}<button class="row add" data-a="sms-add"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>Aggiungi contatto</b><span>Basta il numero: riceve posizione e foto via SMS</span></div></button></div>`;
+    $('#p-list').innerHTML = status + how + body + smsBlock
       + `<div class="circle-acts"><button class="btn" data-a="add">${I('plus')}Invita qualcuno</button><button class="btn ghost" data-a="code">${I('key')}Ho un codice</button></div>
-        <p class="note">L'SOS arriva a tutte le persone qui sopra e ai gruppi attivi.</p>`;
+        <p class="note">L'SOS arriva a tutte le persone qui sopra, ai gruppi attivi e ai contatti SMS con la spunta.</p>`;
   }
+  // contatto senza app: aggiungi / modifica
+  const sheetSms = id => {
+    const c = smsList().find(x => x.id === id) || { name: '', phone: '', on: true };
+    const ios = native.platform === 'ios';
+    openSheet(`<h2>${id ? 'Contatto senza app' : 'Aggiungi contatto'}</h2><p class="sub">Non serve che abbia Vicina: all'SOS riceve un SMS con la tua posizione, il link alle 2 foto e il messaggio di soccorso.</p>
+      <label class="field"><span>Nome</span><input id="sm-name" maxlength="40" autocomplete="off" placeholder="Es. Mamma" value="${esc(c.name)}"></label>
+      <label class="field"><span>Numero di telefono</span><input id="sm-phone" type="tel" inputmode="tel" maxlength="20" placeholder="+39 333 123 4567" value="${esc(c.phone)}"></label>
+      <label class="row toggle-row"><i class="ic-dot red">${I('alert')}</i><div class="fl wrap"><b>Avvisa ad SOS</b><span>${ios ? 'Su iPhone si apre Messaggi già compilato: premi solo Invia' : 'Su Android l\'SMS parte da solo'}</span></div><input type="checkbox" class="switch" id="sm-on" ${c.on ? 'checked' : ''}></label>
+      <button class="btn" data-a="sms-save" data-id="${esc(id || '')}">Salva</button>
+      ${id ? `<button class="btn ghost danger" data-a="sms-del" data-id="${esc(id)}">${I('trash')}Rimuovi</button>` : ''}
+      <p class="note">I contatti SMS restano salvati su questo telefono. Gli SMS costano come un normale messaggio del tuo piano.</p>`, 'sms');
+  };
+  async function smsPermCheck() {
+    if (!native.sms?.auto) return;
+    let s = await native.sms.state();
+    if (s === 'prompt') s = await native.sms.request();
+    if (s === 'denied') toast('Permesso SMS negato: all\'SOS si aprirà Messaggi da confermare');
+  }
+  $('#p-list').addEventListener('change', e => {
+    const id = e.target.dataset.sms; if (!id) return;
+    const l = smsList(), c = l.find(x => x.id === id); if (!c) return;
+    c.on = e.target.checked; smsSave(l); native.haptic('light'); rHome(); rCircle();
+    toast(c.on ? `${c.name} riceverà i tuoi SOS via SMS` : `${c.name} non riceverà più SMS`);
+    if (c.on) smsPermCheck();
+  });
   const addOptions = () => `
     <button class="opt" data-a="invite" data-k="partner"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Invita il partner</b><span>Genera un codice da condividere</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('user')}</i><div class="fl"><b>Invita ${G().amico}</b><span>Genera un codice da condividere</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="newgroup"><i class="ic-dot blue">${I('group')}</i><div class="fl"><b>Crea un gruppo</b><span>Fino a 8 persone, approvi tu chi entra</span></div>${I('chev', 'chev')}</button>
+    <button class="opt" data-a="sms-add"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>Contatto senza app</b><span>Riceve l'SOS via SMS, basta il numero</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="code"><i class="ic-dot gray">${I('key')}</i><div class="fl"><b>Ho ricevuto un codice</b><span>Collegati a una persona o a un gruppo</span></div>${I('chev', 'chev')}</button>`;
 
   /* ================= impostazioni ================= */
@@ -900,6 +1008,35 @@ export function boot(api, native) {
         case 'setup-done': ls.set('setup:' + st.uid, '1'); if (!ls.get('guideSeen')) openGuide(); else tab('home'); break;
         case 'tab': closeSheet(); tab(t.dataset.tab); break;
         case 'add': sheetAdd(); break;
+        case 'sms-add': sheetSms(null); setTimeout(() => $('#sm-name')?.focus(), 300); break;
+        case 'sms-edit': sheetSms(id); break;
+        case 'sms-save': {
+          const name = $('#sm-name').value.trim(), phone = normPhone($('#sm-phone').value), on = $('#sm-on').checked;
+          if (!name) return toast('Scrivi un nome');
+          if (!/^\+?\d{6,15}$/.test(phone)) return toast('Numero di telefono non valido');
+          const l = smsList(), cid = t.dataset.id;
+          if (l.some(x => x.phone === phone && x.id !== cid)) return toast('Questo numero c\'è già');
+          if (cid) Object.assign(l.find(x => x.id === cid) || {}, { name, phone, on });
+          else { if (l.length >= 10) return toast('Massimo 10 contatti SMS'); l.push({ id: rid().slice(0, 12), name, phone, on }); }
+          smsSave(l); closeSheet(); render(); native.haptic('light');
+          toast(on ? `${name} riceverà i tuoi SOS via SMS` : 'Contatto salvato');
+          if (on) smsPermCheck();
+          break;
+        }
+        case 'sms-del': {
+          if (!(await dialog({ title: 'Rimuovere il contatto?', text: 'Non riceverà più i tuoi SOS via SMS.', ok: 'Rimuovi' }))) break;
+          smsSave(smsList().filter(x => x.id !== id)); closeSheet(); render(); toast('Contatto rimosso'); break;
+        }
+        case 'sms-resend': {
+          const pos = await native.getPos() || lastSms.pos;
+          await smsDeliver(smsText(pos, lastSms.links), { auto: true }).then(r => toast(r === 'sent' ? 'SMS inviati di nuovo' : 'Premi Invia in Messaggi'));
+          break;
+        }
+        case 'sms-photos': {
+          if (!lastSms.imgs.length) return toast('Nessuna foto da inviare');
+          if (!(await native.shareImages(lastSms.imgs, smsText(lastSms.pos)))) toast('Condivisione non disponibile');
+          break;
+        }
         case 'invite': sheetInvite(t.dataset.k); break;
         case 'code': sheetCode(); setTimeout(() => $('#code-in')?.focus(), 300); break;
         case 'newgroup': sheetNewGroup(); break;

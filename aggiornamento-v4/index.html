@@ -8,6 +8,7 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
 <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2H9l-5 4z"/></symbol>
+<symbol id="i-sms" viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 012 2v9a2 2 0 01-2 2h-8l-5 4v-4H5a2 2 0 01-2-2V6a2 2 0 012-2z"/><path d="M8 10.5h.01M12 10.5h.01M16 10.5h.01"/></symbol>
 <symbol id="i-people" viewBox="0 0 24 24"><path d="M9 11a3 3 0 100-6 3 3 0 000 6zM3 20c0-3 3-5 6-5s6 2 6 5M17 11a2.5 2.5 0 100-5M17 15c2.5 0 4.5 1.5 4.5 4"/></symbol>
 <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -99,29 +100,28 @@
   <!-- Home / SOS -->
   <section class="screen tabbed" id="s-home">
     <header class="hh home-h">
-      <div><p class="eyebrow" id="h-date"></p><h1 class="title" id="h-name">Ciao</h1></div>
+      <div><h1 class="title" id="h-name">Ciao</h1></div>
       <button class="avbtn" data-a="tab" data-tab="me" id="h-av" aria-label="Il tuo profilo"></button>
     </header>
-    <button class="h-status" id="h-status" data-a="tab" data-tab="circle"></button>
     <div class="stage sos-wrap" id="sos-wrap">
       <button id="sos" aria-label="SOS: tieni premuto per inviare l'allarme">
         <span class="sos-deco a"></span>
         <span class="sos-ring"><b>SOS</b></span>
-        <span class="sos-text"><b id="sos-hint">Tieni premuto per chiedere aiuto</b><span class="sos-sub" id="h-hint">1,5 secondi · posizione e 2 foto</span><span class="sos-track"><i id="prog"></i></span></span>
+        <span class="sos-text"><b id="sos-hint">Tieni premuto</b><span class="sos-track"><i id="prog"></i></span></span>
         <span class="sos-n" id="sos-n"></span>
       </button>
     </div>
     <div class="tiles">
-      <a class="tile white" href="tel:112"><i class="t-ic"><svg class="i"><use href="#i-phone"/></svg></i><span><b>Chiama 112</b><small>Emergenza</small></span></a>
-      <button class="tile" data-a="ai"><i class="t-ic amber"><svg class="i"><use href="#i-spark"/></svg></i><span><b>Chiedi all'AI</b><small>Consigli e aiuto</small></span></button>
-      <button class="tile" data-a="add"><i class="t-ic violet"><svg class="i"><use href="#i-plus"/></svg></i><span><b>Aggiungi</b><small>Persona o gruppo</small></span></button>
-      <button class="tile" data-a="tab" data-tab="chat"><i class="t-ic green"><svg class="i"><use href="#i-chat"/></svg></i><span><b>Avvisi</b><small id="h-chat-sub">Chat e allarmi</small></span><b class="badge tile-badge" id="h-badge" hidden></b></button>
+      <a class="tile white" href="tel:112"><i class="t-ic"><svg class="i"><use href="#i-phone"/></svg></i><b>Chiama 112</b></a>
+      <button class="tile" data-a="ai"><i class="t-ic amber"><svg class="i"><use href="#i-spark"/></svg></i><b>Assistente</b></button>
+      <button class="tile" data-a="add"><i class="t-ic violet"><svg class="i"><use href="#i-plus"/></svg></i><b>Aggiungi</b></button>
+      <button class="tile" data-a="tab" data-tab="chat"><i class="t-ic green"><svg class="i"><use href="#i-chat"/></svg></i><b>Avvisi</b><b class="badge tile-badge" id="h-badge" hidden></b></button>
     </div>
     <div class="map-widget" role="button" tabindex="0" data-a="tab" data-tab="map" aria-label="Apri la mappa">
       <div id="home-map" aria-hidden="true"></div>
-      <span class="mw-chip"><svg class="i"><use href="#i-pin"/></svg><span id="mw-where">La tua posizione</span></span>
-      <span class="mw-state" id="mw-state">Nessun SOS in corso</span>
-      <span class="mw-open">Apri la mappa<svg class="i"><use href="#i-chev"/></svg></span>
+      <span class="mw-empty" id="mw-empty"><svg class="i"><use href="#i-pin"/></svg><span id="mw-empty-t">Carico la mappa…</span></span>
+      <span class="mw-state" id="mw-state" hidden></span>
+      <span class="mw-open"><svg class="i"><use href="#i-chev"/></svg></span>
     </div>
   </section>
 
@@ -216,6 +216,7 @@
         <div class="step" id="st2"><i class="st-ic"><svg class="i ic-main"><use href="#i-send"/></svg><svg class="i ic-ok"><use href="#i-check"/></svg></i><span class="st-txt"><b>Allarme alla cerchia</b><small>Notifica a tutti</small></span><span class="st-state"></span></div>
         <div class="step" id="st3"><i class="st-ic"><svg class="i ic-main"><use href="#i-camera"/></svg><svg class="i ic-ok"><use href="#i-check"/></svg></i><span class="st-txt"><b>Foto posteriore</b><small>Cosa hai davanti</small></span><span class="st-state"></span></div>
         <div class="step" id="st4"><i class="st-ic"><svg class="i ic-main"><use href="#i-camera"/></svg><svg class="i ic-ok"><use href="#i-check"/></svg></i><span class="st-txt"><b>Foto frontale</b><small>Il tuo viso</small></span><span class="st-state"></span></div>
+        <div class="step" id="st5"><i class="st-ic"><svg class="i ic-main"><use href="#i-sms"/></svg><svg class="i ic-ok"><use href="#i-check"/></svg></i><span class="st-txt"><b>SMS ai contatti</b><small id="st5-sub">Posizione e foto</small></span><span class="st-state"></span></div>
       </div>
     </div>
     <div class="foot"><button class="btn ghost" id="send-cancel" data-a="send-cancel">Annulla</button></div>

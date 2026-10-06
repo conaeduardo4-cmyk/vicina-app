@@ -8,12 +8,14 @@ import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { webNative, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
+import { webNative, smsUrl, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
 
 // Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
 const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
 // Aggiornamenti dell'APK (plugin nativo aggiunto da scripts/patch-native.mjs, solo Android)
 const ApkUpdater = registerPlugin('ApkUpdater');
+// SMS automatici ai contatti senza app (plugin nativo, solo Android: iPhone non permette alle app di inviare SMS da sole)
+const SosSms = registerPlugin('SosSms');
 
 const isNative = Capacitor.isNativePlatform();
 const norm = s => (s === 'prompt-with-rationale' ? 'prompt' : s || 'prompt');
@@ -135,6 +137,31 @@ export const native = !isNative ? webNative : {
       const h = await ApkUpdater.addListener('progress', e => onProgress?.(e.percent));
       try { await ApkUpdater.downloadAndInstall({ url }); } finally { h.remove(); }
     }
+  },
+
+  // SMS: su Android partono da soli (permesso «SMS» concesso una volta); su iPhone si apre Messaggi già compilato e basta premere Invia.
+  sms: {
+    auto: Capacitor.getPlatform() === 'android',
+    async state() { if (Capacitor.getPlatform() !== 'android') return 'unavailable'; try { return (await SosSms.check()).sms || 'prompt'; } catch { return 'unavailable'; } },
+    async request() { if (Capacitor.getPlatform() !== 'android') return 'unavailable'; try { return (await SosSms.request()).sms || 'denied'; } catch { return 'unavailable'; } },
+    async send(numbers, text) { return SosSms.send({ numbers, text }); }
+  },
+  async composeSms(nums, body) {
+    const url = smsUrl(nums, body, Capacitor.getPlatform() === 'ios');
+    try { await AppLauncher.openUrl({ url }); } catch { window.open(url, '_system'); }
+  },
+  // Condivide le foto vere (Messaggi, WhatsApp…) passando dal foglio di condivisione
+  async shareImages(imgs, text) {
+    try {
+      const files = [];
+      for (const [i, d] of imgs.entries()) {
+        const path = `sos-foto-${i + 1}.jpg`;
+        await Filesystem.writeFile({ path, data: d.split(',')[1], directory: Directory.Cache });
+        files.push((await Filesystem.getUri({ path, directory: Directory.Cache })).uri);
+      }
+      await Share.share({ text, files, dialogTitle: 'Invia le foto dell\'SOS' });
+      return true;
+    } catch (e) { console.warn('share foto', e); return /cancel/i.test(e?.message || ''); }
   },
 
   // Nasconde lo splash nativo appena parte l'intro animata (passaggio senza stacchi)
