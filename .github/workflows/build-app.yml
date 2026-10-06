@@ -1,9 +1,26 @@
-# Compila Vicina: APK Android (debug installabile + release non firmato + AAB) e IPA iOS NON firmato.
-# Avvio: GitHub → Actions → "Compila app" → Run workflow. Alla fine scarichi i file da "Artifacts".
+# Compila Vicina: APK Android firmato (si aggiorna sopra la versione installata) + AAB, e IPA iOS NON firmato.
+# Avvio: GitHub → Actions → "Compila app" → Run workflow.
+# Ogni compilazione Android viene PUBBLICATA come nuova versione (GitHub Releases) con un file version.json:
+# l'app la trova da sola e si aggiorna (Android) o avvisa di aggiornare (iOS).
 name: Compila app
 
 on:
   workflow_dispatch:
+    inputs:
+      piattaforma:
+        description: 'Cosa compilare (iOS usa minuti Mac: con repository privato finiscono presto)'
+        type: choice
+        options: [android, ios, entrambe]
+        default: android
+      novita:
+        description: 'Novità di questa versione (le vede chi aggiorna). Facoltativo'
+        type: string
+        required: false
+        default: ''
+      pubblica:
+        description: 'Pubblica come aggiornamento per tutti'
+        type: boolean
+        default: true
   push:
     tags: ['v*']
 
@@ -28,6 +45,11 @@ jobs:
         run: |
           echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" >> .env
           echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY" >> .env
+          # versione e indirizzo da cui l'app controlla gli aggiornamenti (ultima release di questo repository)
+          echo "VITE_APP_VERSION=$APP_VERSION" >> .env
+          echo "VITE_APP_CODE=${{ github.run_number }}" >> .env
+          echo "VITE_UPDATE_URL=https://github.com/$GITHUB_REPOSITORY/releases/latest/download/version.json" >> .env
+          echo "Versione: $APP_VERSION (codice ${{ github.run_number }})" >> $GITHUB_STEP_SUMMARY
           if [ -z "$VITE_SUPABASE_URL" ]; then echo "::warning::Secrets Supabase assenti: l'app sarà compilata in MODALITÀ DEMO (nessun server)."; fi
       - name: Build
         run: npm run build
@@ -37,6 +59,7 @@ jobs:
   android:
     name: Android (APK / AAB)
     needs: web
+    if: github.event_name != 'workflow_dispatch' || inputs.piattaforma != 'ios'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,13 +103,35 @@ jobs:
           cp android/app/build/outputs/apk/debug/app-debug.apk out/Vicina-$APP_VERSION-debug.apk
           cp android/app/build/outputs/apk/release/app-release-unsigned.apk out/Vicina-$APP_VERSION-release-unsigned.apk
           cp android/app/build/outputs/bundle/release/app-release.aab out/Vicina-$APP_VERSION-release-unsigned.aab
-          ls -la out
+      - name: Firma APK (sempre con la stessa chiave → gli aggiornamenti si installano sopra)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KS" ] || [ -z "$KS_PASS" ]; then
+            echo "::warning::Manca la chiave di firma (secrets ANDROID_KEYSTORE_BASE64 e ANDROID_KEYSTORE_PASSWORD): niente aggiornamenti automatici. Vedi README → Aggiornamenti automatici."
+            exit 0
+          fi
+          printf '%s' "$KS" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/vicina.jks"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
+          KP=KS_PASS; [ -n "$KEY_PASS" ] && KP=KEY_PASS   # se la chiave non ha una password sua, usa quella del keystore
+          "$BT/apksigner" sign --ks "$RUNNER_TEMP/vicina.jks" --ks-pass env:KS_PASS --ks-key-alias "${KEY_ALIAS:-vicina}" \
+            --key-pass "env:$KP" --out "out/Vicina-$APP_VERSION.apk" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify --print-certs "out/Vicina-$APP_VERSION.apk" | head -3
+          rm -f "$RUNNER_TEMP/vicina.jks"
+          echo "APK firmato: Vicina-$APP_VERSION.apk" >> $GITHUB_STEP_SUMMARY
+      - name: Elenco file
+        run: ls -la out
       - uses: actions/upload-artifact@v4
         with: { name: Vicina-android, path: out/* }
 
   ios:
     name: iOS (IPA non firmato)
     needs: web
+    if: github.event_name != 'workflow_dispatch' || inputs.piattaforma != 'android'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -138,13 +183,61 @@ jobs:
         with: { name: Vicina-ios, path: out/* }
 
   release:
-    name: Pubblica release (solo per tag v*)
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Pubblica aggiornamento (GitHub Releases + version.json)
     needs: [android, ios]
+    # parte se Android è compilato: con i tag v* sempre, con "Run workflow" se è spuntato "Pubblica"
+    if: always() && needs.android.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.pubblica))
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with: { path: files, pattern: 'Vicina-*', merge-multiple: true }
+      - name: Prepara file e version.json
+        env:
+          NOTE: ${{ inputs.novita }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          TAG="v$APP_VERSION"; [ "${GITHUB_REF_TYPE}" = "tag" ] && TAG="$GITHUB_REF_NAME"
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          SIGNED=$(ls files/Vicina-$APP_VERSION.apk 2>/dev/null || true)
+          if [ -n "$SIGNED" ]; then
+            cp "$SIGNED" files/Vicina.apk; cp "$SIGNED" files/Eduardo.apk   # link fissi per il sito
+            APK="$BASE/Vicina.apk"; SHA=$(sha256sum files/Vicina.apk | cut -d' ' -f1)
+          else
+            echo "::warning::APK non firmato: pubblico la versione debug ma gli aggiornamenti automatici restano spenti finché non aggiungi la chiave di firma."
+            cp files/*-debug.apk files/Eduardo.apk; APK=""; SHA=""
+          fi
+          IPA=$(cd files && ls *-unsigned.ipa 2>/dev/null | head -1 || true)
+          [ -z "$NOTE" ] && NOTE="$(git log -1 --pretty=%s)"
+          PAGE="${SITE_URL:-https://github.com/$GITHUB_REPOSITORY/releases/latest}"
+          python3 - "$APP_VERSION" "${{ github.run_number }}" "$APK" "$SHA" "$PAGE" "${IPA:+$BASE/$IPA}" <<'PY'
+          import json, sys, os, datetime
+          v, code, apk, sha, page, ipa = sys.argv[1:7]
+          d = {"version": v, "code": int(code), "date": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "notes": os.environ.get("NOTE", "")[:2000], "page": page,
+               "android": {"apk": apk or None, "sha256": sha or None},
+               "ios": {"ipa": ipa or None, "page": page}}
+          json.dump(d, open("files/version.json", "w"), ensure_ascii=False, indent=2)
+          print(json.dumps(d, ensure_ascii=False, indent=2))
+          PY
+          # source AltStore / SideStore (solo se c'è l'IPA)
+          if [ -n "$IPA" ] && [ -f scripts/altstore-source.py ]; then
+            python3 -c "from PIL import Image" 2>/dev/null || pip install -q pillow
+            python3 -c "from PIL import Image; Image.open('assets/icon-only.png').convert('RGB').resize((512,512)).save('files/icon.png')" || true
+            python3 scripts/altstore-source.py files "$GITHUB_REPOSITORY" "$TAG" "$APP_VERSION" "${{ github.run_number }}" || echo "::warning::source AltStore non creata"
+          fi
+          ls -la files
       - uses: softprops/action-gh-release@v2
-        with: { files: files/* }
+        with:
+          tag_name: ${{ env.TAG }}
+          name: Vicina ${{ env.APP_VERSION }}
+          body: ${{ inputs.novita }}
+          target_commitish: ${{ github.sha }}
+          make_latest: 'true'
+          files: files/*
+      - name: Riepilogo
+        run: |
+          echo "### Pubblicata Vicina $APP_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "Le app installate la troveranno entro qualche ora (o subito da Impostazioni → Aggiornamenti)." >> $GITHUB_STEP_SUMMARY
