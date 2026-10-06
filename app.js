@@ -42,7 +42,11 @@ export function boot(api, native) {
   const BUILD = { version: ENV.v || api.version || 'sviluppo', code: Number(ENV.c) || 0 };
   const UPDATE_URL = ENV.u || api.updateUrl || '';
   const upd = { cur: null, last: null, checking: false, busy: false, pct: 0, err: '', done: false };
-  const updNewer = () => !!(upd.last && upd.cur && Number(upd.last.code) > Number(upd.cur.code || 0));
+  // su iPhone conta la versione dell'IPA (può essere più vecchia dell'APK se l'ultima build era solo Android)
+  const isIOS = () => native.platform === 'ios';
+  const lastCode = () => isIOS() ? Number(upd.last?.ios?.ipa ? upd.last.ios.code || 0 : 0) : Number(upd.last?.code || 0);
+  const lastVersion = () => (isIOS() && upd.last?.ios?.version) || upd.last?.version || '';
+  const updNewer = () => !!(upd.last && upd.cur && lastCode() > Number(upd.cur.code || 0));
   const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const GG = { f: { sola: 'sola', prot: 'protetta', amico: "un'amica", amicoS: 'Amica', pronta: 'pronta' }, m: { sola: 'solo', prot: 'protetto', amico: 'un amico', amicoS: 'Amico', pronta: 'pronto' } };
   const G = () => GG[st.p?.gender] || GG.f;
@@ -185,25 +189,31 @@ export function boot(api, native) {
   function rHome() {
     if (!st.p) return;
     const d = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
-    $('#h-date').textContent = d; $('#h-name').textContent = 'Ciao, ' + st.p.name;
+    $('#h-date').textContent = d; $('#h-name').textContent = 'Ciao, ' + st.p.name + '.';
     $('#h-av').innerHTML = AV(st.p.name + ' ' + st.p.surname);
     const r = recipients(), n = r.size, people = convs().filter(c => c.k !== 'g' || c.on);
     const s = $('#h-status');
     s.classList.toggle('warn', !n);
+    const nn = String(n).padStart(2, '0');
     s.innerHTML = n
-      ? `<div class="stack">${people.slice(0, 3).map(p => AV(p.name, p.k)).join('')}</div><div class="fl"><b>Sei ${G().prot}</b><span>L'SOS arriva a ${n} ${n === 1 ? 'persona' : 'persone'}</span></div>${I('chev', 'chev')}`
-      : `<i class="ic-dot amber">${I('alert')}</i><div class="fl"><b>Nessuno da avvisare</b><span>Aggiungi ${G().amico}, il partner o un gruppo</span></div>${I('chev', 'chev')}`;
+      ? `<span class="st-top"><i class="st-dot"></i><b>Sei ${G().prot}</b><span>La tua cerchia</span>${I('chev', 'chev')}</span>
+         <span class="st-grid"><span><b>${nn}</b><small>${n === 1 ? 'PERSONA' : 'PERSONE'}</small></span><span><b class="ok">ON</b><small>GPS + FOTO</small></span><span><b>1,5s</b><small>ALLARME</small></span></span>`
+      : `<span class="st-top"><i class="st-dot warn"></i><b>Nessuno da avvisare</b><span>Aggiungi</span>${I('chev', 'chev')}</span>
+         <span class="st-msg">Aggiungi ${G().amico}, il partner o un gruppo: è a loro che arriva il tuo SOS.</span>`;
+    $('#sos-n').textContent = n ? `→ ${n} ${n === 1 ? 'persona' : 'persone'}` : '';
+    $('#sos-n').hidden = !n;
     $('#sos-wrap').classList.toggle('off', !n);
     $('#sos-hint').textContent = n ? 'tieni premuto' : 'nessun contatto';
-    $('#h-hint').textContent = n ? 'Posizione e due foto arrivano a tutta la tua cerchia.' : 'Prima aggiungi almeno una persona di cui ti fidi.';
+    $('#h-hint').textContent = n ? 'Posizione live, 2 foto e un vocale, se vuoi.' : 'Prima aggiungi almeno una persona di cui ti fidi.';
   }
 
   /* ================= SOS: pressione prolungata ================= */
-  const C = 766.5, HOLD = 1500; let raf, t0 = 0, holding = false, sending = false;
+  const HOLD = 1500; let raf, t0 = 0, holding = false, sending = false;
   const sos = $('#sos'), prog = $('#prog');
-  const resetHold = () => { holding = false; cancelAnimationFrame(raf); sos.classList.remove('hold'); prog.style.transition = 'stroke-dashoffset .25s'; prog.style.strokeDashoffset = C; };
+  const resetHold = () => { holding = false; cancelAnimationFrame(raf); sos.classList.remove('hold'); prog.style.transition = 'width .25s'; prog.style.width = '0%'; $('#sos-hint').textContent = recipients().size ? 'tieni premuto' : 'nessun contatto'; };
   function holdLoop() {
-    const p = Math.min((performance.now() - t0) / HOLD, 1); prog.style.strokeDashoffset = C * (1 - p);
+    const p = Math.min((performance.now() - t0) / HOLD, 1); prog.style.width = (p * 100) + '%';
+    if (p > 0.05) $('#sos-hint').textContent = 'continua…';
     if (p >= 1) { resetHold(); native.haptic('heavy'); trigger(); } else raf = requestAnimationFrame(holdLoop);
   }
   sos.addEventListener('pointerdown', e => {
@@ -256,16 +266,21 @@ export function boot(api, native) {
     const s = st.sosMine; if (!s) return;
     const n = s.recipients.length, acks = Object.values(s.acks || {});
     const liveOn = live.sosId === s.id && live.until > Date.now();
-    $('#a-since').textContent = `Inviato ${ago(s.at)} a ${n} ${n === 1 ? 'persona' : 'persone'}`;
-    $('#a-info').innerHTML = `
-      <div class="chip-st ${acks.length ? 'ok' : ''}">${I(acks.length ? 'check' : 'clock')}<span>${acks.length ? 'Visto da ' + esc(acks.map(x => x.split(' ')[0]).join(', ')) : 'In attesa di risposta'}</span></div>
-      ${liveOn ? `<div class="chip-st live"><i class="dot"></i><span>Posizione live attiva · <b id="a-live-left">${liveAge(s)}</b><small>Resta attiva finché non tocchi «Sono al sicuro»</small></span></div>`
-        : `<div class="chip-st">${I('pin')}<span>${s.lat != null ? 'Posizione inviata · attivo la posizione live…' : 'Posizione non disponibile: controlla il GPS'}</span></div>`}
-      <div class="chip-st">${I('camera')}<span>${s.photos.length}/2 foto</span></div>`;
+    $('#a-title').innerHTML = `Avvisat${n === 1 ? (G() === GG.m ? 'o' : 'a') : 'e'}<br>${n} ${n === 1 ? 'persona' : 'persone'}.`;
+    $('#a-since').textContent = `Inviato alle ${hhmm(s.at)}${s.lat != null ? ' con la tua posizione' : ''}${s.photos.length ? ' e ' + s.photos.length + (s.photos.length === 1 ? ' foto' : ' foto') : ''}.`;
+    $('#a-timer').textContent = mmss(Date.now() - s.at);
+    $('#a-live').innerHTML = liveOn
+      ? `${I('live')}<div><b id="a-live-left">Posizione live · ${liveAge(s)}</b><span>Resta attiva finché non tocchi «Sono al sicuro»</span></div>`
+      : `${I('pin')}<div><b>${s.lat != null ? 'Posizione inviata' : 'Posizione non disponibile'}</b><span>${s.lat != null ? 'Attivo la posizione live…' : 'Controlla che il GPS sia acceso'}</span></div>`;
+    const ackNames = Object.values(s.acks || {});
+    const others = Math.max(0, n - ackNames.length);
+    $('#a-info').innerHTML = (ackNames.length ? ackNames.map(nm => `<div class="row">${AV(nm)}<div class="fl"><b>${esc(nm)}</b><span>Se ne sta occupando</span></div><span class="tag green">Ho visto, arrivo</span></div>`).join('') : '')
+      + (others ? `<div class="row"><div class="av more">+${others}</div><div class="fl"><b>${ackNames.length ? 'Gli altri' : 'La tua cerchia'}</b><span>Avvisati · in attesa di risposta</span></div></div>` : '');
     rVoice(s);
     clearInterval(activeTimer); activeTimer = setInterval(() => {
       if (!st.sosMine) return clearInterval(activeTimer);
-      const l = $('#a-live-left'); if (l) l.textContent = liveAge(st.sosMine);
+      const l = $('#a-live-left'); if (l) l.textContent = 'Posizione live · ' + liveAge(st.sosMine);
+      const tm = $('#a-timer'); if (tm) tm.textContent = mmss(Date.now() - st.sosMine.at);
       $('#a-since').textContent = `Inviato ${ago(st.sosMine.at)} a ${st.sosMine.recipients.length} ${st.sosMine.recipients.length === 1 ? 'persona' : 'persone'}`;
     }, 1000);
   }
@@ -575,6 +590,7 @@ export function boot(api, native) {
   /* ================= cerchia ================= */
   function rCircle() {
     const p = partner(), f = friends(), g = groups();
+    { const n = recipients().size, el = $('#c-count'); if (el) el.innerHTML = `${String(n).padStart(2, '0')}<small> ${n === 1 ? 'persona' : 'persone'}</small>`; }
     const person = x => `<button class="row" data-a="person" data-id="${x.id}">${AV(x.name)}<div class="fl"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div>${I('chev', 'chev')}</button>`;
     if (!p && !f.length && !g.length) {
       $('#p-list').innerHTML = `<div class="empty"><i class="ic-dot violet">${I('people')}</i><b>La tua cerchia è vuota</b>Aggiungi il partner, ${G().amico} o crea un gruppo. Nessuno entra senza il consenso di entrambi.<button class="btn" data-a="add">Aggiungi persona</button></div>`;
@@ -612,7 +628,7 @@ export function boot(api, native) {
         <button class="row" data-a="terms-read"><i class="ic-dot red">${I('alert')}</i><div class="fl"><b>Termini d'uso e limiti</b><span>Vicina non sostituisce il 112</span></div>${I('chev', 'chev')}</button>
       </div>
       <div class="label">App</div><div class="card">
-        <button class="row" data-a="upd-open"><i class="ic-dot ${updNewer() ? 'red' : 'blue'}">${I('share')}</i><div class="fl"><b>Aggiornamenti</b><span>${updNewer() ? 'Nuova versione ' + esc(upd.last.version) + ' disponibile' : 'Versione ' + esc((upd.cur || BUILD).version) + ' · tocca per controllare'}</span></div>${updNewer() ? '<span class="tag red">Nuova</span>' : I('chev', 'chev')}</button>
+        <button class="row" data-a="upd-open"><i class="ic-dot ${updNewer() ? 'red' : 'blue'}">${I('share')}</i><div class="fl"><b>Aggiornamenti</b><span>${updNewer() ? 'Nuova versione ' + esc(lastVersion()) + ' disponibile' : 'Versione ' + esc((upd.cur || BUILD).version) + ' · tocca per controllare'}</span></div>${updNewer() ? '<span class="tag red">Nuova</span>' : I('chev', 'chev')}</button>
       </div>
       <div class="label">Telefono</div><div class="card">
         <button class="row" data-a="perm-sheet"><i class="ic-dot ${pc >= 3 ? 'green' : 'red'}">${I('lock')}</i><div class="fl"><b>Permessi</b><span>${pc} di 4 attivi</span></div>${I('chev', 'chev')}</button>
@@ -925,6 +941,8 @@ export function boot(api, native) {
         case 'upd-perm': upd.cur.canInstall = false; await native.update.openInstallSettings().catch(() => {}); break;
         case 'upd-later': if (upd.last) ls.set('updSnooze:' + upd.last.code, String(Date.now())); closeSheet(); break;
         case 'upd-page': native.openUrl(t.dataset.u); break;
+        case 'upd-ipa': await saveIpa(); break;
+        case 'upd-ipa-share': if (upd.saved?.uri) await native.update.shareFile(upd.saved.uri, 'Vicina ' + lastVersion()).catch(() => {}); break;
         case 'map-focus': { if ($('#ov-in').classList.contains('on')) { st.dismissed.add(st.shownIn); closeIncoming(); } closeSheet(); tab('map'); mapFocus(id, +t.dataset.lat, +t.dataset.lng); break; }
         case 'map-nav': case 'map-open': { const p = mapPeople().find(x => x.id === id) || (() => { const x = st.sosIn.find(y => y.id === id); return x && { lat: x.lat, lng: x.lng, name: x.fromName }; })(); if (p && p.lat != null) native.openMaps(p.lat, p.lng, p.name, a === 'map-nav'); else toast('Posizione non disponibile'); break; }
         case 'map-me': { const me = await refreshMyPos(true); if (me && mapApi) mapApi.center(me.lat, me.lng); else if (!me) toast('Posizione non disponibile: attiva il GPS'); break; }
@@ -1123,9 +1141,20 @@ export function boot(api, native) {
              <button class="btn" data-a="upd-perm">Consenti</button><button class="btn ghost" data-a="upd-install">Ho già consentito: aggiorna</button>`
         : `<button class="btn red" data-a="upd-install" ${a.apk ? '' : 'disabled'}>${I('send')}Aggiorna ora</button>`}
         ${upd.busy ? '' : `<button class="btn link" data-a="upd-later">Più tardi</button>`}`;
+    } else if (ios && l.ios?.ipa && native.update?.saveIpa) {
+      // iPhone: scarico l'IPA (non firmato) e lo salvo nell'app File; poi lo installi tu con SideStore/AltStore/Sideloadly
+      const name = `Vicina-${lastVersion()}.ipa`;
+      h = `<h2>Nuova versione disponibile</h2><p class="sub">Vicina <b>${esc(lastVersion())}</b> è pronta. Tu hai la ${esc(c.version)}.</p>${notesHtml(l.ios.notes || l.notes)}
+        ${upd.busy ? `<div class="upd-bar"><i style="width:${upd.pct}%"></i></div><p class="note" style="text-align:center">Scarico il file… ${upd.pct}%</p>`
+        : upd.saved ? `<div class="upd-perm ok">${I('check')}<div><b>Salvato in File</b><span>File › Sul mio iPhone › Vicina › Aggiornamenti › ${esc(name)}</span></div></div>
+             <div class="upd-steps"><b>Ora installalo tu:</b><ol><li>Tocca «Apri con…» qui sotto e scegli <b>SideStore</b> o <b>AltStore</b> (oppure trasferisci il file su computer e usa <b>Sideloadly</b>).</li><li>Si installa sopra la versione attuale: account, cerchia e chat restano.</li></ol></div>
+             <button class="btn red" data-a="upd-ipa-share">${I('share')}Apri con…</button>`
+        : `<div class="upd-steps"><b>Su iPhone l’aggiornamento si completa a mano:</b><ol><li>Tocca «Scarica in File»: il file <b>.ipa</b> viene salvato nell'app File.</li><li>Aprilo con SideStore, AltStore o Sideloadly per installarlo.</li></ol></div>
+             <button class="btn red" data-a="upd-ipa">${I('share')}Scarica in File</button>`}
+        ${upd.busy ? '' : `<button class="btn link" data-a="upd-later">Più tardi</button>`}`;
     } else {
       const page = (ios && l.ios?.page) || l.page || '';
-      h = `<h2>Nuova versione disponibile</h2><p class="sub">Vicina <b>${esc(l.version)}</b> è pronta. Tu hai la ${esc(c.version)}.</p>${notesHtml(l.notes)}
+      h = `<h2>Nuova versione disponibile</h2><p class="sub">Vicina <b>${esc(lastVersion())}</b> è pronta. Tu hai la ${esc(c.version)}.</p>${notesHtml(l.notes)}
         <div class="upd-steps"><b>${ios ? 'Su iPhone l’aggiornamento si fa a mano:' : 'Come aggiornare:'}</b>
           <ol>${ios ? `<li>Apri la pagina di download qui sotto.</li><li>Scarica la nuova versione e installala con l'app che hai usato la prima volta (AltStore, SideStore o Sideloadly).</li><li>Si installa sopra quella vecchia: account e cerchia restano.</li>`
                     : `<li>Apri la pagina di download.</li><li>Scarica e installa la nuova versione.</li>`}</ol></div>
@@ -1133,6 +1162,15 @@ export function boot(api, native) {
         <button class="btn link" data-a="upd-later">Più tardi</button>`;
     }
     openSheet(h, 'update');
+  }
+  async function saveIpa() {
+    const ipa = upd.last?.ios?.ipa; if (!ipa || upd.busy) return;
+    upd.busy = true; upd.pct = 0; upd.saved = null; rUpdSheet(true);
+    try {
+      upd.saved = await native.update.saveIpa(ipa, `Vicina-${lastVersion()}.ipa`, p => { upd.pct = Math.max(0, Math.min(100, Math.round(p))); const b = $('.upd-bar i'); if (b) b.style.width = upd.pct + '%'; const t = $('.upd-bar + .note'); if (t) t.textContent = `Scarico il file… ${upd.pct}%`; });
+      native.haptic('light');
+    } catch (e) { console.warn('ipa', e); toast('Download non riuscito: ' + (e?.message || 'riprova')); }
+    upd.busy = false; rUpdSheet(true);
   }
   async function installUpdate(btn) {
     const a = upd.last?.android; if (!a?.apk || upd.busy) return;
