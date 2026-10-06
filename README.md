@@ -236,3 +236,19 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
   Serve una build con **iOS** (scegli "ios" o "entrambe" in Compila app): se l'ultima build è solo Android, gli iPhone continuano a vedere l'ultimo IPA pubblicato.
 - **Android**: invariato, aggiornamento con un tocco dentro l'app.
 - Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).
+
+## Regole dei file (solo se compare l'avviso "Regole dei file non aggiornate")
+Su alcuni progetti Supabase il database non può modificare le regole dello spazio file: in quel caso la pubblicazione **non si blocca più**,
+ma le regole vanno create una volta a mano. Supabase → **Storage → Policies** → bucket **sos** → **New policy → For full customization**:
+
+1. Nome `vicina: carico le mie foto SOS` · operazione **INSERT** · ruolo **authenticated** · definizione:
+   ```
+   bucket_id = 'sos' and (storage.foldername(name))[1] = auth.uid()::text
+   and storage.filename(name) in ('back.jpg','front.jpg','voice.webm','voice.m4a','voice.mp4','voice.ogg','voice.aac')
+   ```
+2. Nome `vicina: vedo le foto SOS` · operazione **SELECT** · ruolo **authenticated** · definizione:
+   ```
+   bucket_id = 'sos' and ((storage.foldername(name))[1] = auth.uid()::text
+   or exists (select 1 from public.sos s where s.id = (storage.foldername(name))[2] and auth.uid() = any(s.recipients)))
+   ```
+Se esistono già (le avevi create all'installazione) e foto e vocali funzionano, non serve fare nulla.
