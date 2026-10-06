@@ -154,12 +154,13 @@ Conserva `vicina.jks` e la password. Per distribuire senza Google Play basta con
 - Solo accesso con email e password.
 - Vicina non sostituisce i servizi di emergenza.
 
-## Assistente (gratuito, Groq + Gemini di riserva)
-1. Vai su **console.groq.com** → accedi → **API Keys → Create API Key** (piano gratuito, senza carta: circa 1.000 messaggi al giorno).
-   Facoltativo: crea anche una chiave Gemini su **aistudio.google.com**, viene usata solo se Groq non risponde.
+## Assistente (gratuito, Groq + Gemini + OpenRouter di riserva)
+1. Vai su **console.groq.com** → accedi → **API Keys → Create API Key** (piano gratuito, senza carta).
+   Consigliato: crea anche una chiave Gemini su **aistudio.google.com** e/o una su **openrouter.ai** (Keys): vengono usate se Groq non risponde.
 2. Supabase → **SQL Editor** → esegui `supabase/assistente.sql` (già incluso in `installa.sql`).
 3. Supabase → **Edge Functions → Deploy a new function → Via Editor**: nome **`assistente`**, incolla `supabase/functions/assistente/index.ts` → Deploy. Disattiva "Verify JWT".
-4. **Edge Functions → Secrets**: `GROQ_API_KEY` (e, se l'hai, `GEMINI_API_KEY`). Facoltativi: `AI_DAILY_LIMIT` (predefinito 30), `GROQ_MODELS`, `GEMINI_MODEL`.
+4. **Edge Functions → Secrets**: `GROQ_API_KEY` (e, se le hai, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`). Facoltativi: `AI_DAILY_LIMIT` (predefinito 40), `GROQ_MODELS`, `GEMINI_MODELS`, `OPENROUTER_MODELS`.
+5. **Verifica**: apri nel browser `https://TUO-PROGETTO.supabase.co/functions/v1/assistente?diag=1` oppure, nell'app, Assistente → *Verifica collegamento*. Ti dice quali chiavi ci sono e se l'IA risponde davvero.
 
 L'assistente risponde solo su uso dell'app e sicurezza personale: a qualsiasi altra domanda risponde che non c'entra.
 La chiave resta sul server. La conversazione è salvata solo sul telefono e all'IA arriva solo il nome di battesimo.
@@ -173,3 +174,24 @@ La chiave resta sul server. La conversazione è salvata solo sul telefono e all'
 GitHub mette in coda i job finché non trova un server libero. Se resta in attesa a lungo:
 - con repository **privato** i minuti gratuiti (2.000/mese, il Mac ne conta 10 per minuto) possono essere finiti: rendi il repository **pubblico** (minuti illimitati) oppure compila solo **android**;
 - controlla **Settings → Billing** del tuo account GitHub e la pagina **githubstatus.com**.
+
+## Aggiornamento v4 (assistente affidabile, posizione live fino a "Sono al sicuro", vocale, mappa)
+**Cosa cambia**
+- **Assistente**: prova più IA gratuite in ordine (Groq → Gemini → OpenRouter) e più modelli per ciascuna, ritenta da solo, e non si blocca più se il contatore giornaliero ha un problema.
+  Corretto un difetto per cui Gemini poteva restituire risposte vuote (il "ragionamento" interno consumava tutti i token).
+  Se il server non risponde l'app risponde comunque con la **guida integrata** e mostra il pulsante **Verifica collegamento** con il motivo preciso.
+- **Posizione live**: parte con ogni SOS e resta attiva finché non tocchi **Sono al sicuro** (massimo 12 ore). Non si può più fermare prima. Se il GPS è fermo, la posizione viene rimandata comunque ogni minuto.
+- **Messaggio vocale**: nella schermata SOS attivo c'è la scheda **"Vuoi lasciare un vocale?"** → *Registra un vocale* → *Invia a tutti* (o *Annulla*). Facoltativo, massimo 1 minuto. Lo ascolta tutta la cerchia: nella schermata rossa dell'SOS, nella chat e nella mappa.
+- **Mappa**: nuova scheda **Mappa** con una mappa vera dentro l'app (MapLibre + OpenFreeMap, dati OpenStreetMap: gratis, senza chiavi né limiti). Mostra la posizione live di chi ha chiesto aiuto, il percorso fatto, la distanza da te e il tuo SOS.
+  **Raggiungi** apre le indicazioni nell'app di mappe del telefono: **Apple Mappe su iPhone**, **Google Maps su Android** (se manca, si apre il sito).
+
+**Come installarlo**
+1. Supabase → **SQL Editor** → esegui `supabase/aggiornamento-v4.sql` (si può rieseguire; è già dentro `installa.sql` e `schema.sql`).
+2. Supabase → **Edge Functions** → `assistente` → incolla il nuovo `supabase/functions/assistente/index.ts` → Deploy (lascia "Verify JWT" disattivato).
+3. Controlla che in **Edge Functions → Secrets** ci sia almeno `GROQ_API_KEY` (meglio anche `GEMINI_API_KEY`), poi apri `…/functions/v1/assistente?diag=1`: deve comparire `"ok": true`.
+4. GitHub: carica tutti i file di questa cartella sopra quelli vecchi (compresi `package.json`, `src/map.js` nuovo e `scripts/patch-native.mjs`) e lancia **Actions → Compila app**.
+   Le nuove librerie (`maplibre-gl`, `@capacitor/app-launcher`) vengono installate da sole durante la compilazione.
+
+**Nota sulla mappa dentro l'app**: incorporare la mappa *di Google* richiede una chiave Google Cloud con un account di fatturazione (carta di credito),
+e quella *di Apple* dentro l'app richiede codice nativo iOS o l'account sviluppatore a pagamento. Per restare gratis la mappa interna usa OpenStreetMap,
+mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefono.

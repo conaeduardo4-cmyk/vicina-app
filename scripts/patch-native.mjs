@@ -39,7 +39,7 @@ if (fs.existsSync(plist)) {
     NSCameraUsageDescription: '<string>Vicina scatta una foto di dove ti trovi quando invii un SOS, per mostrarla alle persone che avvisi.</string>',
     NSLocationWhenInUseUsageDescription: '<string>Vicina invia la tua posizione attuale alle persone che avvisi quando premi SOS.</string>',
     NSMicrophoneUsageDescription: '<string>Vicina registra un messaggio vocale solo quando tieni premuto il microfono durante un SOS.</string>',
-    NSLocationAlwaysAndWhenInUseUsageDescription: '<string>Durante un SOS Vicina aggiorna la tua posizione per 15 minuti, anche a schermo spento, così la tua cerchia può raggiungerti.</string>',
+    NSLocationAlwaysAndWhenInUseUsageDescription: '<string>Durante un SOS Vicina aggiorna la tua posizione, anche a schermo spento, finché non tocchi «Sono al sicuro», così la tua cerchia può raggiungerti.</string>',
     UIBackgroundModes: '<array>\n\t\t<string>remote-notification</string>\n\t\t<string>location</string>\n\t</array>',
     ITSAppUsesNonExemptEncryption: '<false/>',
     UIUserInterfaceStyle: '<string>Dark</string>'

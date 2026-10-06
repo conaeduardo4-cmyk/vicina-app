@@ -394,3 +394,61 @@ body.entering #s-home.on .stage{animation:none}
 .g-hold .ring,.sos-wrap .ring{pointer-events:none}
 .fl .live-badge,.live-badge{color:#06111F!important;opacity:1!important;overflow:visible}
 .maplink .fl span .live-badge{vertical-align:1px}
+.ai-tag{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--amber);margin-bottom:6px}
+.chip-st small{display:block;color:var(--sub);font-size:12px;font-weight:500;margin-top:2px}
+
+/* v4 – messaggio vocale facoltativo dopo l'SOS */
+.vcard{display:flex;flex-wrap:wrap;align-items:center;gap:12px;width:100%;margin-top:14px;padding:14px;border-radius:18px;background:rgba(22,22,31,.8);border:1px solid var(--line2);text-align:left}
+.vcard .fl{min-width:0;flex:1}
+.vcard .fl b,.vcard .fl span{white-space:normal;overflow:visible}
+.vacts{display:flex;gap:8px;width:100%}
+.vacts .vbtn{flex:1;justify-content:center}
+.vcard .fl b{display:block;font-size:15px}
+.vcard .fl span{display:block;color:var(--sub);font-size:13px;font-variant-numeric:tabular-nums}
+.vcard audio{width:100%;height:36px;margin-top:6px}
+.vcard.rec{border-color:rgba(255,59,78,.5);background:linear-gradient(0deg,var(--redbg),var(--redbg)),var(--s1)}
+.vcard.sent{border-color:rgba(47,210,122,.35)}
+.vbtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:99px;background:var(--ink);color:#0B0B10;font-weight:700;font-size:14px;flex:none}
+.vbtn .i{width:18px;height:18px}
+.vbtn.ghost{background:var(--s3);color:var(--ink)}
+.rec-dot{width:14px;height:14px;border-radius:50%;background:var(--red);flex:none;animation:recblink 1s ease-in-out infinite}
+@keyframes recblink{50%{opacity:.25}}
+
+/* v4 – Mappa */
+#s-map{position:relative}
+.map-wrap{position:relative;flex:1;min-height:240px;background:#11131A;overflow:hidden}
+#map{position:absolute;inset:0}
+.map-head{position:absolute;left:0;right:0;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:12px 16px 26px;background:linear-gradient(180deg,rgba(11,11,16,.92),rgba(11,11,16,0));pointer-events:none}
+.map-head>*{pointer-events:auto}
+.map-tools{display:flex;gap:8px}
+.map-msg{position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:2;padding:14px 16px;border-radius:16px;background:rgba(22,22,31,.92);border:1px solid var(--line2);color:var(--sub);font-size:14px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.map-list{flex:none;max-height:44%;overflow-y:auto;padding:12px 16px 112px;display:flex;flex-direction:column;gap:10px;background:var(--bg);border-top:1px solid var(--line)}
+.map-card{border-radius:18px;background:var(--s1);border:1px solid var(--line);padding:6px 12px 12px;display:flex;flex-direction:column;gap:10px;transition:border-color .3s}
+.map-card.hl{border-color:var(--red)}
+.map-card.mine{border-color:rgba(255,59,78,.35)}
+.map-card-h{display:flex;align-items:center;gap:12px;width:100%;padding:8px 0 0;text-align:left}
+.map-card-h .fl b{display:block;font-size:16px}
+.map-card-h .fl .st{display:block;color:var(--sub);font-size:13px;white-space:normal}
+.map-acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn.sm{width:auto;flex:1;min-height:44px;padding:10px 12px;font-size:14px;border-radius:14px}
+.btn.sm .i{width:18px;height:18px}
+.map-note{font-size:12px;color:var(--mute);margin:0 2px}
+.map-empty{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:18px;background:var(--s1);border:1px solid var(--line)}
+.map-empty .i{width:26px;height:26px;color:var(--green);flex:none;margin-top:2px}
+.map-empty b{display:block}.map-empty span{display:block;color:var(--sub);font-size:13.5px;margin-top:2px}
+.navbtn{margin-top:8px}
+button.maplink{width:100%;text-align:left}
+.badge.live{background:var(--red)}
+/* pin sulla mappa */
+.pin-sos{position:relative;width:44px;height:56px;display:flex;flex-direction:column;align-items:center;cursor:pointer}
+.pin-head{position:relative;z-index:1;width:40px;height:40px;border-radius:50%;background:var(--red);color:#fff;font-weight:800;font-size:14px;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.pin-tail{width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:12px solid #fff;margin-top:-3px}
+.pin-ring{position:absolute;top:-4px;left:-2px;width:48px;height:48px;border-radius:50%;border:3px solid var(--red);animation:halo 1.6s ease-out infinite}
+.pin-label{position:absolute;top:58px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:3px 8px;border-radius:99px;background:rgba(11,11,16,.85);color:#fff;font-size:12px;font-weight:700}
+.pin-sos.stale .pin-head{background:#7A7A8C}.pin-sos.stale .pin-ring{display:none}
+.pin-sos.mine .pin-head{background:linear-gradient(135deg,var(--red),var(--red2))}
+.pin-me{width:18px;height:18px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 0 0 6px rgba(77,163,255,.25),0 2px 8px rgba(0,0,0,.4)}
+.maplibregl-ctrl-attrib{font-size:10px}
+@media (prefers-reduced-motion: reduce){.pin-ring{animation:none}}
+
+.msg.err .chip{display:block;margin-top:10px}

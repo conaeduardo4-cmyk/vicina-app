@@ -118,10 +118,7 @@
       <h1 class="title">SOS attivo</h1>
       <p class="sub" id="a-since"></p>
       <div class="act-chips" id="a-info"></div>
-      <div class="voice" id="a-voice">
-        <button class="mic" id="mic" aria-label="Messaggio vocale: tieni premuto e parla"><span class="mic-ring"></span><svg class="i"><use href="#i-mic"/></svg></button>
-        <p class="mic-hint" id="mic-hint">Tieni premuto e parla</p>
-      </div>
+      <div class="vcard" id="a-voice" aria-live="polite"></div>
     </div>
     <div class="foot">
       <button class="btn green" data-a="safe">Sono al sicuro</button>
@@ -138,6 +135,17 @@
     <div class="th"><button class="iconbtn" data-a="thread-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button><div id="t-av"></div><div class="fl"><b id="t-name"></b><span id="t-sub"></span></div></div>
     <div id="msgs"></div>
     <div class="cin"><input type="text" id="txt" placeholder="Scrivi un messaggio" maxlength="1000" enterkeyhint="send"><button class="sendb" data-a="send" aria-label="Invia"><svg class="i"><use href="#i-send"/></svg></button></div>
+  </section>
+
+  <!-- Mappa: posizione live di chi chiede aiuto -->
+  <section class="screen tabbed" id="s-map">
+    <div class="map-wrap">
+      <div id="map" aria-label="Mappa"></div>
+      <div class="map-head"><h1 class="title">Mappa</h1>
+        <div class="map-tools"><button class="iconbtn solid" data-a="map-all" aria-label="Mostra tutti"><svg class="i"><use href="#i-people"/></svg></button><button class="iconbtn solid" data-a="map-me" aria-label="La mia posizione"><svg class="i"><use href="#i-pin"/></svg></button></div></div>
+      <div class="map-msg" id="map-msg" hidden></div>
+    </div>
+    <div class="map-list" id="map-list"></div>
   </section>
 
   <!-- Cerchia -->
@@ -172,6 +180,7 @@
 
   <nav id="nav" hidden>
     <button data-a="tab" data-tab="home" class="sosb"><svg class="i"><use href="#i-shield"/></svg><span>SOS</span></button>
+    <button data-a="tab" data-tab="map"><svg class="i"><use href="#i-pin"/></svg><span>Mappa</span><b class="badge live" id="map-badge" hidden></b></button>
     <button data-a="tab" data-tab="chat"><svg class="i"><use href="#i-chat"/></svg><span>Avvisi</span><b class="badge" id="badge" hidden></b></button>
     <button data-a="tab" data-tab="circle"><svg class="i"><use href="#i-people"/></svg><span>Cerchia</span></button>
     <button data-a="tab" data-tab="me"><svg class="i"><use href="#i-gear"/></svg><span>Impostazioni</span></button>

@@ -131,12 +131,37 @@ export function createApi(env) {
     },
     async sendText(id, uid, text) { ok(await sb.from('messages').insert({ chat_id: id, type: 'text', from_uid: uid, text })); },
 
+    // Assistente: timeout, un nuovo tentativo automatico sugli errori temporanei, messaggi d'errore chiari.
     async askAI(messages) {
-      const { data, error } = await sb.functions.invoke('assistente', { body: { messages } });
+      const once = async () => {
+        await sb.auth.getSession();                      // rinnova il token se è scaduto
+        const call = sb.functions.invoke('assistente', { body: { messages } });
+        const tmo = new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'timeout' })), 50000));
+        const { data, error } = await Promise.race([call, tmo]);
+        if (error) {
+          let b = {};
+          try { b = await error.context.json(); } catch {}
+          const status = error.context?.status || 0;
+          const m = b.error || (status === 404 ? "L'assistente non è pubblicato sul server: pubblica la funzione \"assistente\" su Supabase."
+            : offline(error.message) ? 'Sei offline. Controlla la connessione.' : "L'assistente non risponde. Riprova tra poco.");
+          throw Object.assign(new Error(m), { code: b.code || (offline(error.message) ? 'offline' : status === 404 ? 'missing' : 'unavailable'), status });
+        }
+        if (!data || typeof data.reply !== 'string') throw Object.assign(new Error("Risposta non valida dall'assistente."), { code: 'unavailable' });
+        return data;
+      };
+      try { return await once(); }
+      catch (e) {
+        if (['quota', 'config', 'missing', 'empty', 'auth'].includes(e.code)) throw e;   // inutile ritentare
+        await new Promise(r => setTimeout(r, 1200));
+        return once();
+      }
+    },
+    async diagAI() {
+      const { data, error } = await sb.functions.invoke('assistente', { body: { diag: true } });
       if (error) {
-        let msg = '';
-        try { msg = (await error.context.json()).error; } catch {}
-        throw Object.assign(new Error(msg || (offline(error.message) ? 'Sei offline. Controlla la connessione.' : "L'assistente non risponde. Riprova tra poco.")), { code: 'unavailable' });
+        let b = {}; try { b = await error.context.json(); } catch {}
+        const status = error.context?.status || 0;
+        return { ok: false, errore: b.error || (status === 404 ? 'funzione "assistente" non pubblicata su Supabase' : error.message) };
       }
       return data;
     },

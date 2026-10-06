@@ -53,8 +53,17 @@ export async function micPermission() {
 }
 export const micState = () => ls.get('mic') || 'prompt';
 
+// Apre la posizione nell'app di mappe del telefono: Apple Mappe su iPhone/iPad/Mac, Google Maps altrove.
+export const mapsLinks = (lat, lng, name, nav, platform) => {
+  const q = encodeURIComponent(name || 'Posizione SOS'), ll = `${lat},${lng}`;
+  const apple = platform === 'ios' || (platform === 'web' && /iPhone|iPad|Macintosh/.test(navigator.userAgent));
+  if (apple) return { app: nav ? `maps://?daddr=${ll}&dirflg=w` : `maps://?ll=${ll}&q=${q}`, web: nav ? `https://maps.apple.com/?daddr=${ll}&dirflg=w` : `https://maps.apple.com/?ll=${ll}&q=${q}` };
+  return { app: nav ? `google.navigation:q=${ll}&mode=w` : `geo:${ll}?q=${ll}(${q})`, web: nav ? `https://www.google.com/maps/dir/?api=1&destination=${ll}&travelmode=walking` : `https://www.google.com/maps/search/?api=1&query=${ll}` };
+};
+
 export const webNative = {
   isNative: false, platform: 'web',
+  async openMaps(lat, lng, name, nav) { window.open(mapsLinks(lat, lng, name, nav, 'web').web, '_blank', 'noopener'); },
   async getPos() {
     if (!navigator.geolocation) return null;
     for (const o of [{ enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }, { enableHighAccuracy: false, timeout: 4000, maximumAge: 600000 }]) {

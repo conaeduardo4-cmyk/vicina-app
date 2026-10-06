@@ -110,8 +110,8 @@ assert q(F, "select distinct lat from messages where sos_id='live_000000001' and
 q(F, "select update_sos_location('live_000000001', 1, 1, 1)", 'Non autorizzato')
 q(E, "select update_sos_location('live_000000001', 999, 7, 1)", 'Posizione non valida')
 q(None, "update sos set loc_at = now() - interval '10 seconds' where id='live_000000001'")
-q(E, "select stop_sos_live('live_000000001')")
-assert json.loads(q(E, "select update_sos_location('live_000000001', 45.002, 7.002, 8)"))['live'] is False
+q(E, "select stop_sos_live('live_000000001')")   # v4: non ferma più la live finché l'SOS è attivo
+assert json.loads(q(E, "select update_sos_location('live_000000001', 45.002, 7.002, 8)"))['live'] is True
 q(E, f"select attach_sos_audio('live_000000001', 'sos/{E}/live_000000001/voice.webm')")
 assert q(F, "select audio from sos where id='live_000000001'").endswith('voice.webm')
 assert q(F, "select distinct audio from messages where sos_id='live_000000001'").endswith('voice.webm')
@@ -119,9 +119,22 @@ q(E, f"select attach_sos_audio('live_000000001', 'sos/{E}/live_000000001/voice.e
 q(E, f"insert into storage.objects(bucket_id,name) values ('sos','{E}/live_000000001/voice.webm')")
 q(E, f"insert into storage.objects(bucket_id,name) values ('sos','{E}/live_000000001/voice.exe')", 'row-level security')
 q(None, "update profiles set last_sos_at = now() - interval '1 minute' where id='%s'" % E)
-r = json.loads(q(E, "select send_sos('live_000000002', 45.0, 7.0, 10, false)")); assert r['liveUntil'] is None, r
-assert json.loads(q(E, "select update_sos_location('live_000000002', 45.1, 7.1, 8)"))['live'] is False
+r = json.loads(q(E, "select send_sos('live_000000002', 45.0, 7.0, 10, false)")); assert r['liveUntil'], r   # v4: live sempre
+q(None, "update sos set loc_at = now() - interval '10 seconds' where id='live_000000002'")
+assert json.loads(q(E, "select update_sos_location('live_000000002', 45.1, 7.1, 8)"))['live'] is True
+assert q(None, "select live_until > now() + interval '11 hours' from sos where id='live_000000002'") == 't'
 q(E, "select resolve_sos('live_000000002')")
+assert json.loads(q(E, "select update_sos_location('live_000000002', 45.2, 7.2, 8)"))['live'] is False   # chiuso con Sono al sicuro
+assert q(None, "select live_until <= now() from sos where id='live_000000002'") == 't'
 assert q(None, "select active from sos where id='live_000000001'") == 'f'   # chiuso dal nuovo SOS
 print('push in coda v3:', q(None, "select string_agg(body->>'event', ',' order by id) from net.calls where body->>'event' in ('voice')"))
 print('TEST v3 SUPERATI')
+
+print('\nv4: percorso fino a 300 punti')
+q(None, "update profiles set last_sos_at = now() - interval '1 minute' where id='%s'" % E)
+q(E, "select send_sos('live_000000003', 45.0, 7.0, 10)")
+for i in range(305):
+    q(None, "update sos set loc_at = now() - interval '10 seconds' where id='live_000000003'")
+    q(E, f"select update_sos_location('live_000000003', {45 + i/10000}, 7.0, 5)")
+assert q(F, "select jsonb_array_length(track) from sos where id='live_000000003'") == '300'
+print('TEST v4 SUPERATI')

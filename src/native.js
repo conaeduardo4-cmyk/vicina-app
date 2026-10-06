@@ -6,7 +6,8 @@ import { Share } from '@capacitor/share';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
-import { webNative, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
+import { AppLauncher } from '@capacitor/app-launcher';
+import { webNative, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
 
 // Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
 const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
@@ -85,6 +86,13 @@ export const native = !isNative ? webNative : {
       const id = await Geolocation.watchPosition({ enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }, p => p && cb({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }));
       return () => Geolocation.clearWatch({ id }).catch(() => {});
     }
+  },
+
+  // Indicazioni / posizione: Apple Mappe su iOS, Google Maps su Android (se manca l'app, si apre il sito)
+  async openMaps(lat, lng, name, nav) {
+    const l = mapsLinks(lat, lng, name, nav, Capacitor.getPlatform());
+    try { const r = await AppLauncher.openUrl({ url: l.app }); if (r && r.completed === false) throw new Error('non aperto'); }
+    catch { try { await AppLauncher.openUrl({ url: l.web }); } catch { window.open(l.web, '_system'); } }
   },
 
   // Nasconde lo splash nativo appena parte l'intro animata (passaggio senza stacchi)
