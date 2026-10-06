@@ -4,7 +4,8 @@
   "webDir": "dist",
   "backgroundColor": "#0B0B10",
   "android": {
-    "backgroundColor": "#0B0B10"
+    "backgroundColor": "#0B0B10",
+    "useLegacyBridge": true
   },
   "ios": {
     "backgroundColor": "#0B0B10",

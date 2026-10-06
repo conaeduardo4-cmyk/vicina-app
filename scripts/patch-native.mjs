@@ -10,7 +10,7 @@ const man = 'android/app/src/main/AndroidManifest.xml';
 if (fs.existsSync(man)) {
   console.log('Android');
   let s = read(man);
-  for (const p of ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE'])
+  for (const p of ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_LOCATION', 'WAKE_LOCK'])
     if (!s.includes(`android.permission.${p}"`)) s = s.replace('</manifest>', `    <uses-permission android:name="android.permission.${p}" />\n</manifest>`);
   for (const f of ['android.hardware.camera', 'android.hardware.location.gps'])
     if (!s.includes(`"${f}"`)) s = s.replace('</manifest>', `    <uses-feature android:name="${f}" android:required="false" />\n</manifest>`);
@@ -38,13 +38,17 @@ if (fs.existsSync(plist)) {
   const add = {
     NSCameraUsageDescription: '<string>Vicina scatta una foto di dove ti trovi quando invii un SOS, per mostrarla alle persone che avvisi.</string>',
     NSLocationWhenInUseUsageDescription: '<string>Vicina invia la tua posizione attuale alle persone che avvisi quando premi SOS.</string>',
-    UIBackgroundModes: '<array>\n\t\t<string>remote-notification</string>\n\t</array>',
+    NSMicrophoneUsageDescription: '<string>Vicina registra un messaggio vocale solo quando tieni premuto il microfono durante un SOS.</string>',
+    NSLocationAlwaysAndWhenInUseUsageDescription: '<string>Durante un SOS Vicina aggiorna la tua posizione per 15 minuti, anche a schermo spento, così la tua cerchia può raggiungerti.</string>',
+    UIBackgroundModes: '<array>\n\t\t<string>remote-notification</string>\n\t\t<string>location</string>\n\t</array>',
     ITSAppUsesNonExemptEncryption: '<false/>',
     UIUserInterfaceStyle: '<string>Dark</string>'
   };
   for (const [k, v] of Object.entries(add))
     if (!s.includes(`<key>${k}</key>`)) s = s.replace(/<\/dict>\s*<\/plist>\s*$/, `\t<key>${k}</key>\n\t${v}\n</dict>\n</plist>\n`);
-  fs.writeFileSync(plist, s); log('permessi e notifiche in background');
+  // se UIBackgroundModes esisteva già senza "location", lo aggiunge
+  s = s.replace(/(<key>UIBackgroundModes<\/key>\s*<array>)([\s\S]*?)(<\/array>)/, (m, a, b, c) => b.includes('<string>location</string>') ? m : a + b + '\t<string>location</string>\n\t' + c);
+  fs.writeFileSync(plist, s); log('permessi, posizione in background e microfono');
 
   const gsi = 'ios/App/App/GoogleService-Info.plist';
   const ad = 'ios/App/App/AppDelegate.swift';

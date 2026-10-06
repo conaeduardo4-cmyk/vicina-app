@@ -27,9 +27,9 @@ export function createApi(env) {
   const ms = t => (t ? Date.parse(t) : Date.now());
   const sos = x => ({
     id: x.id, from: x.from_uid, fromName: x.from_name, fromPhone: x.from_phone || '', lat: x.lat, lng: x.lng, acc: x.acc,
-    photos: x.photos || [], at: ms(x.created_at), active: x.active, acks: x.acks || {}, recipients: x.recipients || [], chats: x.chats || []
+    photos: x.photos || [], at: ms(x.created_at), active: x.active, locAt: x.loc_at ? Date.parse(x.loc_at) : null, liveUntil: x.live_until ? Date.parse(x.live_until) : null, track: x.track || [], audio: x.audio || null, acks: x.acks || {}, recipients: x.recipients || [], chats: x.chats || []
   });
-  const msg = m => ({ id: m.id, type: m.type, from: m.from_uid, fromName: m.from_name, text: m.text, sosId: m.sos_id, lat: m.lat, lng: m.lng, photos: m.photos || [], at: ms(m.created_at) });
+  const msg = m => ({ id: m.id, type: m.type, from: m.from_uid, fromName: m.from_name, text: m.text, sosId: m.sos_id, lat: m.lat, lng: m.lng, photos: m.photos || [], audio: m.audio || null, at: ms(m.created_at) });
   const prof = p => p && ({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '', mutedGroups: p.muted_groups || [] });
 
   // nomi usati dall'interfaccia → funzioni SQL
@@ -41,7 +41,10 @@ export function createApi(env) {
     decideJoin: d => ['decide_join', { p_group_id: d.groupId, p_uid: d.uid, p_accept: !!d.accept }],
     removeMember: d => ['remove_member', { p_group_id: d.groupId, p_uid: d.uid }],
     deleteGroup: d => ['delete_group', { p_group_id: d.groupId }],
-    sendSos: d => ['send_sos', { p_sos_id: d.sosId, p_lat: d.lat, p_lng: d.lng, p_acc: d.acc }],
+    sendSos: d => ['send_sos', { p_sos_id: d.sosId, p_lat: d.lat, p_lng: d.lng, p_acc: d.acc, p_live: !!d.live }],
+    updateSosLocation: d => ['update_sos_location', { p_sos_id: d.sosId, p_lat: d.lat, p_lng: d.lng, p_acc: d.acc }],
+    stopSosLive: d => ['stop_sos_live', { p_sos_id: d.sosId }],
+    attachSosAudio: d => ['attach_sos_audio', { p_sos_id: d.sosId, p_path: d.path }],
     attachSosPhotos: d => ['attach_sos_photos', { p_sos_id: d.sosId, p_paths: d.paths }],
     ackSos: d => ['ack_sos', { p_sos_id: d.sosId }],
     resolveSos: d => ['resolve_sos', { p_sos_id: d.sosId }],
@@ -145,6 +148,10 @@ export function createApi(env) {
     async photoUrl(p) {
       const { data, error } = await sb.storage.from('sos').createSignedUrl(p.replace(/^sos\//, ''), 3600);
       if (error) throw rerr(error); return data.signedUrl;
+    },
+    async uploadAudio(p, blob, mime) {
+      const { error } = await sb.storage.from('sos').upload(p.replace(/^sos\//, ''), blob, { contentType: mime, upsert: false });
+      if (error) throw rerr(error);
     },
     async uploadPhoto(p, dataUrl) {
       const blob = await (await fetch(dataUrl)).blob();

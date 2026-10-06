@@ -34,11 +34,21 @@ export function createDemoApi() {
     setTimeout(() => {
       const l = db.links[0]; if (!l) return;
       const uid = l.uids.find(x => x !== 'me'), p = PEOPLE.find(x => x[0] === uid);
-      const s = { id: 's_' + rnd(), from: uid, fromName: p[1], fromPhone: p[2], lat: 45.4642, lng: 9.19, acc: 18, photos: [], at: Date.now(), active: true, acks: {}, recipients: ['me'], chats: [l.id] };
+      const s = { id: 's_' + rnd(), from: uid, fromName: p[1], fromPhone: p[2], lat: 45.4642, lng: 9.19, acc: 18, photos: [], at: Date.now(), locAt: Date.now(), liveUntil: Date.now() + 15 * 60e3, track: [], audio: null, active: true, acks: {}, recipients: ['me'], chats: [l.id] };
       db.sos.push(s); push(l.id, { type: 'sos', from: uid, fromName: p[1], sosId: s.id, lat: s.lat, lng: s.lng, photos: [] }); emit();
       setTimeout(() => { s.photos = ['demo/back.jpg', 'demo/front.jpg']; emit(); }, 2500);
+      setTimeout(() => { s.audio = 'demo/voice.webm'; emit(); }, 6000);
+      const mv = setInterval(() => { if (!s.active || Date.now() > s.liveUntil) return clearInterval(mv); s.lat += 0.0004; s.lng += 0.0003; s.locAt = Date.now(); emit(); }, 8000);
     }, 25000);
   }
+  const fakeVoice = () => { // breve audio di prova (tre toni) in WAV
+    const sr = 8000, n = sr * 2, b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
+    const w = (o, str) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) { const f = [440, 554, 659][Math.floor(i / (n / 3))]; v.setInt16(44 + i * 2, Math.sin(2 * Math.PI * f * i / sr) * 6000 * Math.min(1, (n - i) / 800), true); }
+    return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+  };
   const fakePhoto = (k) => {
     const c = document.createElement('canvas'); c.width = 300; c.height = 400; const x = c.getContext('2d');
     const g = x.createLinearGradient(0, 0, 300, 400); g.addColorStop(0, k === 'back' ? '#2b3a55' : '#4a2b55'); g.addColorStop(1, '#111');
@@ -76,16 +86,27 @@ export function createDemoApi() {
       if (uid === 'me') db.groups = db.groups.filter(x => x.id !== groupId); emit(); return { ok: true };
     },
     async deleteGroup({ groupId }) { db.groups = db.groups.filter(x => x.id !== groupId); delete db.chats[groupId]; emit(); return { ok: true }; },
-    async sendSos({ sosId, lat, lng, acc }) {
+    async sendSos({ sosId, lat, lng, acc, live }) {
       await wait(700);
       const rec = new Set(); const chats = [];
       db.links.forEach(l => { chats.push(l.id); l.uids.forEach(u => u !== 'me' && rec.add(u)); });
       db.groups.filter(g => !db.user.mutedGroups.includes(g.id)).forEach(g => { chats.push(g.id); g.memberUids.forEach(u => u !== 'me' && rec.add(u)); });
       if (!rec.size) throw err('failed-precondition', 'Aggiungi prima qualcuno da avvisare');
-      const s = { id: sosId, from: 'me', fromName: me(), fromPhone: db.user.phone, lat, lng, acc, photos: [], at: Date.now(), active: true, acks: {}, recipients: [...rec], chats };
+      const liveUntil = live ? Date.now() + 15 * 60e3 : null;
+      const s = { id: sosId, from: 'me', fromName: me(), fromPhone: db.user.phone, lat, lng, acc, photos: [], at: Date.now(), locAt: Date.now(), liveUntil, track: [], audio: null, active: true, acks: {}, recipients: [...rec], chats };
       db.sos.push(s); chats.forEach(c => push(c, { type: 'sos', from: 'me', fromName: me(), sosId, lat, lng, photos: [] })); emit();
       setTimeout(() => { const first = [...rec][0]; const n = PEOPLE.find(p => p[0] === first)?.[1] || 'Contatto'; s.acks[first] = n; emit(); push(chats[0], { type: 'text', from: first, text: 'Ho visto! Ti chiamo subito, sto arrivando.' }); }, 5000);
-      return { recipients: rec.size };
+      return { recipients: rec.size, liveUntil };
+    },
+    async updateSosLocation({ sosId, lat, lng, acc }) {
+      const s = db.sos.find(x => x.id === sosId); if (!s || !s.active || !s.liveUntil || s.liveUntil < Date.now()) return { live: false };
+      Object.assign(s, { lat, lng, acc, locAt: Date.now() }); emit(); return { live: true, until: s.liveUntil };
+    },
+    async stopSosLive({ sosId }) { const s = db.sos.find(x => x.id === sosId); if (s) s.liveUntil = Math.min(s.liveUntil || 0, Date.now()); emit(); return { ok: true }; },
+    async attachSosAudio({ sosId, path }) {
+      const s = db.sos.find(x => x.id === sosId); s.audio = path;
+      s.chats.forEach(c => (db.chats[c] || []).forEach(m => m.sosId === sosId && (m.audio = path)));
+      emit(); s.chats.forEach(emitChat); return { ok: true };
     },
     async attachSosPhotos({ sosId, paths }) {
       const s = db.sos.find(x => x.id === sosId); s.photos.push(...paths);
@@ -93,7 +114,7 @@ export function createDemoApi() {
       emit(); s.chats.forEach(emitChat); return { ok: true };
     },
     async resolveSos({ sosId }) {
-      const s = db.sos.find(x => x.id === sosId); s.active = false; s.chats.forEach(c => push(c, { type: 'safe', from: 'me', fromName: me(), sosId })); emit(); return { ok: true };
+      const s = db.sos.find(x => x.id === sosId); s.active = false; s.liveUntil = Math.min(s.liveUntil || 0, Date.now()); s.chats.forEach(c => push(c, { type: 'safe', from: 'me', fromName: me(), sosId })); emit(); return { ok: true };
     },
     async ackSos({ sosId }) { const s = db.sos.find(x => x.id === sosId); s.acks.me = me(); emit(); return { ok: true }; },
     async deleteAccount() { Object.assign(db, { user: null, links: [], groups: [], sos: [], chats: {} }); return { ok: true }; }
@@ -133,7 +154,8 @@ export function createDemoApi() {
       return { reply, left: 27 };
     },
     async call(name, data = {}) { await wait(250); if (!fns[name]) throw err('not-found', 'Funzione inesistente'); return fns[name](data); },
-    async photoUrl(p) { if (p.startsWith('demo/')) return fakePhoto(p.includes('back') ? 'back' : 'front'); if (photos[p]) return photos[p]; throw err('not-found', 'x'); },
+    async uploadAudio(p, blob) { await wait(300); photos[p] = URL.createObjectURL(blob); },
+    async photoUrl(p) { if (p === 'demo/voice.webm') return fakeVoice(); if (p.startsWith('demo/')) return fakePhoto(p.includes('back') ? 'back' : 'front'); if (photos[p]) return photos[p]; throw err('not-found', 'x'); },
     async uploadPhoto(p, dataUrl) { await wait(300); photos[p] = dataUrl; }
   };
 }

@@ -27,6 +27,10 @@
 <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></symbol>
 <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="i-out" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 8l-4 4 4 4M6 12h10"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5M8 7h7"/></symbol>
+<symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M7.8 7.8a6 6 0 000 8.4M16.2 7.8a6 6 0 010 8.4M5 5a10 10 0 000 14M19 5a10 10 0 010 14"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
 <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
@@ -88,7 +92,7 @@
   <section class="screen tabbed" id="s-home">
     <header class="hh">
       <div><p class="eyebrow" id="h-date"></p><h1 class="title" id="h-name">Ciao</h1></div>
-      <button class="avbtn" data-a="tab" data-tab="me" id="h-av" aria-label="Profilo"></button>
+      <button class="avbtn" data-a="tab" data-tab="me" id="h-av" aria-label="Impostazioni"></button>
     </header>
     <button class="status" id="h-status" data-a="tab" data-tab="circle"></button>
     <div class="stage" id="h-stage">
@@ -109,11 +113,15 @@
   <!-- SOS attivo (mio) -->
   <section class="screen" id="s-active">
     <div class="active-bg"></div>
-    <div class="sc center-col">
-      <div class="beacon"><i></i><i></i><i></i><svg class="i"><use href="#i-alert"/></svg></div>
+    <div class="sc center-col act">
+      <div class="beacon small"><i></i><i></i><i></i><svg class="i"><use href="#i-alert"/></svg></div>
       <h1 class="title">SOS attivo</h1>
       <p class="sub" id="a-since"></p>
-      <div class="card glass" id="a-info"></div>
+      <div class="act-chips" id="a-info"></div>
+      <div class="voice" id="a-voice">
+        <button class="mic" id="mic" aria-label="Messaggio vocale: tieni premuto e parla"><span class="mic-ring"></span><svg class="i"><use href="#i-mic"/></svg></button>
+        <p class="mic-hint" id="mic-hint">Tieni premuto e parla</p>
+      </div>
     </div>
     <div class="foot">
       <button class="btn green" data-a="safe">Sono al sicuro</button>
@@ -140,15 +148,22 @@
 
   <!-- Profilo -->
   <section class="screen tabbed" id="s-me">
-    <header class="hh"><h1 class="title">Profilo</h1></header>
+    <header class="hh"><h1 class="title">Impostazioni</h1></header>
     <div class="sc" id="m-body"></div>
   </section>
 
-  <!-- Assistente (Gemini) -->
+  <!-- Guida rapida interattiva -->
+  <section class="screen" id="s-guide">
+    <div class="topbar"><div class="progress"><i id="g-bar"></i></div><button class="iconbtn" data-a="guide-close" aria-label="Chiudi la guida"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div class="g-view" id="g-view"><div class="g-track" id="g-track"></div></div>
+    <div class="foot g-foot"><button class="btn ghost" data-a="guide-prev" id="g-prev">Indietro</button><button class="btn" data-a="guide-next" id="g-next">Avanti</button></div>
+  </section>
+
+  <!-- Assistente (IA) -->
   <section class="screen" id="s-ai">
     <div class="th"><button class="iconbtn" data-a="ai-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button>
       <div class="av sm" style="background:linear-gradient(145deg,#FFB547,#FF7A59)"><svg class="i"><use href="#i-spark"/></svg></div>
-      <div class="fl"><b>Assistente</b><span id="ai-sub">Basato su Gemini · può sbagliare</span></div>
+      <div class="fl"><b>Assistente</b><span id="ai-sub">Risposte automatiche · possono sbagliare</span></div>
       <button class="iconbtn sm" data-a="ai-clear" aria-label="Nuova conversazione"><svg class="i"><use href="#i-trash"/></svg></button></div>
     <div class="ai-warn"><svg class="i"><use href="#i-alert"/></svg><span>In pericolo adesso?</span><button data-a="ai-sos">SOS</button><a href="tel:112">112</a></div>
     <div id="ai-msgs"></div>
@@ -159,7 +174,7 @@
     <button data-a="tab" data-tab="home" class="sosb"><svg class="i"><use href="#i-shield"/></svg><span>SOS</span></button>
     <button data-a="tab" data-tab="chat"><svg class="i"><use href="#i-chat"/></svg><span>Avvisi</span><b class="badge" id="badge" hidden></b></button>
     <button data-a="tab" data-tab="circle"><svg class="i"><use href="#i-people"/></svg><span>Cerchia</span></button>
-    <button data-a="tab" data-tab="me"><svg class="i"><use href="#i-user"/></svg><span>Profilo</span></button>
+    <button data-a="tab" data-tab="me"><svg class="i"><use href="#i-gear"/></svg><span>Impostazioni</span></button>
   </nav>
 
   <!-- Invio SOS -->

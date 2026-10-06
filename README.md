@@ -154,10 +154,22 @@ Conserva `vicina.jks` e la password. Per distribuire senza Google Play basta con
 - Solo accesso con email e password.
 - Vicina non sostituisce i servizi di emergenza.
 
-## Assistente (Gemini, gratuito)
-1. Vai su **aistudio.google.com** → *Get API key* → *Create API key* (piano gratuito, senza carta).
-2. Supabase → **SQL Editor** → esegui `supabase/assistente.sql` (se hai già eseguito il nuovo `installa.sql` è già incluso).
-3. Supabase → **Edge Functions → Deploy a new function → Via Editor**: nome **`assistente`**, incolla `supabase/functions/assistente/index.ts` → Deploy. Disattiva "Verify JWT" (l'utente viene verificato dentro la funzione).
-4. **Edge Functions → Secrets**: aggiungi `GEMINI_API_KEY` con la chiave. Facoltativi: `AI_DAILY_LIMIT` (messaggi al giorno per utente, predefinito 30) e `GEMINI_MODEL` (predefinito `gemini-flash-latest`).
+## Assistente (gratuito, Groq + Gemini di riserva)
+1. Vai su **console.groq.com** → accedi → **API Keys → Create API Key** (piano gratuito, senza carta: circa 1.000 messaggi al giorno).
+   Facoltativo: crea anche una chiave Gemini su **aistudio.google.com**, viene usata solo se Groq non risponde.
+2. Supabase → **SQL Editor** → esegui `supabase/assistente.sql` (già incluso in `installa.sql`).
+3. Supabase → **Edge Functions → Deploy a new function → Via Editor**: nome **`assistente`**, incolla `supabase/functions/assistente/index.ts` → Deploy. Disattiva "Verify JWT".
+4. **Edge Functions → Secrets**: `GROQ_API_KEY` (e, se l'hai, `GEMINI_API_KEY`). Facoltativi: `AI_DAILY_LIMIT` (predefinito 30), `GROQ_MODELS`, `GEMINI_MODEL`.
 
-Note: la chiave resta sul server, mai nell'app. La conversazione è salvata solo sul telefono. L'assistente non riceve posizione, foto o chat, solo il nome di battesimo per rivolgersi all'utente. Se un messaggio fa pensare a un pericolo, l'app mostra subito SOS / 112 / 1522 senza aspettare la risposta.
+L'assistente risponde solo su uso dell'app e sicurezza personale: a qualsiasi altra domanda risponde che non c'entra.
+La chiave resta sul server. La conversazione è salvata solo sul telefono e all'IA arriva solo il nome di battesimo.
+
+## Aggiornamento v3 (posizione live e messaggio vocale)
+1. Supabase → **SQL Editor** → esegui `supabase/aggiornamento-v3.sql` (si può rieseguire).
+2. **Edge Functions**: aggiorna `vicina` (nuova notifica del vocale) e `assistente` incollando i nuovi `index.ts`.
+3. GitHub: carica i file nuovi e lancia **Actions → Compila app**, scegliendo **android** (veloce, consuma pochi minuti).
+
+## Compilazione: "in attesa di un runner"
+GitHub mette in coda i job finché non trova un server libero. Se resta in attesa a lungo:
+- con repository **privato** i minuti gratuiti (2.000/mese, il Mac ne conta 10 per minuto) possono essere finiti: rendi il repository **pubblico** (minuti illimitati) oppure compila solo **android**;
+- controlla **Settings → Billing** del tuo account GitHub e la pagina **githubstatus.com**.

@@ -1,12 +1,15 @@
 // Funzioni del telefono via Capacitor (iOS/Android). Nel browser ricade su native-web.js.
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import { Share } from '@capacitor/share';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
-import { webNative, snap, cameraPermission, cameraState } from './native-web.js';
+import { webNative, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
+
+// Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
+const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
 
 const isNative = Capacitor.isNativePlatform();
 const norm = s => (s === 'prompt-with-rationale' ? 'prompt' : s || 'prompt');
@@ -28,12 +31,13 @@ export const native = !isNative ? webNative : {
     let loc = 'prompt', push = 'prompt';
     try { loc = norm((await Geolocation.checkPermissions()).location); } catch {}
     try { push = norm((await FirebaseMessaging.checkPermissions()).receive); } catch {}
-    return { loc, cam: cameraState(), push };
+    return { loc, cam: cameraState(), push, mic: micState() };
   },
 
   async requestPerms() {
     try { await Geolocation.requestPermissions({ permissions: ['location'] }); } catch (e) { console.warn('geo', e); }
     await cameraPermission();
+    await micPermission();
     try { await FirebaseMessaging.requestPermissions(); } catch (e) { console.warn('push perm', e); }
   },
 
@@ -65,6 +69,22 @@ export const native = !isNative ? webNative : {
   vibrate(p) {
     const ms = Array.isArray(p) ? p.filter((_, i) => i % 2 === 0).reduce((a, b) => a + b, 0) : p;
     Haptics.vibrate({ duration: Math.min(ms || 300, 1500) }).catch(() => {});
+  },
+
+  // Posizione live per l'SOS: prima il plugin in background, se non c'è la posizione normale (solo app aperta)
+  async watchLive(cb) {
+    try {
+      const id = await BackgroundGeolocation.addWatcher({
+        backgroundTitle: 'SOS attivo · posizione live',
+        backgroundMessage: 'Vicina sta condividendo la tua posizione con la tua cerchia.',
+        requestPermissions: true, stale: false, distanceFilter: 10
+      }, (loc, err) => { if (loc && !err) cb({ lat: loc.latitude, lng: loc.longitude, acc: loc.accuracy }); });
+      return () => BackgroundGeolocation.removeWatcher({ id }).catch(() => {});
+    } catch (e) {
+      console.warn('posizione in background non disponibile', e);
+      const id = await Geolocation.watchPosition({ enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }, p => p && cb({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }));
+      return () => Geolocation.clearWatch({ id }).catch(() => {});
+    }
   },
 
   // Nasconde lo splash nativo appena parte l'intro animata (passaggio senza stacchi)

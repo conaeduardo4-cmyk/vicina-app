@@ -95,6 +95,10 @@ async function handle(ev: { event: string; id: string; [k: string]: unknown }) {
       const n = s.acks?.[String(ev.uid)] || 'Qualcuno';
       return push([s.from_uid], { title: `${first(n)} ha visto il tuo SOS`, body: 'Sta intervenendo. Resta dove sei se puoi.', data: { type: 'ack', sosId: s.id } });
     }
+    case 'voice': {
+      const s = await one('sos', ev.id); if (!s) return;
+      return push(s.recipients, { title: `🎙 Messaggio vocale da ${first(s.from_name)}`, body: 'Tocca per ascoltarlo nell\'SOS.', data: { type: 'sos', sosId: s.id }, sos: true });
+    }
     case 'safe': {
       const s = await one('sos', ev.id); if (!s) return;
       return push(s.recipients, { title: `${first(s.from_name)} è al sicuro`, body: "Ha chiuso l'SOS. Tutto a posto.", data: { type: 'safe', sosId: s.id } });

@@ -23,6 +23,36 @@ export async function cameraPermission() {
 }
 export const cameraState = () => ls.get('cam') || 'prompt';
 
+
+// Registrazione audio (messaggio vocale). Restituisce { stop(): Promise<{blob, ext, mime, ms}>, cancel() }
+export async function startRecording() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+  const types = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/aac', 'audio/ogg;codecs=opus', 'audio/webm'];
+  const mime = (window.MediaRecorder && types.find(t => MediaRecorder.isTypeSupported?.(t))) || '';
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined);
+  const chunks = []; const t0 = Date.now();
+  rec.ondataavailable = e => e.data && e.data.size && chunks.push(e.data);
+  rec.start(250);
+  const close = () => stream.getTracks().forEach(t => t.stop());
+  return {
+    stop: () => new Promise(res => {
+      rec.onstop = () => {
+        close();
+        const type = (rec.mimeType || mime || 'audio/webm').split(';')[0];
+        const ext = /mp4|aac|m4a/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : 'webm';
+        res({ blob: new Blob(chunks, { type }), ext, mime: ext === 'm4a' ? 'audio/mp4' : type, ms: Date.now() - t0 });
+      };
+      try { rec.stop(); } catch { close(); res(null); }
+    }),
+    cancel: () => { try { rec.onstop = null; rec.stop(); } catch {} close(); }
+  };
+}
+export async function micPermission() {
+  try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); ls.set('mic', 'granted'); return 'granted'; }
+  catch (e) { const r = /NotAllowed|Permission/i.test(e?.name || '') ? 'denied' : 'prompt'; ls.set('mic', r); return r; }
+}
+export const micState = () => ls.get('mic') || 'prompt';
+
 export const webNative = {
   isNative: false, platform: 'web',
   async getPos() {
@@ -36,11 +66,12 @@ export const webNative = {
     let loc = 'prompt';
     try { loc = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch {}
     const push = typeof Notification !== 'undefined' ? ({ default: 'prompt' }[Notification.permission] || Notification.permission) : 'prompt';
-    return { loc, cam: cameraState(), push };
+    return { loc, cam: cameraState(), push, mic: micState() };
   },
   async requestPerms() {
     await this.getPos();
     await cameraPermission();
+    await micPermission();
     try { if (typeof Notification !== 'undefined') await Notification.requestPermission(); } catch {}
   },
   async pushInit() { /* le notifiche push funzionano solo nell'app installata */ },
@@ -56,5 +87,12 @@ export const webNative = {
   vibrate(p) { try { navigator.vibrate?.(p); } catch {} },
   onBack() {},
   hideSplash() {},
+  // Posizione live: chiama cb({lat,lng,acc}) a ogni aggiornamento. Restituisce una funzione per fermarla.
+  async watchLive(cb) {
+    if (!navigator.geolocation) return () => {};
+    const id = navigator.geolocation.watchPosition(p => cb({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }), () => {}, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+    return () => navigator.geolocation.clearWatch(id);
+  },
+  startRecording,
   snap
 };

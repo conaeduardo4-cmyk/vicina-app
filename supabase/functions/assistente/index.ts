@@ -1,17 +1,26 @@
-// Edge Function "assistente": risponde agli utenti di Vicina usando Gemini (piano gratuito di Google AI Studio).
-// La chiama l'app con il token dell'utente. La chiave di Gemini resta qui, mai dentro l'app.
+// Edge Function "assistente": risponde agli utenti di Vicina con un modello di IA gratuito.
+// Prova i fornitori in ordine (predefinito: Groq, poi Gemini) e passa al successivo se uno non risponde.
+// La chiamata arriva dall'app con il token dell'utente. Le chiavi restano qui, mai dentro l'app.
 //
-// Secrets richiesti (Edge Functions → Secrets):
-//   GEMINI_API_KEY   = la chiave creata su aistudio.google.com (gratis)
+// Secrets (Edge Functions → Secrets) – basta almeno uno dei due:
+//   GROQ_API_KEY     = chiave gratuita da console.groq.com (consigliata: veloce e stabile)
+//   GEMINI_API_KEY   = chiave gratuita da aistudio.google.com (riserva)
 // Facoltativi:
-//   GEMINI_MODEL     = modello da usare (predefinito: gemini-flash-latest)
+//   AI_PROVIDERS     = ordine dei fornitori, es. "groq,gemini" (predefinito)
+//   GROQ_MODELS      = modelli Groq in ordine, separati da virgola (predefinito: openai/gpt-oss-120b,openai/gpt-oss-20b)
+//   GEMINI_MODEL     = modello Gemini (predefinito: gemini-flash-latest)
 //   AI_DAILY_LIMIT   = messaggi al giorno per utente (predefinito: 30)
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const SB = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
-const KEY = Deno.env.get('GEMINI_API_KEY') || '';
-const MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-flash-latest';
+const GROQ_KEY = Deno.env.get('GROQ_API_KEY') || '';
+const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY') || '';
+const PROVIDERS = (Deno.env.get('AI_PROVIDERS') || 'groq,gemini').split(',').map(x => x.trim().toLowerCase())
+  .filter(p => (p === 'groq' && GROQ_KEY) || (p === 'gemini' && GEMINI_KEY));
+const GROQ_MODELS = (Deno.env.get('GROQ_MODELS') || 'openai/gpt-oss-120b,openai/gpt-oss-20b').split(',').map(x => x.trim()).filter(Boolean);
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-flash-latest';
 const LIMIT = Math.max(1, Number(Deno.env.get('AI_DAILY_LIMIT') || 30));
+const FUORI_TEMA = "Questa domanda non c'entra con Vicina. Posso aiutarti solo con l'uso dell'app e con la tua sicurezza personale.";
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -23,12 +32,12 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const GUIDA = `
 COME FUNZIONA L'APP VICINA (usa queste informazioni per rispondere sulle funzioni):
 - SOS: nella scheda "SOS" si tiene premuto il pulsante rosso per 1,5 secondi. Parte subito l'allarme con posizione GPS a tutta la cerchia, poi l'app scatta in automatico una foto con la fotocamera posteriore e una con quella frontale. Prima che parta l'allarme si può toccare "Annulla".
-- Dopo l'invio compare "SOS attivo": mostra chi ha visto l'allarme ("Ho visto, me ne occupo"). Quando si è al sicuro si tocca "Sono al sicuro" e tutti vengono avvisati. Un SOS resta attivo al massimo 12 ore. Tra un SOS e l'altro servono 20 secondi.
+- Posizione live: se nelle Impostazioni è attiva \"Posizione live 15 minuti\", dopo l'SOS la posizione si aggiorna da sola per 15 minuti (anche a schermo spento su Android, con una notifica fissa). Si può fermare con \"Ferma\" nella schermata SOS attivo.\n- Messaggio vocale: nella schermata \"SOS attivo\" si tiene premuto il pulsante col microfono, si parla e si rilascia: il vocale arriva a tutta la cerchia (massimo 60 secondi). È facoltativo; si può disattivare nelle Impostazioni.\n- Dopo l'invio compare "SOS attivo": mostra chi ha visto l'allarme ("Ho visto, me ne occupo"). Quando si è al sicuro si tocca "Sono al sicuro" e tutti vengono avvisati. Un SOS resta attivo al massimo 12 ore. Tra un SOS e l'altro servono 20 secondi.
 - Chi riceve un SOS vede una schermata rossa con posizione (Apri la posizione), foto, pulsante Chiama (se la persona ha inserito il telefono), 112 e chat.
 - Cerchia: partner (uno solo), amici e gruppi fino a 8 persone, massimo 10 gruppi. Ci si collega con un codice di 6 caratteri: scheda "Cerchia" → "+" → Invita (il codice vale 10 minuti, si condivide con il pulsante Condividi) oppure "Ho un codice". Per i gruppi l'admin deve approvare la richiesta. Nella scheda del gruppo si può escludere il gruppo dagli SOS con l'interruttore "Includi negli SOS".
 - Chat: scheda "Avvisi", una chat per ogni persona e gruppo; qui arrivano anche gli SOS.
-- Profilo: telefono (lo vede solo chi riceve un tuo SOS), permessi, esci, elimina account.
-- Permessi necessari: posizione, fotocamera, notifiche. Se le notifiche non arrivano: Profilo → "Controlla i permessi"; su Android controllare anche che l'app non sia in "risparmio batteria/ottimizzata" e che le notifiche del canale "SOS" siano attive; su iPhone le notifiche push arriveranno con la versione definitiva.
+- Impostazioni (ultima scheda): profilo e telefono (lo vede solo chi riceve un tuo SOS), opzioni SOS (posizione live, vocale), permessi, Guida rapida interattiva, Assistente, esci, elimina account.
+- Permessi necessari: posizione, fotocamera, notifiche. Se le notifiche non arrivano: Impostazioni → Permessi; su Android controllare anche che l'app non sia in "risparmio batteria/ottimizzata" e che le notifiche del canale "SOS" siano attive; su iPhone le notifiche push arriveranno con la versione definitiva.
 - Le foto degli SOS vengono cancellate dopo 7 giorni. Nessuno può collegarsi senza il consenso di entrambi.
 - Su Android l'app si installa dal sito (link in bio): se il telefono avvisa, "Scarica comunque" e poi "Installa comunque". Su iPhone è in beta.
 - Limiti noti: per scattare le foto l'app deve essere aperta in primo piano; senza internet l'SOS non parte e l'app propone di chiamare il 112.
@@ -44,7 +53,7 @@ REGOLE DI SICUREZZA, da rispettare sempre:
 3. Non fare diagnosi mediche né dare consigli medici o legali come certi: dai solo indicazioni generali di primo soccorso riconosciute e rimanda al 112 / al medico / a un avvocato o a un centro antiviolenza. Numeri utili in Italia: 112 emergenze, 1522 antiviolenza e stalking (gratuito, 24 ore su 24), 114 emergenza infanzia.
 4. Non chiedere mai password, codici, indirizzi o dati personali. Non hai accesso a posizione, foto, contatti o chat dell'utente e non puoi inviare SOS o messaggi: se te lo chiedono, spiega come farlo nell'app.
 5. Non inventare funzioni che l'app non ha. Se non sai qualcosa, dillo.
-6. Rifiuta con gentilezza richieste non legate a sicurezza personale, benessere o uso dell'app, riportando la conversazione su questi temi.
+6. ARGOMENTI AMMESSI: uso dell'app Vicina; sicurezza personale, prevenzione, cosa fare in un'emergenza; paura, ansia o disagio legati a sentirsi in pericolo. Se il messaggio riguarda QUALSIASI altro argomento (compiti, ricette, sport, programmazione, notizie, giochi, curiosità, traduzioni, ecc.) rispondi SOLO con la parola: FUORI_TEMA
 7. Niente markdown complesso: al massimo **grassetto** ed elenchi con "- ".
 ${GUIDA}`;
 }
@@ -54,7 +63,6 @@ type Msg = { role: 'user' | 'model'; text: string };
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Metodo non supportato' }, 405);
-  if (!KEY) return json({ error: "L'assistente non è ancora configurato (manca GEMINI_API_KEY)." }, 503);
 
   // 1) chi sta scrivendo?
   const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
@@ -80,26 +88,52 @@ Deno.serve(async req => {
   // 4) nome e genere per un italiano corretto (solo il nome di battesimo)
   const { data: p } = await SB.from('profiles').select('name, gender').eq('id', uid).maybeSingle();
 
-  // 5) Gemini
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': KEY },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: regole(p?.name || '', p?.gender || '') }] },
-      contents: msgs,
-      generationConfig: { temperature: 0.4, maxOutputTokens: 700 }
-    })
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    console.error('Gemini', r.status, t.slice(0, 500));
-    const msg = r.status === 429 ? "L'assistente ha ricevuto troppe richieste, riprova tra un minuto."
-      : r.status === 400 || r.status === 403 ? "Configurazione dell'assistente non valida (chiave o modello)."
-      : 'Assistente momentaneamente non disponibile.';
-    return json({ error: msg }, 502);
+  // 5) IA: prova i fornitori in ordine finché uno risponde
+  if (!PROVIDERS.length) return json({ error: "L'assistente non è ancora configurato (manca GROQ_API_KEY o GEMINI_API_KEY)." }, 503);
+  const system = regole(p?.name || '', p?.gender || '');
+  let reply = '', lastErr = '';
+  for (const prov of PROVIDERS) {
+    const models = prov === 'groq' ? GROQ_MODELS : [GEMINI_MODEL];
+    for (const model of models) {
+      try {
+        reply = prov === 'groq' ? await askGroq(model, system, msgs) : await askGemini(model, system, msgs);
+        if (reply) break;
+      } catch (e) { lastErr = `${prov}/${model}: ${e}`; console.warn('assistente', lastErr); }
+    }
+    if (reply) break;
   }
-  const d = await r.json();
-  const reply = (d?.candidates?.[0]?.content?.parts || []).map((x: { text?: string }) => x.text || '').join('').trim();
-  if (!reply) return json({ reply: "Non posso rispondere a questa domanda. Se sei in pericolo tieni premuto il pulsante SOS o chiama il 112.", left });
+  if (!reply) return json({ error: "L'assistente non risponde in questo momento. Riprova tra un minuto. In emergenza usa il pulsante SOS o chiama il 112." }, 502);
+  if (/^\W*FUORI[_ ]TEMA\W*$/i.test(reply) || (/FUORI[_ ]TEMA/i.test(reply) && reply.length < 40)) reply = FUORI_TEMA;
   return json({ reply, left });
 });
+
+async function withTimeout(url: string, init: RequestInit, ms = 20000) {
+  const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
+  try { return await fetch(url, { ...init, signal: ac.signal }); } finally { clearTimeout(t); }
+}
+
+// Groq (API compatibile OpenAI)
+async function askGroq(model: string, system: string, msgs: { role: string; parts: { text: string }[] }[]) {
+  const body: Record<string, unknown> = {
+    model, temperature: 0.3, max_completion_tokens: 900,
+    messages: [{ role: 'system', content: system }, ...msgs.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.parts[0].text }))]
+  };
+  if (model.startsWith('openai/gpt-oss')) { body.reasoning_effort = 'low'; body.include_reasoning = false; }
+  const r = await withTimeout('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GROQ_KEY }, body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
+  const d = await r.json();
+  return String(d?.choices?.[0]?.message?.content || '').trim();
+}
+
+// Gemini (Google AI Studio)
+async function askGemini(model: string, system: string, msgs: { role: string; parts: { text: string }[] }[]) {
+  const r = await withTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: msgs, generationConfig: { temperature: 0.3, maxOutputTokens: 900 } })
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
+  const d = await r.json();
+  return (d?.candidates?.[0]?.content?.parts || []).map((x: { text?: string }) => x.text || '').join('').trim();
+}

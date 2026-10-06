@@ -41,7 +41,7 @@ begin
     select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.proname in ('save_token', 'set_muted', 'create_invite', 'redeem_invite', 'remove_link',
        'create_group', 'decide_join', 'remove_member', 'delete_group', 'send_sos', 'attach_sos_photos', 'ack_sos',
-       'resolve_sos', 'delete_account', 'ping', 'handle_new_user', 'ai_take_quota')
+       'resolve_sos', 'delete_account', 'ping', 'handle_new_user', 'ai_take_quota', 'update_sos_location', 'stop_sos_live', 'attach_sos_audio')
   loop
     execute format('drop function if exists %s cascade', r.sig);
   end loop;

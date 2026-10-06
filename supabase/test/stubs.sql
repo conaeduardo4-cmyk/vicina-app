@@ -14,7 +14,7 @@ create view vault.decrypted_secrets as select name, secret as decrypted_secret f
 create function vault.create_secret(s text, n text) returns uuid language sql as $$ insert into vault.secrets values (n, s); select gen_random_uuid() $$;
 create table net.calls (id serial, url text, headers jsonb, body jsonb);
 create function net.http_post(url text, headers jsonb, body jsonb, timeout_milliseconds int) returns bigint language sql as $$ insert into net.calls(url,headers,body) values (url,headers,body) returning id $$;
-create table cron.job (jobname text primary key, schedule text, command text);
-create function cron.schedule(n text, s text, c text) returns bigint language sql as $$ insert into cron.job values (n,s,c) on conflict (jobname) do update set schedule=excluded.schedule; select 1::bigint $$;
-create function cron.unschedule(n text) returns bool language sql as $$ delete from cron.job where jobname=n; select true $$;
+create table cron.job (jobid serial primary key, jobname text unique, schedule text, command text);
+create function cron.schedule(n text, s text, c text) returns bigint language sql as $$ insert into cron.job(jobname,schedule,command) values (n,s,c) on conflict (jobname) do update set schedule=excluded.schedule returning jobid::bigint $$;
+create function cron.unschedule(j bigint) returns bool language sql as $$ delete from cron.job where jobid=j; select true $$;
 create publication supabase_realtime;
