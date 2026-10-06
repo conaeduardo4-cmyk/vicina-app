@@ -1,4 +1,5 @@
 // Vicina – interfaccia. Non importa nulla da npm: riceve "api" (server) e "native" (telefono) da main.js / demo.js.
+import { TERMS_VERSION, TERMS_DATE, TERMS_KEY, TERMS_SECTIONS } from './terms.js';
 export function boot(api, native) {
   /* ================= utilità ================= */
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -608,6 +609,7 @@ export function boot(api, native) {
       <div class="label">Aiuto</div><div class="card">
         <button class="row" data-a="guide"><i class="ic-dot violet">${I('book')}</i><div class="fl"><b>Guida rapida</b><span>5 passi interattivi, 1 minuto</span></div>${I('chev', 'chev')}</button>
         <button class="row" data-a="ai"><i class="ic-dot amber">${I('spark')}</i><div class="fl"><b>Assistente</b><span>Domande sull'app e sulla sicurezza</span></div>${I('chev', 'chev')}</button>
+        <button class="row" data-a="terms-read"><i class="ic-dot red">${I('alert')}</i><div class="fl"><b>Termini d'uso e limiti</b><span>Vicina non sostituisce il 112</span></div>${I('chev', 'chev')}</button>
       </div>
       <div class="label">App</div><div class="card">
         <button class="row" data-a="upd-open"><i class="ic-dot ${updNewer() ? 'red' : 'blue'}">${I('share')}</i><div class="fl"><b>Aggiornamenti</b><span>${updNewer() ? 'Nuova versione ' + esc(upd.last.version) + ' disponibile' : 'Versione ' + esc((upd.cur || BUILD).version) + ' · tocca per controllare'}</span></div>${updNewer() ? '<span class="tag red">Nuova</span>' : I('chev', 'chev')}</button>
@@ -863,7 +865,7 @@ export function boot(api, native) {
           draft = { ...draft, name: $('#pn').value.trim(), surname: $('#ps').value.trim(), dob, phone };
           await busy(t, async () => {
             const data = { name: draft.name, surname: draft.surname, dob, gender: draft.gender, phone: phone || '' };
-            if (!st.p) await api.createProfile(st.uid, data); else await api.updateProfile(st.uid, { phone: data.phone });
+            if (!st.p) { await api.createProfile(st.uid, data); if (termsOk(null)) api.call('acceptTerms', { version: TERMS_VERSION }).catch(() => {}); } else await api.updateProfile(st.uid, { phone: data.phone });
             st.p = { ...data }; startData(); await refreshPerms(); setup(2);
           });
           break;
@@ -912,6 +914,11 @@ export function boot(api, native) {
         case 'send-cancel': break;
         case 'safe': await markSafe(t); break;
         case 'voice-start': await voiceStart(); break;
+        case 'terms-read': showTerms('read'); break;
+        case 'terms-full': showTerms('gate-read'); break;
+        case 'terms-back': if (termsMode === 'gate-read') showTerms('gate'); else if (st.p) tab('me', 'in-pop'); else show('s-auth', 'in-pop'); break;
+        case 'terms-accept': await acceptTerms(t); break;
+        case 'terms-decline': if (await dialog({ title: 'Non accetti i termini?', text: 'Senza accettare i Termini d\'uso non puoi usare Vicina. Verrai disconnesso.', ok: 'Esci', cancel: 'Rileggo', danger: true })) await api.signOut(); break;
         case 'upd-open': if (updNewer() || upd.err) rUpdSheet(true); else await checkUpdate(true); break;
         case 'upd-check': await checkUpdate(true); break;
         case 'upd-install': await installUpdate(t); break;
@@ -1023,11 +1030,47 @@ export function boot(api, native) {
     if ($('#s-ai').classList.contains('on')) { tab(st.tab || 'home', 'in-pop'); return true; }
     if ($('#s-guide').classList.contains('on')) { if (gi > 0) guideGo(gi - 1); else closeGuide(); return true; }
     if ($('#s-thread').classList.contains('on')) { $('[data-a="thread-back"]').click(); return true; }
+    if ($('#s-terms').classList.contains('on')) { if (termsMode !== 'gate') $('#terms-back').click(); return true; }
     if ($('#s-auth').classList.contains('on')) { show('s-wel'); return true; }
     if ($('#s-setup').classList.contains('on') && st.setup > 1) { setup(st.setup - 1); return true; }
     if (st.uid && st.p && st.tab !== 'home') { tab('home'); return true; }
     return false;
   });
+
+  /* ================= termini d'uso ================= */
+  // Da accettare alla creazione dell'account e a ogni nuova versione. L'accettazione è salvata sul server
+  // (profilo: versione + data) e anche sul telefono, così l'app non si blocca se il server non è aggiornato.
+  let termsProfile = null, termsMode = 'read';
+  const termsOk = p => Math.max(Number(p?.termsVersion || 0), Number(ls.get('terms:' + st.uid) || 0)) >= TERMS_VERSION;
+  function showTerms(mode) {
+    termsMode = mode;
+    $('#terms-back').style.visibility = mode === 'gate' ? 'hidden' : 'visible';
+    const full = `<h1 class="title">Termini d'uso</h1><p class="sub">Versione ${TERMS_VERSION} · aggiornati il ${TERMS_DATE}</p>
+      <div class="terms-alert">${I('alert')}<div><b>Vicina non sostituisce il 112.</b> In pericolo chiama sempre e subito i soccorsi ufficiali.</div></div>
+      ${TERMS_SECTIONS.map(([t, ps]) => `<section class="terms-sec"><h2>${t}</h2>${ps.map(x => `<p>${x}</p>`).join('')}</section>`).join('')}`;
+    if (mode === 'gate') {
+      $('#terms-body').innerHTML = `<h1 class="title">Prima di iniziare</h1><p class="sub">Leggi con attenzione: riguarda la tua sicurezza.</p>
+        <div class="terms-key">${TERMS_KEY.map(([t, d], i) => `<div class="tk"><i class="ic-dot ${i < 2 ? 'red' : 'amber'}">${I(i < 2 ? 'alert' : 'live')}</i><div><b>${t}</b><span>${d}</span></div></div>`).join('')}</div>
+        <button class="btn ghost" data-a="terms-full">${I('book')}Leggi i Termini d'uso completi</button>
+        <label class="terms-chk"><input type="checkbox" id="tc1"><span>Ho letto e accetto i <b>Termini d'uso</b> e ho capito che <b>Vicina non sostituisce il 112</b> né i servizi di emergenza.</span></label>
+        <label class="terms-chk"><input type="checkbox" id="tc2"><span>Approvo specificamente, ai sensi degli artt. 1341 e 1342 del Codice civile, le clausole 4 (limiti tecnici), 5 (assistente), 7 (limitazione di responsabilità) e 9 (modifiche e sospensione).</span></label>`;
+      $('#terms-foot').innerHTML = `<button class="btn red" id="terms-ok" data-a="terms-accept" disabled>Accetto e continuo</button><button class="btn link" data-a="terms-decline">Non accetto</button>`;
+      const chk = () => { $('#terms-ok').disabled = !($('#tc1').checked && $('#tc2').checked); };
+      $('#tc1').onchange = chk; $('#tc2').onchange = chk;
+    } else {
+      $('#terms-body').innerHTML = full;
+      $('#terms-foot').innerHTML = mode === 'gate-read' ? `<button class="btn" data-a="terms-back">Torna all'accettazione</button>` : '';
+    }
+    show('s-terms', 'in-push'); $('#terms-body').scrollTop = 0;
+  }
+  async function acceptTerms(btn) {
+    await busy(btn, async () => {
+      ls.set('terms:' + st.uid, String(TERMS_VERSION));
+      if (termsProfile) await api.call('acceptTerms', { version: TERMS_VERSION }).catch(e => console.warn('termini (salvati sul telefono)', e));
+      native.haptic('light');
+      afterAuth(termsProfile);
+    });
+  }
 
   /* ================= aggiornamenti dell'app ================= */
   // Ogni build pubblicata su GitHub Releases ha un "version.json" con numero di versione, novità e link all'APK.
@@ -1108,11 +1151,16 @@ export function boot(api, native) {
     try {
       const p = await api.getProfile(u.uid);
       await refreshPerms();
-      if (!p) { draft = { gender: null }; return setup(1); }
-      st.p = pick(p); startData();
-      if (ls.get('permAsked')) registerPush();
-      if (!ls.get('setup:' + u.uid) && !ls.get('permAsked')) return setup(2);
-      tab('home');
+      termsProfile = p;
+      if (!termsOk(p)) return showTerms('gate');     // nuovo account o termini aggiornati: accettazione obbligatoria
+      afterAuth(p);
     } catch (e) { toast(errMsg(e)); show('s-auth'); }
   });
+  function afterAuth(p) {
+    if (!p) { draft = { gender: null }; return setup(1); }
+    st.p = pick(p); startData();
+    if (ls.get('permAsked')) registerPush();
+    if (!ls.get('setup:' + st.uid) && !ls.get('permAsked')) return setup(2);
+    tab('home');
+  }
 }

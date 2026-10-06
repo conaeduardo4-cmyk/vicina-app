@@ -31,7 +31,7 @@ export function createApi(env) {
     photos: x.photos || [], at: ms(x.created_at), active: x.active, locAt: x.loc_at ? Date.parse(x.loc_at) : null, liveUntil: x.live_until ? Date.parse(x.live_until) : null, track: x.track || [], audio: x.audio || null, acks: x.acks || {}, recipients: x.recipients || [], chats: x.chats || []
   });
   const msg = m => ({ id: m.id, type: m.type, from: m.from_uid, fromName: m.from_name, text: m.text, sosId: m.sos_id, lat: m.lat, lng: m.lng, photos: m.photos || [], audio: m.audio || null, at: ms(m.created_at) });
-  const prof = p => p && ({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '', mutedGroups: p.muted_groups || [] });
+  const prof = p => p && ({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '', mutedGroups: p.muted_groups || [], termsVersion: p.terms_version || 0 });
 
   // nomi usati dall'interfaccia → funzioni SQL
   const RPC = {
@@ -46,6 +46,7 @@ export function createApi(env) {
     updateSosLocation: d => ['update_sos_location', { p_sos_id: d.sosId, p_lat: d.lat, p_lng: d.lng, p_acc: d.acc }],
     stopSosLive: d => ['stop_sos_live', { p_sos_id: d.sosId }],
     attachSosAudio: d => ['attach_sos_audio', { p_sos_id: d.sosId, p_path: d.path }],
+    acceptTerms: d => ['accept_terms', { p_version: d.version }],
     attachSosPhotos: d => ['attach_sos_photos', { p_sos_id: d.sosId, p_paths: d.paths }],
     ackSos: d => ['ack_sos', { p_sos_id: d.sosId }],
     resolveSos: d => ['resolve_sos', { p_sos_id: d.sosId }],

@@ -103,6 +103,7 @@ export function createDemoApi() {
       Object.assign(s, { lat, lng, acc, locAt: Date.now() }); s.track = [...(s.track || []), { lat, lng, t: Date.now() }].slice(-300); emit(); return { live: true };
     },
     async stopSosLive() { return { ok: true }; },
+    async acceptTerms({ version }) { if (db.user) db.user.termsVersion = version; return { ok: true }; },
     async attachSosAudio({ sosId, path }) {
       const s = db.sos.find(x => x.id === sosId); s.audio = path;
       s.chats.forEach(c => (db.chats[c] || []).forEach(m => m.sosId === sosId && (m.audio = path)));

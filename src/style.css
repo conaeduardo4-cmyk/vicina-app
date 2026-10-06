@@ -466,3 +466,20 @@ button.maplink{width:100%;text-align:left}
 .upd-steps ol{margin:8px 0 0 20px;display:flex;flex-direction:column;gap:6px;color:var(--sub)}
 .upd-ver{margin:16px 0 4px}
 #sheet .btn+.btn{margin-top:10px}
+
+/* v4 – termini d'uso */
+.linkbtn{color:var(--ink);text-decoration:underline;font:inherit;padding:0}
+.terms-key{display:flex;flex-direction:column;gap:10px;margin:20px 0 16px}
+.tk{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;background:var(--s1);border:1px solid var(--line)}
+.tk b{display:block;font-size:15.5px}.tk span{display:block;color:var(--sub);font-size:14px;margin-top:2px;line-height:1.4}
+.tk .ic-dot{flex:none}
+.terms-chk{display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:14px;border-radius:16px;background:var(--s1);border:1px solid var(--line2);font-size:14.5px;line-height:1.45;cursor:pointer}
+.terms-chk input{width:24px;height:24px;flex:none;margin-top:1px;accent-color:var(--red)}
+.terms-chk span{color:var(--sub)}.terms-chk b{color:var(--ink)}
+.terms-alert{display:flex;gap:12px;align-items:flex-start;margin:18px 0 6px;padding:14px;border-radius:16px;background:var(--redbg);color:#FFB3BC;font-size:15px}
+.terms-alert .i{flex:none;color:var(--red)}.terms-alert b{color:#fff}
+.terms-sec{margin-top:22px}
+.terms-sec h2{font-size:17px;font-weight:750;margin-bottom:8px}
+.terms-sec p{color:var(--sub);font-size:14.5px;line-height:1.55;margin-top:8px}
+.terms-sec b{color:var(--ink)}
+.terms-sec a{color:var(--ink);text-decoration:underline}
