@@ -217,4 +217,6 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 3. Le app installate finora sono firmate con una chiave diversa (quella "debug" cambia a ogni build). Quindi **una sola volta** bisogna
    **disinstallare** Vicina e installare la prima versione firmata. Da lì in poi gli aggiornamenti arrivano da soli.
 
+**File da caricare su GitHub** (oltre a `src/`): `vite.config.js` nella cartella principale, `scripts/android/ApkUpdaterPlugin.java`, `scripts/patch-native.mjs` e il nuovo `.github/workflows/build-app.yml` (in questa cartella si trova in `workflow-github/`). Se il workflow resta quello vecchio l'APK non viene firmato e non viene pubblicato `version.json`.
+
 **Requisiti**: il repository deve essere **pubblico**. Le Release di un repository privato non si scaricano senza login, quindi l'app non le vede.

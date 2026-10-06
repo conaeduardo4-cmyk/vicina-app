@@ -36,9 +36,10 @@ export function boot(api, native) {
   const prefs = Object.assign({ live: true, voice: true }, (() => { try { return JSON.parse(ls.get('prefs') || '{}'); } catch { return {}; } })());
   const savePrefs = () => ls.set('prefs', JSON.stringify(prefs));
   // versione dell'app (scritta da GitHub durante la compilazione) e stato degli aggiornamenti
-  const ENV = (import.meta && import.meta.env) || {};
-  const BUILD = { version: ENV.VITE_APP_VERSION || api.version || 'sviluppo', code: Number(ENV.VITE_APP_CODE) || 0 };
-  const UPDATE_URL = ENV.VITE_UPDATE_URL || api.updateUrl || '';
+  // (accessi scritti per esteso: Vite li sostituisce con i valori veri durante la compilazione)
+  const ENV = (() => { try { return { v: import.meta.env.VITE_APP_VERSION, c: import.meta.env.VITE_APP_CODE, u: import.meta.env.VITE_UPDATE_URL }; } catch { return {}; } })();
+  const BUILD = { version: ENV.v || api.version || 'sviluppo', code: Number(ENV.c) || 0 };
+  const UPDATE_URL = ENV.u || api.updateUrl || '';
   const upd = { cur: null, last: null, checking: false, busy: false, pct: 0, err: '', done: false };
   const updNewer = () => !!(upd.last && upd.cur && Number(upd.last.code) > Number(upd.cur.code || 0));
   const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -1037,7 +1038,10 @@ export function boot(api, native) {
   }
   async function checkUpdate(manual) {
     await updCurrent();
-    if (!UPDATE_URL || !native.update) { if (manual) { upd.err = 'Questa versione non ha gli aggiornamenti automatici: installa una volta l’ultima versione dal sito.'; rUpdSheet(true); } return; }
+    if (!UPDATE_URL || !native.update) {
+      if (manual) { upd.err = !UPDATE_URL ? 'Questa installazione è stata compilata senza l’indirizzo degli aggiornamenti (serve il nuovo vite.config.js e il workflow aggiornato su GitHub). Installa una volta la prossima versione compilata: da lì gli aggiornamenti arrivano da soli.' : 'Aggiornamenti non disponibili su questo dispositivo.'; rUpdSheet(true); }
+      return;
+    }
     if (upd.checking) return;
     upd.checking = true; upd.err = ''; if (manual) rUpdSheet(true);
     try {

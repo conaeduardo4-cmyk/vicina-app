@@ -21,6 +21,7 @@ export function createApi(env) {
   const rerr = e => Object.assign(new Error(e.message || 'Errore'), {
     code: e.code === 'P0001' ? 'failed-precondition' : offline(e.message) ? 'unavailable' : e.code === '42501' ? 'permission-denied' : 'internal'
   });
+  const dup = e => /already exists|duplicate|409/i.test((e?.message || '') + ' ' + (e?.statusCode || e?.status || ''));
   const ok = ({ data, error }) => { if (error) throw rerr(error); return data; };
 
   /* ---------- conversioni ---------- */
@@ -176,12 +177,12 @@ export function createApi(env) {
     },
     async uploadAudio(p, blob, mime) {
       const { error } = await sb.storage.from('sos').upload(p.replace(/^sos\//, ''), blob, { contentType: mime, upsert: false });
-      if (error) throw rerr(error);
+      if (error && !dup(error)) throw rerr(error);   // già caricato da un tentativo precedente: va bene così
     },
     async uploadPhoto(p, dataUrl) {
       const blob = await (await fetch(dataUrl)).blob();
       const { error } = await sb.storage.from('sos').upload(p.replace(/^sos\//, ''), blob, { contentType: 'image/jpeg', upsert: false });
-      if (error) throw rerr(error);
+      if (error && !dup(error)) throw rerr(error);
     }
   };
 }
