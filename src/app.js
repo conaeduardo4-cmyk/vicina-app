@@ -544,7 +544,7 @@ export function boot(api, native) {
     const cs = convs().map(c => ({ ...c, last: (st.threads[c.id] || []).slice(-1)[0] })).sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
     const live = st.sosIn.filter(s => Date.now() - s.at < 12 * 36e5);
     $('#c-list').innerHTML =
-      (live.length ? `<div class="label">SOS in corso</div><div class="card">${live.map(s => `<button class="row" data-a="in-open" data-id="${s.id}">${AV(s.fromName)}<div class="fl"><b>${esc(s.fromName)}</b><span>Ha chiesto aiuto ${ago(s.at)}</span></div><span class="tag red">Attivo</span></button>`).join('')}</div>` : '')
+      (live.length ? live.map(s => `<button class="sos-alert" data-a="in-open" data-id="${s.id}"><span class="deco"></span><span class="hero-av">${esc(initials(s.fromName))}</span><span class="fl"><small>SOS IN CORSO</small><b>${esc(s.fromName)}</b><span>Ha chiesto aiuto ${ago(s.at)}${s.audio ? ' · vocale' : ''}</span></span>${I('chev', 'chev')}</button>`).join('') : '')
       + (cs.length ? `<div class="label">Conversazioni</div><div class="card">${cs.map(c => { const u = unread(c.id);
         return `<button class="row" data-a="open" data-id="${c.id}">${AV(c.name, c.k)}<div class="fl"><b>${esc(c.name)}</b><span>${c.last ? preview(c.last) : esc(c.sub)}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">${c.last ? `<span class="meta" style="margin:0">${when(c.last.at)}</span>` : ''}${u ? `<b class="badge" style="position:static">${u}</b>` : ''}</div></button>`; }).join('')}</div>`
         : `<div class="empty"><i class="ic-dot violet">${I('chat')}</i><b>Nessuna conversazione</b>Quando aggiungi qualcuno alla tua cerchia, la chat compare qui.<button class="btn" data-a="add">Aggiungi persona</button></div>`);
@@ -596,12 +596,21 @@ export function boot(api, native) {
       $('#p-list').innerHTML = `<div class="empty"><i class="ic-dot violet">${I('people')}</i><b>La tua cerchia è vuota</b>Aggiungi il partner, ${G().amico} o crea un gruppo. Nessuno entra senza il consenso di entrambi.<button class="btn" data-a="add">Aggiungi persona</button></div>`;
       return;
     }
-    $('#p-list').innerHTML =
-      `<div class="label">Persone · ${(p ? 1 : 0) + f.length}</div><div class="card">${p ? person(p) : ''}${f.map(person).join('')}${p ? '' : `<button class="row add" data-a="invite" data-k="partner"><i class="ic-dot red">${I('heart')}</i><span>Aggiungi il partner</span></button>`}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`
-      + `<div class="label">Gruppi · ${g.length}</div><div class="card">${g.map(x => `<button class="row" data-a="grp" data-id="${x.id}">${AV(x.name, 'g')}<div class="fl"><b>${esc(x.name)}</b><span>${x.sub}${x.on ? '' : ' · SOS disattivati'}${x.admin && x.req.length ? ` · <b style="color:var(--amber)">${x.req.length} richieste</b>` : ''}</span></div>${I('chev', 'chev')}</button>`).join('')}
-        <button class="row add" data-a="newgroup"><i class="ic-dot violet">${I('plus')}</i><span>Crea un gruppo</span></button>
-        <button class="row add" data-a="code"><i class="ic-dot gray">${I('key')}</i><span>Ho un codice</span></button></div>
-        <p class="note">L'SOS arriva a tutte le persone qui sopra (gruppi fino a 8).</p>`;
+    const ini = n => esc(initials(n));
+    const hero = p
+      ? `<button class="hero-card" data-a="person" data-id="${p.id}"><span class="deco"></span><span class="hero-av">${ini(p.name)}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>Collegato · riceve sempre i tuoi SOS</span></span>${I('chev', 'chev')}</button>`
+      : `<button class="hero-card empty-hero" data-a="invite" data-k="partner"><span class="hero-av">${I('heart')}</span><span class="fl"><small>PARTNER</small><b>Aggiungi il partner</b><span>Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
+    const grpCard = x => {
+      const ms = (x.members || []).filter(m => m.uid !== st.uid).slice(0, 3);
+      return `<button class="grp-card" data-a="grp" data-id="${x.id}">
+        <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
+        <span class="grp-name">${esc(x.name)}</span><span class="grp-sub">${x.members.length} di 8 persone${x.admin && x.req.length ? ` · <b>${x.req.length} richieste</b>` : ''}</span></button>`;
+    };
+    $('#p-list').innerHTML = hero
+      + `<div class="label">${G() === GG.m ? 'Amici' : 'Amiche e amici'} · ${f.length}</div><div class="card">${f.map(person).join('')}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`
+      + `<div class="label">Gruppi · ${g.length}</div><div class="grp-grid">${g.map(grpCard).join('')}<button class="grp-card add" data-a="newgroup"><span class="grp-plus">${I('plus')}</span><span class="grp-name">Nuovo gruppo</span><span class="grp-sub">Fino a 8 persone</span></button></div>`
+      + `<div class="circle-acts"><button class="btn" data-a="add">${I('plus')}Invita qualcuno</button><button class="btn ghost" data-a="code">${I('key')}Ho un codice</button></div>
+        <p class="note">L'SOS arriva a tutte le persone qui sopra e ai gruppi attivi.</p>`;
   }
   const addOptions = () => `
     <button class="opt" data-a="invite" data-k="partner"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Invita il partner</b><span>Genera un codice da condividere</span></div>${I('chev', 'chev')}</button>

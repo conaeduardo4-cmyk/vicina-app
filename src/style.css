@@ -587,3 +587,102 @@ nav button.on,nav button.sosb.on{background:var(--redbg);color:var(--red2);font-
 #s-active .foot{padding-bottom:calc(98px + var(--sab))}
 #s-active .sc.act{padding-bottom:4px}
 .upd-perm.ok{background:var(--greenbg);color:var(--green)}
+
+/* ---------- v5: card "eroe" (partner, SOS in corso), gruppi a griglia ---------- */
+.hero-card,.sos-alert{position:relative;overflow:hidden;width:100%;display:flex;align-items:center;gap:14px;padding:16px;border-radius:26px;background:var(--red);color:#fff;text-align:left;box-shadow:inset 0 1px 0 rgba(255,255,255,.25);margin-top:6px}
+.hero-card .deco,.sos-alert .deco{position:absolute;right:-50px;top:-60px;width:180px;height:180px;border-radius:50%;border:30px solid rgba(255,255,255,.08);pointer-events:none}
+.hero-av{position:relative;width:52px;height:52px;border-radius:18px;background:#fff;color:#B0101E;display:grid;place-items:center;font-weight:900;font-size:17px;flex:none}
+.hero-av .i{width:24px;height:24px}
+.hero-card .fl,.sos-alert .fl{position:relative}
+.hero-card small,.sos-alert small{font-size:11px;font-weight:800;letter-spacing:.12em;opacity:.9}
+.hero-card b,.sos-alert b{font-size:19px;letter-spacing:-.02em}
+.hero-card .fl span,.sos-alert .fl span{color:rgba(255,255,255,.9);font-size:13px}
+.hero-card .chev,.sos-alert .chev{position:relative;color:#fff;opacity:.8}
+.hero-card.empty-hero{background:var(--s1);border:1.5px dashed var(--line2);color:var(--ink);box-shadow:none}
+.hero-card.empty-hero .hero-av{background:var(--redbg);color:var(--red2)}
+.hero-card.empty-hero .fl span{color:var(--sub)}
+.sos-alert{margin-bottom:10px}
+.grp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grp-card{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:14px;border-radius:24px;background:var(--s1);border:1px solid var(--line);text-align:left;min-height:118px}
+.grp-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:auto}
+.grp-stack{display:flex}
+.grp-stack i{width:26px;height:26px;border-radius:9px;border:2px solid var(--s1);display:grid;place-items:center;font-style:normal;font-size:10px;font-weight:800;color:#fff}
+.grp-stack i+i{margin-left:-8px}
+.grp-st{font-size:11.5px;font-weight:700;color:var(--sub)}.grp-st.on{color:var(--green)}
+.grp-name{font-size:16px;font-weight:750;margin-top:12px}
+.grp-sub{font-size:12.5px;color:var(--sub)}.grp-sub b{color:var(--amber)}
+.grp-card.add{border:1.5px dashed var(--line2);background:transparent}
+.grp-plus{width:34px;height:34px;border-radius:12px;background:var(--s2);display:grid;place-items:center;margin-bottom:auto}
+.circle-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.circle-acts .btn{font-size:15px}
+.me-card .row{padding:16px}
+.me-card .av{width:52px;height:52px;border-radius:18px;font-size:19px}
+.me-card .fl b{font-size:18px}
+.map-head .eyebrow{color:var(--sub)}
+/* chat */
+.msg{background:var(--red);color:#fff;border-radius:22px 22px 8px 22px}
+.msg.in{background:var(--s2);color:var(--ink);border-radius:22px 22px 22px 8px}
+.msg .who{color:var(--red2)}
+.msg.sos{border-radius:24px;border-color:rgba(232,25,44,.6)}
+.sendb{background:var(--red);color:#fff}
+.cin input{border-radius:22px}
+.th{background:var(--bg)}
+.opt{border-radius:22px}
+
+/* ---------- v5: scala più compatta (meno "grande" sullo schermo) ---------- */
+body{font-size:15px}
+.hh{padding:12px 18px 2px}
+.title{font-size:26px}
+.title.xl{font-size:30px}
+.title.count{font-size:46px}
+.title.count small{font-size:16px}
+.eyebrow{font-size:11px}
+.sub{font-size:14.5px}
+.label{font-size:11.5px;margin:20px 4px 8px}
+.sc{padding:4px 16px 24px}
+.btn{min-height:48px;font-size:16px;padding:12px 16px;border-radius:18px}
+.btn.big{min-height:54px;font-size:17px;border-radius:20px}
+.btn .i{width:18px;height:18px}
+.row{min-height:56px;padding:10px 14px;gap:12px}
+.fl b{font-size:15px}.fl span{font-size:13px}
+.av{width:40px;height:40px;border-radius:14px;font-size:15px}
+.ic-dot{width:38px;height:38px;border-radius:13px}.ic-dot .i{width:19px;height:19px}
+.iconbtn{width:40px;height:40px}
+.iconbtn.white{width:44px;height:44px;border-radius:16px}
+.avbtn,.avbtn .av{width:42px;height:42px;border-radius:14px}
+.status{margin:12px 16px 0;padding:13px 14px 12px;gap:11px;border-radius:24px}
+.st-top b{font-size:15px}.st-top span{font-size:12.5px}
+.st-grid>span{padding:10px;border-radius:14px}
+.st-grid b{font-size:21px}
+.st-grid small{font-size:9.5px;margin-top:5px}
+.quick{padding:10px 16px 0;gap:8px}
+.qa{height:48px;font-size:14.5px;border-radius:17px}
+.qa.sq{width:48px}
+.stage.sos-wrap{margin:10px 16px 0;min-height:210px}
+#sos{border-radius:30px;padding:16px 18px}
+#sos .sos-big{font-size:clamp(78px,27vw,112px)}
+.sos-chip{font-size:11px;padding:6px 10px}
+.sos-note{font-size:13px}
+.sos-track{height:8px}
+#s-home{padding-bottom:calc(92px + var(--sab))}
+nav{padding:5px;border-radius:24px;left:12px;right:12px}
+nav button{padding:7px 0 6px;font-size:10.5px;border-radius:19px;gap:2px}
+nav button .i{width:21px;height:21px}
+#s-active .sc.act{padding:14px 16px 4px;gap:10px}
+.act-card{border-radius:28px;padding:16px 16px 14px;gap:12px}
+.act-title{font-size:30px}
+.act-sub{font-size:13.5px}
+.act-live{padding:10px 12px;border-radius:17px}
+.act-live b{font-size:14px}
+#s-active .foot{padding-bottom:calc(86px + var(--sab))}
+.vcard{padding:12px;border-radius:22px}
+.vbtn{min-height:44px}
+.hero-card,.sos-alert{padding:14px;border-radius:24px}
+.hero-av{width:46px;height:46px;border-radius:16px;font-size:15px}
+.hero-card b,.sos-alert b{font-size:17px}
+.grp-card{min-height:104px;padding:12px;border-radius:22px}
+.map-card{border-radius:22px}
+.map-list{padding:10px 14px 100px}
+.sheet h2{font-size:22px}
+.field input,.field select{min-height:48px;font-size:16px;padding:12px 14px}
+.choice button{min-height:48px}
