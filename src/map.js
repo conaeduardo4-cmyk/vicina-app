@@ -15,14 +15,14 @@ async function pickStyle() {
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export async function createMap(el, { onPick } = {}) {
+export async function createMap(el, { onPick, interactive = true } = {}) {
   const style = await pickStyle();
   if (!style) throw Object.assign(new Error('Mappa non raggiungibile: controlla la connessione.'), { code: 'offline' });
   const map = new maplibregl.Map({
     container: el, style, center: [12.5, 42.5], zoom: 4.6,
-    attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false, cooperativeGestures: false
+    attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false, cooperativeGestures: false, interactive
   });
-  map.touchZoomRotate.disableRotation();
+  if (interactive) map.touchZoomRotate.disableRotation();
   const ready = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
   await ready;
 
@@ -82,7 +82,7 @@ export async function createMap(el, { onPick } = {}) {
     const pts = [...people.map(p => [p.lng, p.lat]), ...people.flatMap(p => (p.track || []).map(t => [t.lng, t.lat])), ...(me ? [[me.lng, me.lat]] : [])];
     if (!pts.length) return;
     fitted = true;
-    if (pts.length === 1) return map.jumpTo({ center: pts[0], zoom: 15.5 });
+    if (pts.length === 1) return map.jumpTo({ center: pts[0], zoom: interactive ? 15.5 : 14.5 });
     const b = pts.reduce((bb, p) => bb.extend(p), new maplibregl.LngLatBounds(pts[0], pts[0]));
     map.fitBounds(b, { padding: { top: 90, bottom: 40, left: 50, right: 50 }, maxZoom: 16, duration: 0 });
   }

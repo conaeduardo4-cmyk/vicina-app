@@ -501,15 +501,24 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('sos', 'sos', false, 2097152, array['image/jpeg'])
 on conflict (id) do update set public = false, file_size_limit = 2097152, allowed_mime_types = array['image/jpeg'];
 
-drop policy if exists "vicina: carico le mie foto SOS" on storage.objects;
-drop policy if exists "vicina: vedo le foto SOS"       on storage.objects;
-create policy "vicina: carico le mie foto SOS" on storage.objects for insert to authenticated
-  with check (bucket_id = 'sos' and (storage.foldername(name))[1] = auth.uid()::text
-              and storage.filename(name) in ('back.jpg', 'front.jpg'));
-create policy "vicina: vedo le foto SOS" on storage.objects for select to authenticated
-  using (bucket_id = 'sos' and (
-    (storage.foldername(name))[1] = auth.uid()::text
-    or exists (select 1 from public.sos s where s.id = (storage.foldername(name))[2] and auth.uid() = any(s.recipients))));
+-- Le regole sui file (storage.objects) appartengono a Supabase: su alcuni progetti il database non può modificarle
+-- da qui ("must be owner of table objects" / "error creating policy"). In quel caso NON si blocca tutto:
+-- esce un avviso e le regole vanno create una volta a mano (README → "Regole dei file").
+do $vicina_storage$
+begin
+  drop policy if exists "vicina: carico le mie foto SOS" on storage.objects;
+  drop policy if exists "vicina: vedo le foto SOS"       on storage.objects;
+  create policy "vicina: carico le mie foto SOS" on storage.objects for insert to authenticated
+    with check (bucket_id = 'sos' and (storage.foldername(name))[1] = auth.uid()::text
+                and storage.filename(name) in ('back.jpg', 'front.jpg'));
+  create policy "vicina: vedo le foto SOS" on storage.objects for select to authenticated
+    using (bucket_id = 'sos' and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or exists (select 1 from public.sos s where s.id = (storage.foldername(name))[2] and auth.uid() = any(s.recipients))));
+exception when insufficient_privilege or others then
+  raise notice 'Regole dei file non aggiornate (%): se i vocali o le foto non si caricano, creale da Supabase → Storage → Policies (vedi README).', sqlerrm;
+end
+$vicina_storage$;
 
 -- ---------------------------------------------------------------------
 --  Tempo reale
@@ -702,10 +711,19 @@ grant execute on function public.send_sos(text, double precision, double precisi
 update storage.buckets set file_size_limit = 3145728,
   allowed_mime_types = array['image/jpeg', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/ogg']
  where id = 'sos';
-drop policy if exists "vicina: carico le mie foto SOS" on storage.objects;
-create policy "vicina: carico le mie foto SOS" on storage.objects for insert to authenticated
-  with check (bucket_id = 'sos' and (storage.foldername(name))[1] = auth.uid()::text
-              and storage.filename(name) in ('back.jpg', 'front.jpg', 'voice.webm', 'voice.m4a', 'voice.mp4', 'voice.ogg', 'voice.aac'));
+-- Le regole sui file (storage.objects) appartengono a Supabase: su alcuni progetti il database non può modificarle
+-- da qui ("must be owner of table objects" / "error creating policy"). In quel caso NON si blocca tutto:
+-- esce un avviso e le regole vanno create una volta a mano (README → "Regole dei file").
+do $vicina_storage$
+begin
+  drop policy if exists "vicina: carico le mie foto SOS" on storage.objects;
+  create policy "vicina: carico le mie foto SOS" on storage.objects for insert to authenticated
+    with check (bucket_id = 'sos' and (storage.foldername(name))[1] = auth.uid()::text
+                and storage.filename(name) in ('back.jpg', 'front.jpg', 'voice.webm', 'voice.m4a', 'voice.mp4', 'voice.ogg', 'voice.aac'));
+exception when insufficient_privilege or others then
+  raise notice 'Regole dei file non aggiornate (%): se i vocali o le foto non si caricano, creale da Supabase → Storage → Policies (vedi README).', sqlerrm;
+end
+$vicina_storage$;
 
 -- =====================================================================
 --  ⚠️ ULTIMO PASSO – esegui questa riga con i TUOI valori

@@ -686,3 +686,192 @@ nav button .i{width:21px;height:21px}
 .sheet h2{font-size:22px}
 .field input,.field select{min-height:48px;font-size:16px;padding:12px 14px}
 .choice button{min-height:48px}
+
+/* =====================================================================
+   v6 – nuova Home (tasti grandi + mappa widget), scala più piccola,
+   invio SOS animato, benvenuto e accesso rinnovati
+   ===================================================================== */
+body{font-size:14px}
+.i{width:19px;height:19px}
+.title{font-size:22px;letter-spacing:-.03em}
+.eyebrow{font-size:10.5px;letter-spacing:.1em}
+.sub{font-size:13.5px}
+.label{font-size:10.5px;margin:18px 4px 7px}
+.note{font-size:12px}
+.sc{padding:4px 14px 22px}
+.hh{padding:12px 16px 2px}
+.btn{min-height:44px;font-size:15px;padding:10px 14px;border-radius:15px}
+.btn.big{min-height:50px;font-size:16px;border-radius:17px}
+.btn .i{width:17px;height:17px}
+.row{min-height:50px;padding:9px 12px;gap:11px}
+.fl b{font-size:14.5px}.fl span{font-size:12.5px}
+.av{width:36px;height:36px;border-radius:12px;font-size:13px}
+.av.sm{width:30px;height:30px;border-radius:10px;font-size:12px}
+.ic-dot{width:34px;height:34px;border-radius:11px}.ic-dot .i{width:17px;height:17px}
+.iconbtn{width:38px;height:38px;border-radius:13px}
+.iconbtn.white{width:40px;height:40px;border-radius:14px}
+.tag{font-size:10.5px}
+.card{border-radius:20px}
+.field>span{font-size:12px}
+.field input,.field select{min-height:46px;font-size:15px;padding:11px 14px;border-radius:15px}
+.seg{border-radius:15px;margin:18px 0 6px}.seg button{padding:9px;border-radius:11px;font-size:14px}
+.choice button{min-height:46px;border-radius:15px}
+.sheet{padding:8px 16px calc(20px + var(--sab));border-radius:26px 26px 0 0}
+.sheet h2{font-size:20px}
+.switch{width:44px;height:27px}.switch::after{width:23px;height:23px}.switch:checked::after{left:19px}
+
+/* barra in basso compatta */
+nav{left:10px;right:10px;bottom:calc(8px + var(--sab));padding:4px;border-radius:20px}
+nav button{padding:6px 0 5px;font-size:10px;border-radius:16px;gap:2px}
+nav button .i{width:19px;height:19px}
+.badge{min-width:16px;height:16px;font-size:10px;border-radius:8px}
+
+/* ---------- Home ---------- */
+#s-home{display:none;flex-direction:column;gap:10px;padding:0 14px calc(74px + var(--sab));overflow-y:auto}
+#s-home.on{display:flex}
+#s-home .home-h{padding:12px 2px 0}
+#s-home .title{font-size:24px}
+.h-status{display:flex;align-items:center;gap:8px;margin:-2px 2px 0;padding:0;background:none;border:0;color:var(--sub);font-size:12.5px;text-align:left}
+.h-status b{color:var(--ink);font-weight:650}
+.h-status .chev{width:14px;height:14px;color:var(--mute)}
+.h-status .st-dot{width:7px;height:7px;box-shadow:0 0 0 3px rgba(61,220,132,.18)}
+.stage.sos-wrap{flex:none;min-height:0;margin:2px 0 0}
+#sos{flex:1;flex-direction:row;align-items:center;justify-content:flex-start;gap:14px;height:116px;padding:0 16px;border-radius:24px;text-align:left}
+#sos .sos-deco.a{right:-70px;top:-80px;width:200px;height:200px;border-width:32px}
+#sos .sos-deco.b{display:none}
+.sos-ring{position:relative;width:70px;height:70px;border-radius:50%;border:2.5px solid rgba(255,255,255,.9);background:rgba(0,0,0,.16);display:grid;place-items:center;flex:none}
+.sos-ring b{font-size:21px;font-weight:900;letter-spacing:-.03em}
+#sos.hold .sos-ring{animation:ringpulse .5s ease-in-out infinite alternate}
+@keyframes ringpulse{to{transform:scale(1.08);background:rgba(0,0,0,.28)}}
+.sos-text{position:relative;flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+.sos-text>b{font-size:16.5px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.sos-sub{font-size:12px;font-weight:600;opacity:.9}
+.sos-text .sos-track{height:5px;margin-top:4px}
+.sos-n{position:absolute;top:10px;right:12px;padding:3px 8px;border-radius:99px;background:rgba(0,0,0,.2);font-size:10.5px;font-weight:700}
+.sos-n:empty{display:none}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tile{position:relative;display:flex;align-items:center;gap:10px;height:62px;padding:0 12px;border-radius:19px;background:var(--s1);border:1px solid var(--line);text-align:left;color:var(--ink)}
+.tile.white{background:#fff;color:#000;border-color:#fff}
+.tile b{display:block;font-size:14px;font-weight:750;line-height:1.2}
+.tile small{display:block;font-size:11px;color:var(--sub);margin-top:1px}
+.tile.white small{color:#55555F}
+.t-ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:none;font-style:normal;background:#000;color:#fff}
+.t-ic .i{width:16px;height:16px}
+.t-ic.amber{background:var(--amberbg);color:var(--amber)}.t-ic.violet{background:var(--violetbg);color:var(--violet)}.t-ic.green{background:var(--greenbg);color:var(--green)}
+.tile-badge{position:absolute;top:8px;right:10px;left:auto}
+.map-widget{position:relative;flex:1;min-height:170px;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#1A1E26,#0E1014);border:1px solid var(--line);cursor:pointer}
+#home-map{position:absolute;inset:0;pointer-events:none}
+#home-map.off{display:none}
+.map-widget .maplibregl-ctrl-attrib{display:none}
+.mw-chip,.mw-state,.mw-open{position:absolute;display:inline-flex;align-items:center;gap:6px;border-radius:99px;font-size:11.5px;font-weight:600;z-index:2}
+.mw-chip{left:10px;top:10px;padding:6px 10px;background:rgba(0,0,0,.72);color:var(--ink)}
+.mw-chip .i{width:13px;height:13px;color:var(--blue)}
+.mw-state{left:10px;bottom:10px;padding:6px 10px;background:rgba(0,0,0,.72);color:var(--sub)}
+.mw-state.red{background:var(--red);color:#fff}
+.mw-open{right:10px;bottom:10px;padding:8px 12px;background:#fff;color:#000;font-weight:750;font-size:12px}
+.mw-open .i{width:13px;height:13px}
+
+/* ---------- invio SOS: animazioni fluide ---------- */
+.overlay.send{background:radial-gradient(90% 60% at 50% 22%,rgba(232,25,44,.22),transparent 70%),var(--bg)}
+.send-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 18px 0;text-align:center}
+.radar{position:relative;width:96px;height:96px;display:grid;place-items:center;margin-bottom:18px}
+.radar i{position:absolute;inset:0;border-radius:50%;border:2px solid var(--red);opacity:0;animation:radar 2.1s cubic-bezier(.2,.6,.3,1) infinite}
+.radar i:nth-child(2){animation-delay:.7s}.radar i:nth-child(3){animation-delay:1.4s}
+@keyframes radar{0%{transform:scale(.55);opacity:.9}100%{transform:scale(1.7);opacity:0}}
+.radar-core{position:relative;width:62px;height:62px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;box-shadow:0 10px 30px rgba(232,25,44,.5);animation:core 1.2s ease-in-out infinite alternate}
+.radar-core .i{width:24px;height:24px}
+@keyframes core{to{transform:scale(1.06)}}
+.overlay.send.ok .radar i{border-color:var(--green);animation-duration:2.8s}
+.overlay.send.ok .radar-core{background:var(--green);box-shadow:0 10px 30px rgba(61,220,132,.4)}
+.send-title{font-size:23px;font-weight:800;letter-spacing:-.03em;transition:opacity .3s}
+.send-sub{font-size:13px;color:var(--sub);margin-top:4px}
+.send-bar{width:100%;max-width:320px;height:5px;border-radius:3px;background:var(--s2);overflow:hidden;margin:18px 0 6px}
+.send-bar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,var(--red),var(--red2));transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.overlay.send.ok .send-bar i{background:var(--green)}
+.overlay.send .steps{width:100%;max-width:340px;margin-top:10px;gap:6px}
+.overlay.send .step{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:15px;background:var(--s1);border:1px solid var(--line);color:var(--mute);opacity:.5;transform:translateY(6px);transition:opacity .35s,transform .45s cubic-bezier(.2,.8,.2,1),border-color .3s,background .3s}
+.overlay.send .step.run,.overlay.send .step.done,.overlay.send .step.fail{opacity:1;transform:none}
+.overlay.send .step.run{border-color:rgba(232,25,44,.5);color:var(--ink)}
+.overlay.send .step.done{color:var(--ink)}
+.st-ic{position:relative;width:32px;height:32px;border-radius:11px;background:var(--s2);display:grid;place-items:center;flex:none;font-style:normal;transition:background .3s}
+.st-ic .i{width:16px;height:16px;grid-area:1/1;transition:transform .35s cubic-bezier(.3,1.5,.5,1),opacity .2s}
+.st-ic .ic-ok{opacity:0;transform:scale(.3)}
+.step.run .st-ic{background:var(--redbg);color:var(--red2)}
+.step.run .st-ic::after{content:'';position:absolute;inset:-3px;border-radius:13px;border:2px solid transparent;border-top-color:var(--red2);animation:spin .8s linear infinite}
+.step.done .st-ic{background:var(--green);color:#002611}
+.step.done .ic-main{opacity:0;transform:scale(.3)}
+.step.done .ic-ok{opacity:1;transform:scale(1)}
+.step.fail .st-ic{background:var(--s3);color:var(--sub)}
+.st-txt{flex:1;display:flex;flex-direction:column;text-align:left;min-width:0}
+.st-txt b{font-size:13.5px;font-weight:650}
+.st-txt small{font-size:11.5px;color:var(--sub)}
+.st-state{font-size:11px;font-weight:700;color:var(--mute)}
+.step.run .st-state::before{content:'in corso'}
+.step.done .st-state::before{content:'fatto';color:var(--green)}
+.step.fail .st-state::before{content:'non disponibile'}
+.overlay.send .foot{padding-top:6px}
+
+/* ---------- benvenuto ---------- */
+#s-wel .wel-hero{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 22px}
+.wel-logo{position:relative;width:60px;height:60px;margin-bottom:26px}
+.wel-logo .logo{width:60px;height:60px;border-radius:20px;background:var(--red);box-shadow:0 12px 34px rgba(232,25,44,.45)}
+.wel-logo .logo .i{width:28px;height:28px}
+.wel-ring{position:absolute;inset:-14px;border-radius:26px;border:1.5px solid rgba(232,25,44,.4);animation:halo 3.2s ease-out infinite}
+.wel-ring.b{animation-delay:1.6s}
+.wel-title{font-size:34px;line-height:1.02;letter-spacing:-.045em;font-weight:850}
+.wel-title span{color:var(--red2)}
+.wel-lead{color:var(--sub);font-size:14.5px;line-height:1.45;margin-top:12px;max-width:320px}
+.wel-feats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:26px}
+.wel-feats>div{padding:12px 10px;border-radius:17px;background:var(--s1);border:1px solid var(--line);display:flex;flex-direction:column;gap:3px}
+.wel-feats i{width:28px;height:28px;border-radius:9px;background:var(--redbg);color:var(--red2);display:grid;place-items:center;margin-bottom:6px;font-style:normal}
+.wel-feats i .i{width:15px;height:15px}
+.wel-feats b{font-size:12.5px;font-weight:700}
+.wel-feats span{font-size:11px;color:var(--sub)}
+#s-wel .foot{gap:8px}
+/* ---------- accesso e configurazione ---------- */
+.logo.sm{width:46px;height:46px;border-radius:15px;background:var(--red);box-shadow:0 8px 24px rgba(232,25,44,.4);margin:8px 0 18px}
+.logo.sm .i{width:22px;height:22px}
+#s-auth .title,#s-setup .title,#s-terms .title{font-size:24px}
+#s-auth .btn:not(.link){margin-top:18px}
+.progress{height:4px}
+.step-n{font-size:12px}
+.opt{padding:12px;gap:11px;border-radius:18px}
+/* ---------- altre schermate più compatte ---------- */
+.title.count{font-size:38px}.title.count small{font-size:14px}
+.hero-card,.sos-alert{padding:12px;border-radius:20px;gap:12px}
+.hero-av{width:40px;height:40px;border-radius:13px;font-size:13px}
+.hero-card b,.sos-alert b{font-size:15.5px}
+.hero-card small,.sos-alert small{font-size:10px}
+.grp-card{min-height:96px;padding:11px;border-radius:19px}
+.grp-name{font-size:14.5px;margin-top:10px}
+.grp-sub{font-size:11.5px}
+.circle-acts .btn{font-size:14px}
+.me-card .av{width:44px;height:44px;border-radius:15px;font-size:16px}
+.me-card .fl b{font-size:16px}
+.act-card{border-radius:24px;padding:14px 14px 12px;gap:10px}
+.act-title{font-size:25px}
+.act-sub{font-size:12.5px}
+.act-chip{font-size:10.5px;padding:5px 10px}
+.act-timer{font-size:13px}
+.act-live{padding:9px 11px;border-radius:15px;gap:10px}
+.act-live b{font-size:13px}.act-live span{font-size:11.5px}
+.act-list{border-radius:20px}
+.vcard{padding:11px;border-radius:19px;gap:10px}
+.vcard .fl b{font-size:14px}.vcard .fl span{font-size:12px}
+.vbtn{min-height:40px;font-size:13px;border-radius:14px}
+#s-active .foot{gap:7px;padding-bottom:calc(76px + var(--sab))}
+.row3 .btn{font-size:14px}
+.map-head .title{font-size:22px}
+.map-card{padding:5px 11px 11px;border-radius:19px}
+.map-card-h .fl b{font-size:14.5px}
+.btn.sm{min-height:40px;font-size:13px;border-radius:14px}
+.msg{font-size:15px;padding:9px 13px}
+.cin input{min-height:42px}
+.sendb{width:42px;height:42px}
+.tk{padding:12px;border-radius:16px}.tk b{font-size:14px}.tk span{font-size:13px}
+.terms-chk{padding:12px;font-size:13.5px;border-radius:16px}
+.terms-sec h2{font-size:15.5px}.terms-sec p{font-size:13.5px}
+@media (prefers-reduced-motion: reduce){.radar i,.radar-core,.wel-ring,.step.run .st-ic::after{animation:none!important}}
+#s-home #sos{flex:none;width:100%;height:112px}
+#s-home .stage.sos-wrap{flex-direction:column}
+.sos-n{display:none}

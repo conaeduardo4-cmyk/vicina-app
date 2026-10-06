@@ -194,26 +194,24 @@ export function boot(api, native) {
     const r = recipients(), n = r.size, people = convs().filter(c => c.k !== 'g' || c.on);
     const s = $('#h-status');
     s.classList.toggle('warn', !n);
-    const nn = String(n).padStart(2, '0');
     s.innerHTML = n
-      ? `<span class="st-top"><i class="st-dot"></i><b>Sei ${G().prot}</b><span>La tua cerchia</span>${I('chev', 'chev')}</span>
-         <span class="st-grid"><span><b>${nn}</b><small>${n === 1 ? 'PERSONA' : 'PERSONE'}</small></span><span><b class="ok">ON</b><small>GPS + FOTO</small></span><span><b>1,5s</b><small>ALLARME</small></span></span>`
-      : `<span class="st-top"><i class="st-dot warn"></i><b>Nessuno da avvisare</b><span>Aggiungi</span>${I('chev', 'chev')}</span>
-         <span class="st-msg">Aggiungi ${G().amico}, il partner o un gruppo: è a loro che arriva il tuo SOS.</span>`;
-    $('#sos-n').textContent = n ? `→ ${n} ${n === 1 ? 'persona' : 'persone'}` : '';
+      ? `<i class="st-dot"></i><span><b>Sei ${G().prot}</b> · ${n} ${n === 1 ? 'persona riceve' : 'persone ricevono'} il tuo SOS</span>${I('chev', 'chev')}`
+      : `<i class="st-dot warn"></i><span><b>Nessuno da avvisare</b> · aggiungi qualcuno</span>${I('chev', 'chev')}`;
+    $('#sos-n').textContent = n ? `${n} ${n === 1 ? 'persona' : 'persone'}` : '';
     $('#sos-n').hidden = !n;
     $('#sos-wrap').classList.toggle('off', !n);
-    $('#sos-hint').textContent = n ? 'tieni premuto' : 'nessun contatto';
-    $('#h-hint').textContent = n ? 'Posizione live, 2 foto e un vocale, se vuoi.' : 'Prima aggiungi almeno una persona di cui ti fidi.';
+    $('#sos-hint').textContent = n ? 'Tieni premuto per chiedere aiuto' : 'Aggiungi qualcuno da avvisare';
+    $('#h-hint').textContent = n ? '1,5 secondi · posizione e 2 foto' : 'Il tasto si attiva quando la cerchia non è vuota';
+    homeMap();
   }
 
   /* ================= SOS: pressione prolungata ================= */
   const HOLD = 1500; let raf, t0 = 0, holding = false, sending = false;
   const sos = $('#sos'), prog = $('#prog');
-  const resetHold = () => { holding = false; cancelAnimationFrame(raf); sos.classList.remove('hold'); prog.style.transition = 'width .25s'; prog.style.width = '0%'; $('#sos-hint').textContent = recipients().size ? 'tieni premuto' : 'nessun contatto'; };
+  const resetHold = () => { holding = false; cancelAnimationFrame(raf); sos.classList.remove('hold'); prog.style.transition = 'width .25s'; prog.style.width = '0%'; $('#sos-hint').textContent = recipients().size ? 'Tieni premuto per chiedere aiuto' : 'Aggiungi qualcuno da avvisare'; };
   function holdLoop() {
     const p = Math.min((performance.now() - t0) / HOLD, 1); prog.style.width = (p * 100) + '%';
-    if (p > 0.05) $('#sos-hint').textContent = 'continua…';
+    if (p > 0.05) $('#sos-hint').textContent = 'Continua a tenere premuto…';
     if (p >= 1) { resetHold(); native.haptic('heavy'); trigger(); } else raf = requestAnimationFrame(holdLoop);
   }
   sos.addEventListener('pointerdown', e => {
@@ -225,7 +223,16 @@ export function boot(api, native) {
   sos.addEventListener('contextmenu', e => e.preventDefault());
   sos.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && recipients().size) { e.preventDefault(); trigger(); } });
 
-  const stp = (n, c) => $('#st' + n).className = 'step ' + c;
+  const stp = (n, c) => {
+    $('#st' + n).className = 'step ' + c;
+    const sts = [1, 2, 3, 4].map(i => $('#st' + i).className);
+    const pct = sts.reduce((a, x) => a + (/done|fail/.test(x) ? 25 : /run/.test(x) ? 10 : 0), 0);
+    $('#send-prog').style.width = pct + '%';
+    const t = $('#send-title'), sub = $('#send-sub');
+    if (sts.every(x => /done|fail/.test(x))) { t.textContent = 'Fatto. Ti stanno cercando.'; sub.textContent = 'La tua cerchia ha posizione e foto.'; $('#ov-send').classList.add('ok'); }
+    else if (/done/.test(sts[1])) { t.textContent = 'Allarme inviato'; sub.textContent = 'Aggiungo le foto per chi ti aiuta…'; }
+    else { t.textContent = 'Invio l\'aiuto…'; sub.textContent = 'Tieni l\'app aperta, servono pochi secondi.'; $('#ov-send').classList.remove('ok'); }
+  };
   const rid = () => (crypto.randomUUID?.() || Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')).replace(/-/g, '');
   async function trigger() {
     if (sending) return;
@@ -474,7 +481,7 @@ export function boot(api, native) {
     if (!force && Date.now() - myPosAt < 30000) return st.myPos;
     myPosAt = Date.now();
     const p = await native.getPos().catch(() => null);
-    if (p) { st.myPos = p; rMap(); }
+    if (p) { st.myPos = p; rMap(); if (homeApi) { homeApi.setData({ me: p, people: mapPeople() }); homeApi.center(p.lat, p.lng); } }
     return p;
   }
   async function openMapTab() {
@@ -490,6 +497,22 @@ export function boot(api, native) {
       .finally(() => { mapLoading = null; });
   }
   function closeMapTab() { clearInterval(mapTimer); }
+  // mini mappa nella Home (widget): stessa mappa, ferma, solo da guardare
+  let homeApi = null, homeLoading = false, homeFailed = false;
+  async function homeMap() {
+    const live = st.sosIn.filter(s => s.lat != null).length;
+    const ms = $('#mw-state'); if (ms) { ms.textContent = live ? `${live} SOS in corso · tocca per vedere` : 'Nessun SOS in corso'; ms.classList.toggle('red', !!live); }
+    if (!st.myPos) refreshMyPos();
+    if (homeApi) { homeApi.setData({ me: st.myPos || null, people: mapPeople() }); return; }
+    if (homeLoading || homeFailed || !$('#home-map') || curScreen !== 's-home') return;
+    homeLoading = true;
+    try {
+      const m = await import('./map.js');
+      homeApi = await m.createMap($('#home-map'), { interactive: false });
+      homeApi.setData({ me: st.myPos || null, people: mapPeople() });
+    } catch (e) { console.warn('mini mappa', e); homeFailed = true; $('#home-map')?.classList.add('off'); }
+    homeLoading = false;
+  }
   let pendingFocus = null;
   function mapFocus(id, lat, lng) {
     const p = mapPeople().find(x => x.id === id);
@@ -538,13 +561,14 @@ export function boot(api, native) {
   function rBadge() {
     const n = convs().reduce((a, c) => a + unread(c.id), 0) + st.sosIn.filter(s => !(s.acks || {})[st.uid]).length;
     const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n;
+    const hb = $('#h-badge'); if (hb) { hb.hidden = !n; hb.textContent = n > 9 ? '9+' : n; }
   }
   const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : esc(m.text);
   function rChats() {
     const cs = convs().map(c => ({ ...c, last: (st.threads[c.id] || []).slice(-1)[0] })).sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
     const live = st.sosIn.filter(s => Date.now() - s.at < 12 * 36e5);
     $('#c-list').innerHTML =
-      (live.length ? `<div class="label">SOS in corso</div><div class="card">${live.map(s => `<button class="row" data-a="in-open" data-id="${s.id}">${AV(s.fromName)}<div class="fl"><b>${esc(s.fromName)}</b><span>Ha chiesto aiuto ${ago(s.at)}</span></div><span class="tag red">Attivo</span></button>`).join('')}</div>` : '')
+      (live.length ? live.map(s => `<button class="sos-alert" data-a="in-open" data-id="${s.id}"><span class="deco"></span><span class="hero-av">${esc(initials(s.fromName))}</span><span class="fl"><small>SOS IN CORSO</small><b>${esc(s.fromName)}</b><span>Ha chiesto aiuto ${ago(s.at)}${s.audio ? ' · vocale' : ''}</span></span>${I('chev', 'chev')}</button>`).join('') : '')
       + (cs.length ? `<div class="label">Conversazioni</div><div class="card">${cs.map(c => { const u = unread(c.id);
         return `<button class="row" data-a="open" data-id="${c.id}">${AV(c.name, c.k)}<div class="fl"><b>${esc(c.name)}</b><span>${c.last ? preview(c.last) : esc(c.sub)}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">${c.last ? `<span class="meta" style="margin:0">${when(c.last.at)}</span>` : ''}${u ? `<b class="badge" style="position:static">${u}</b>` : ''}</div></button>`; }).join('')}</div>`
         : `<div class="empty"><i class="ic-dot violet">${I('chat')}</i><b>Nessuna conversazione</b>Quando aggiungi qualcuno alla tua cerchia, la chat compare qui.<button class="btn" data-a="add">Aggiungi persona</button></div>`);
@@ -596,12 +620,21 @@ export function boot(api, native) {
       $('#p-list').innerHTML = `<div class="empty"><i class="ic-dot violet">${I('people')}</i><b>La tua cerchia è vuota</b>Aggiungi il partner, ${G().amico} o crea un gruppo. Nessuno entra senza il consenso di entrambi.<button class="btn" data-a="add">Aggiungi persona</button></div>`;
       return;
     }
-    $('#p-list').innerHTML =
-      `<div class="label">Persone · ${(p ? 1 : 0) + f.length}</div><div class="card">${p ? person(p) : ''}${f.map(person).join('')}${p ? '' : `<button class="row add" data-a="invite" data-k="partner"><i class="ic-dot red">${I('heart')}</i><span>Aggiungi il partner</span></button>`}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`
-      + `<div class="label">Gruppi · ${g.length}</div><div class="card">${g.map(x => `<button class="row" data-a="grp" data-id="${x.id}">${AV(x.name, 'g')}<div class="fl"><b>${esc(x.name)}</b><span>${x.sub}${x.on ? '' : ' · SOS disattivati'}${x.admin && x.req.length ? ` · <b style="color:var(--amber)">${x.req.length} richieste</b>` : ''}</span></div>${I('chev', 'chev')}</button>`).join('')}
-        <button class="row add" data-a="newgroup"><i class="ic-dot violet">${I('plus')}</i><span>Crea un gruppo</span></button>
-        <button class="row add" data-a="code"><i class="ic-dot gray">${I('key')}</i><span>Ho un codice</span></button></div>
-        <p class="note">L'SOS arriva a tutte le persone qui sopra (gruppi fino a 8).</p>`;
+    const ini = n => esc(initials(n));
+    const hero = p
+      ? `<button class="hero-card" data-a="person" data-id="${p.id}"><span class="deco"></span><span class="hero-av">${ini(p.name)}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>Collegato · riceve sempre i tuoi SOS</span></span>${I('chev', 'chev')}</button>`
+      : `<button class="hero-card empty-hero" data-a="invite" data-k="partner"><span class="hero-av">${I('heart')}</span><span class="fl"><small>PARTNER</small><b>Aggiungi il partner</b><span>Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
+    const grpCard = x => {
+      const ms = (x.members || []).filter(m => m.uid !== st.uid).slice(0, 3);
+      return `<button class="grp-card" data-a="grp" data-id="${x.id}">
+        <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
+        <span class="grp-name">${esc(x.name)}</span><span class="grp-sub">${x.members.length} di 8 persone${x.admin && x.req.length ? ` · <b>${x.req.length} richieste</b>` : ''}</span></button>`;
+    };
+    $('#p-list').innerHTML = hero
+      + `<div class="label">${G() === GG.m ? 'Amici' : 'Amiche e amici'} · ${f.length}</div><div class="card">${f.map(person).join('')}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`
+      + `<div class="label">Gruppi · ${g.length}</div><div class="grp-grid">${g.map(grpCard).join('')}<button class="grp-card add" data-a="newgroup"><span class="grp-plus">${I('plus')}</span><span class="grp-name">Nuovo gruppo</span><span class="grp-sub">Fino a 8 persone</span></button></div>`
+      + `<div class="circle-acts"><button class="btn" data-a="add">${I('plus')}Invita qualcuno</button><button class="btn ghost" data-a="code">${I('key')}Ho un codice</button></div>
+        <p class="note">L'SOS arriva a tutte le persone qui sopra e ai gruppi attivi.</p>`;
   }
   const addOptions = () => `
     <button class="opt" data-a="invite" data-k="partner"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Invita il partner</b><span>Genera un codice da condividere</span></div>${I('chev', 'chev')}</button>
