@@ -651,9 +651,20 @@ export function createTools(ctx) {
       ['ai', 'spark', 'amber', 'Assistente', 'Chiedi cosa fare']]]
   ];
   const allTools = () => { const l = TOOLS.map(([g, x]) => [g, [...x]]); (extra?.groups || []).forEach(([g, x, after]) => { const f = l.find(y => y[0] === g); if (f) f[1].push(...x); else l.splice(after ?? l.length, 0, [g, [...x]]); }); return l; };
+  const toolCard = ([a, ic, c, t, s]) => `<button class="tool" data-a="${a}" data-find="${(t + ' ' + s).toLowerCase()}"><i class="ic-dot ${c}">${I(ic)}</i><b>${t}</b><span>${s}</span></button>`;
   const sheetTools = () => { const T = allTools(); openSheet(`<h2>Strumenti</h2><p class="sub">${T.reduce((a, g) => a + g[1].length, 0)} strumenti: molti funzionano anche senza internet.</p>
-    ${T.map(([g, l]) => `<div class="label">${g}</div><div class="tools-grid">${l.map(([a, ic, c, t, s]) => `<button class="tool" data-a="${a}"><i class="ic-dot ${c}">${I(ic)}</i><b>${t}</b><span>${s}</span></button>`).join('')}</div>`).join('')}
-    <label class="row toggle-row"><i class="ic-dot violet">${I('alert')}</i><div class="fl wrap"><b>Scuoti per SOS</b><span>Scuoti forte il telefono: dopo 5 secondi parte l'SOS (con l'app aperta)</span></div><input type="checkbox" class="switch" data-pref="shake" ${prefs.shake ? 'checked' : ''}></label>`, 'tools'); };
+    <label class="search"><svg class="i"><use href="#i-search"/></svg><input id="tool-find" placeholder="Cerca uno strumento…" autocomplete="off"></label>
+    <div id="tool-groups">${T.map(([g, l]) => `<div class="tool-group"><div class="label">${g}</div><div class="tools-grid">${l.map(toolCard).join('')}</div></div>`).join('')}</div>
+    <p class="note no-find" id="tool-none" hidden>Nessuno strumento trovato.</p>
+    <label class="row toggle-row"><i class="ic-dot violet">${I('alert')}</i><div class="fl wrap"><b>Scuoti per SOS</b><span>Scuoti forte il telefono: dopo 5 secondi parte l'SOS (con l'app aperta)</span></div><input type="checkbox" class="switch" data-pref="shake" ${prefs.shake ? 'checked' : ''}></label>`, 'tools');
+    const f = $('#tool-find');
+    f?.addEventListener('input', () => {
+      const q = f.value.trim().toLowerCase(); let n = 0;
+      $('#tool-groups').querySelectorAll('.tool').forEach(b => { const ok = !q || b.dataset.find.includes(q); b.hidden = !ok; if (ok) n++; });
+      $('#tool-groups').querySelectorAll('.tool-group').forEach(g => { g.hidden = ![...g.querySelectorAll('.tool')].some(b => !b.hidden); });
+      $('#tool-none').hidden = n > 0;
+    });
+  };
 
   /* ---------- azioni ---------- */
   let extra = null;

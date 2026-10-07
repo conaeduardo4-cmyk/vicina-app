@@ -32,7 +32,7 @@ public class VicinaWidget extends AppWidgetProvider {
             v.setTextViewText(text, discreet ? "Vicina" : "SOS");
             v.setTextViewText(sub, discreet ? "tocca" : "tocca per avvisare");
             v.setInt(root, "setBackgroundResource", discreet ? bgBlue : bgRed);
-            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse("vicina://sos"));
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse("vicina://sos-widget"));
             i.setPackage(context.getPackageName());
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PendingIntent pi = PendingIntent.getActivity(context, 7, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

@@ -237,6 +237,25 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 - **Android**: invariato, aggiornamento con un tocco dentro l'app.
 - Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).
 
+## Widget ufficiali (iOS e Android)
+
+Due widget da mettere sulla schermata Home:
+- **SOS**: un tocco apre Vicina con un conto alla rovescia di 3 secondi (annullabile) e poi parte l'SOS.
+- **Chiama 112**: un tocco apre il telefono con il 112 già pronto (le app non possono comporre da sole un numero d'emergenza, serve l'ultima conferma).
+
+Su iPhone i widget vanno anche sulla **schermata di blocco**. Li aggiunge il workflow durante la build:
+- iOS: estensione WidgetKit in `scripts/ios/VicinaWidgets/` + `scripts/ios-widgets.rb` (per saltarla: crea un file vuoto `scripts/ios/NO_WIDGETS`).
+- Android: `scripts/android/VicinaWidget.java` (SOS, link `vicina://sos-widget`) e `scripts/android/VicinaCallWidget.java` (112, `tel:112`).
+
+## Novità strumenti e SOS
+
+- **Panico** (tasto rosso in Home e in Strumenti): con un tocco parte la sirena, il flash lampeggia e la cerchia riceve «ho bisogno di aiuto subito» con la posizione (anche via SMS).
+- **Registra audio dopo l'SOS** (Impostazioni → SOS): dopo le foto l'app registra da sola 30 secondi di quello che succede intorno e lo manda alla cerchia come vocale.
+- **Defibrillatori (DAE)** tra i Luoghi sicuri.
+- **Strumenti con ricerca**: il foglio Strumenti (40 in tutto) ha una barra per cercarli al volo.
+- **Guida rapida** aggiornata: 6 passi (compresi strumenti, contatti SMS e modalità anonima).
+- Ritocco leggero all'impaginazione delle schermate diverse dalla Home (intestazioni di sezione e card).
+
 ## Modalità anonima («Anonimizza l'app»)
 
 Impostazioni → Privacy → **Anonimizza l'app**. Quando è attiva:

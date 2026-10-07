@@ -6,5 +6,5 @@
     android:targetCellHeight="1"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
-    android:initialLayout="@layout/vicina_widget"
+    android:initialLayout="@layout/vicina_call_widget"
     android:updatePeriodMillis="0" />

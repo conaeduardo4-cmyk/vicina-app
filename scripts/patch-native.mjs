@@ -58,7 +58,7 @@ if (fs.existsSync(man)) {
     }
     log(m.includes('SosSmsPlugin') ? 'SMS automatici ai contatti senza app (plugin SosSms)' : 'ATTENZIONE: plugin SMS non registrato in MainActivity');
     // integrazioni (icona anonima, torcia, batteria, voce, scorciatoie, widget)
-    for (const f of ['VicinaNativePlugin', 'VicinaWidget']) fs.writeFileSync(dir + '/' + f + '.java', read('scripts/android/' + f + '.java').replace('__PACKAGE__', pkg));
+    for (const f of ['VicinaNativePlugin', 'VicinaWidget', 'VicinaCallWidget']) fs.writeFileSync(dir + '/' + f + '.java', read('scripts/android/' + f + '.java').replace('__PACKAGE__', pkg));
     if (!m.includes('VicinaNativePlugin') && m.includes('registerPlugin(ApkUpdaterPlugin.class);')) {
       m = m.replace('registerPlugin(ApkUpdaterPlugin.class);', 'registerPlugin(ApkUpdaterPlugin.class);\n        registerPlugin(VicinaNativePlugin.class);');
       fs.writeFileSync(mainAct, m);
@@ -94,8 +94,16 @@ if (fs.existsSync(man)) {
                 <data android:scheme="vicina" />
             </intent-filter>`);
     // widget nella schermata Home
-    if (!x.includes('.VicinaWidget'))
-      x = x.replace('</application>', `    <receiver android:name=".VicinaWidget" android:exported="false" android:label="Vicina">
+    if (!x.includes('.VicinaCallWidget'))
+      x = x.replace('</application>', `    <receiver android:name=".VicinaCallWidget" android:exported="false" android:label="Chiama 112">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/vicina_call_widget_info" />
+        </receiver>
+    </application>`);
+    if (!x.includes('.VicinaWidget"'))
+      x = x.replace('</application>', `    <receiver android:name=".VicinaWidget" android:exported="false" android:label="SOS">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -166,6 +174,13 @@ if (fs.existsSync(plist)) {
   fs.copyFileSync('scripts/ios/VicinaNative.swift', 'ios/App/App/VicinaNative.swift');
   try { execSync('ruby scripts/ios-native.rb', { stdio: 'inherit' }); log('integrazioni Vicina (icona anonima, torcia, voce, azioni rapide)'); }
   catch (e) { console.log('  ! integrazioni iOS non aggiunte (xcodeproj mancante?): l\'app funziona lo stesso, senza icona anonima e torcia'); }
+  // widget SOS e 112 (estensione WidgetKit). Per saltarli: crea il file scripts/ios/NO_WIDGETS
+  if (!fs.existsSync('scripts/ios/NO_WIDGETS')) {
+    fs.mkdirSync('ios/App/VicinaWidgets', { recursive: true });
+    copyDir('scripts/ios/VicinaWidgets', 'ios/App/VicinaWidgets');
+    try { execSync('ruby scripts/ios-widgets.rb', { stdio: 'inherit' }); log('widget SOS e 112'); }
+    catch (e) { console.log('  ! widget iOS non aggiunti: l\'app funziona lo stesso'); }
+  }
   {
     const ad0 = 'ios/App/App/AppDelegate.swift';
     let a = read(ad0);

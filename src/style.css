@@ -1170,3 +1170,31 @@ html.dz{--bg:#06101C;--bg2:#081524;--s1:#0D1B2C;--s2:#132538;--s3:#1C3149;--line
 .quick-row button{flex:none;display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 14px;border-radius:99px;background:var(--s1);border:1px solid var(--line);color:var(--ink);font-size:13px;font-weight:650;white-space:nowrap}
 .quick-row .i{width:15px;height:15px;color:var(--sub)}
 .quick-row button:active{transform:scale(.96)}
+.quick-row .qr-panic{background:var(--redbg);border-color:rgba(232,25,44,.4);color:var(--red2);font-weight:750}
+.quick-row .qr-panic .i{color:var(--red2)}
+
+/* guida: nuove schede demo */
+.g-tools{width:100%;max-width:340px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g-tools span{display:flex;align-items:center;gap:8px;padding:12px;border-radius:14px;background:var(--s1);border:1px solid var(--line);font-size:13.5px;font-weight:600}
+.g-tools .i{width:17px;height:17px;color:var(--red2)}
+.g-anon{width:100%;max-width:300px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.g-anon-ic{width:66px;height:66px;border-radius:22px;background:linear-gradient(145deg,#8FD3FF,#2F9BF0);display:grid;place-items:center;color:#fff}
+.g-anon-ic .i{width:30px;height:30px}
+.g-anon-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:150px}
+.g-anon-tiles i{height:34px;border-radius:11px;background:rgba(77,155,255,.18);border:1px solid rgba(77,155,255,.35)}
+.g-anon p{margin:0;font-size:13.5px;color:var(--sub)}
+
+/* ===== v11 · ritocchi impaginazione ===== */
+.search{display:flex;align-items:center;gap:8px;padding:0 14px;margin:12px 0 6px;height:46px;border-radius:14px;background:var(--s1);border:1px solid var(--line2)}
+.search .i{width:18px;height:18px;color:var(--sub);flex:none}
+.search input{flex:1;border:0;background:none;color:var(--ink);font:inherit;outline:none}
+.tool-group{margin-bottom:2px}
+.sheet .label:first-child,.tool-group .label{margin-top:14px}
+/* sezioni (label) più rifinite in tutte le schermate che non sono la Home */
+.label{display:flex;align-items:center;gap:8px;margin:18px 4px 8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+#s-circle .sc,#s-me .sc,#s-chat .sc{padding-top:4px}
+/* intestazioni delle schermate interne: un filo più ariose */
+#s-circle .hh,#s-me .hh,#s-chat .hh,#s-map .hh{padding:16px 2px 6px}
+.card{overflow:hidden}
+.card .row+.row,.card .opt+.opt{border-top:1px solid var(--line)}

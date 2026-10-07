@@ -301,6 +301,7 @@ export function boot(api, native) {
         } else stp(n, 'fail');
       }
       Object.assign(lastSms, { links, imgs });
+      if (res && prefs.autoAudio) autoAudio(sosId);
       if (sms.length) {
         if (autoSms) { if (links.length) { const r = await smsDeliver('Aggiornamento con le foto.\n' + smsText(pos, links)); stp(5, r === 'sent' ? 'done' : 'wait'); } else stp(5, 'done'); }
         else { stp(5, 'wait'); await wait(500); end(); await smsDeliver(smsText(pos, links), { auto: false }); }
@@ -314,6 +315,18 @@ export function boot(api, native) {
       end(); console.warn(e);
       dialog({ title: 'Invio non riuscito', text: errMsg(e) + ' Se sei in pericolo chiama subito il 112.', ok: 'Chiama 112', cancel: 'Chiudi' }).then(ok => ok && (location.href = 'tel:112'));
     }
+  }
+
+  // registra da solo 30 secondi di audio dopo l'SOS e lo allega come vocale (se attivato nelle impostazioni)
+  async function autoAudio(sosId) {
+    let rec; try { rec = await native.startRecording(); } catch { return; }
+    toast('Registro 30 secondi di audio per la tua cerchia');
+    await wait(30000);
+    const out = await rec.stop().catch(() => null);
+    if (!out?.blob?.size || voice.sentFor === sosId) return;
+    const path = `sos/${st.uid}/${sosId}/voice.${out.ext}`;
+    try { await api.uploadAudio(path, out.blob, out.mime); await api.call('attachSosAudio', { sosId, path }); voice.sentFor = sosId; if (st.sosMine) rActive(); toast('Audio inviato alla cerchia'); }
+    catch (e) { console.warn('audio automatico', e); }
   }
 
   /* ================= SOS attivo (mio) ================= */
@@ -838,6 +851,7 @@ export function boot(api, native) {
         ${toggleRow('voice', 'mic', 'amber', 'Messaggio vocale', 'Dopo l\'SOS puoi registrarne uno (facoltativo)')}
         ${toggleRow('shake', 'alert', 'violet', 'Scuoti per SOS', 'Scuoti forte il telefono: dopo 5 secondi parte l\'SOS (con l\'app aperta)')}
         ${toggleRow('quiet', 'eye', 'gray', 'SOS discreto', 'Niente vibrazioni e flash mentre l\'SOS parte')}
+        ${toggleRow('autoAudio', 'mic', 'red', 'Registra audio dopo l\'SOS', 'Dopo le foto registra 30 secondi di quello che succede intorno e lo manda alla cerchia')}
       </div>
       <div class="label">Privacy</div><div class="card">
         ${toggleRow('disguise', 'eye', 'blue', prefs.disguise ? 'Tema celeste' : 'Anonimizza l\'app', prefs.disguise ? 'Attivo: icona e colori celesti. Spegnilo per tornare al tema normale' : 'Icona celeste, colori blu e nessuna parola «SOS»: se qualcuno guarda il telefono non capisce a cosa serve')}
@@ -870,6 +884,7 @@ export function boot(api, native) {
     const k = e.target.dataset.pref; if (!k) return;
     prefs[k] = e.target.checked; savePrefs(); native.haptic('light');
     if (k === 'voice') toast(prefs.voice ? 'Messaggio vocale attivo' : 'Messaggio vocale disattivato');
+    else if (k === 'autoAudio') toast(prefs.autoAudio ? 'Dopo l\'SOS registrerò 30 secondi di audio' : 'Audio automatico spento');
     else if (k === 'quiet') toast(prefs.quiet ? 'SOS discreto attivo' : 'SOS discreto disattivato');
     else if (k === 'disguise') setDisguise(prefs[k], e.target);
     else if (k === 'typingPreview') toast(prefs.typingPreview ? 'Gli altri vedono l\'anteprima mentre scrivi' : 'Gli altri vedono solo «sta scrivendo…»');
@@ -880,10 +895,11 @@ export function boot(api, native) {
 
   /* ================= guida rapida interattiva ================= */
   const GUIDE = [
-    { t: 'Tieni premuto per 1,5 secondi', d: 'Provalo qui: è solo una prova, non parte nessun allarme.', demo: 'hold' },
-    { t: 'Cosa ricevono', d: 'La tua cerchia vede subito chi sei, dove sei (anche in tempo reale) e le due foto.', demo: 'recv' },
-    { t: 'Posizione live e vocale', d: 'Dopo l\'SOS la tua posizione si aggiorna da sola finché non tocchi «Sono al sicuro». Se vuoi, registri un vocale che sente tutta la cerchia.', demo: 'opts' },
-    { t: 'La tua cerchia', d: 'Partner, amici e gruppi. Ci si collega con un codice di 6 caratteri, solo se siete d\'accordo entrambi.', demo: 'circle' },
+    { t: 'Tieni premuto per 1,5 secondi', d: 'Provalo qui: è solo una prova, non parte nessun allarme. Puoi far partire l\'SOS anche dal widget sulla Home, dall\'icona o scuotendo il telefono.', demo: 'hold' },
+    { t: 'Cosa ricevono', d: 'La tua cerchia vede subito chi sei, dove sei (anche in tempo reale) e le due foto. Se vuoi, l\'app registra da sola 30 secondi di audio.', demo: 'recv' },
+    { t: 'Chi avvisi', d: 'Partner, amici e gruppi con l\'app. Ma puoi aggiungere anche chi non ce l\'ha: riceve tutto via SMS. Ci si collega con un codice di 6 caratteri, solo se siete d\'accordo entrambi.', demo: 'circle' },
+    { t: 'Gli strumenti', d: 'Oltre all\'SOS ci sono 40 strumenti: Accompagnami, Portami a casa, Luoghi sicuri, Sirena, Finta chiamata, Primo soccorso e molto altro. Quasi tutti funzionano anche senza internet.', demo: 'tools' },
+    { t: 'Se qualcuno guarda il telefono', d: 'Nelle impostazioni puoi anonimizzare l\'app: icona e colori celesti, nessuna scritta «SOS». Sembra un\'app qualsiasi, ma funziona tutto uguale.', demo: 'anon' },
     { t: 'Quando è finita', d: 'Tocca "Sono al sicuro": tutti ricevono la notizia e l\'SOS si chiude.', demo: 'safe' }
   ];
   let gi = 0;
@@ -897,6 +913,8 @@ export function boot(api, native) {
     if (k === 'recv') return `<div class="g-recv"><div class="g-alert"><div class="g-alert-h">${I('alert')}<b>Giulia ha bisogno di aiuto</b></div><div class="g-li"><span class="live-badge"><i class="dot"></i>LIVE</span>Via Roma 12 · aggiornata 5 s fa</div><div class="g-li">${I('mic')}Messaggio vocale · 0:08</div><div class="g-ph"><i></i><i></i></div></div></div>`;
     if (k === 'opts') return `<div class="card g-opts"><div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Fino a «Sono al sicuro»</span></div></div>${toggleRow('voice', 'mic', 'amber', 'Messaggio vocale', 'Facoltativo')}</div>`;
     if (k === 'circle') return `<div class="g-circle"><div class="code"><b>K7P2QX</b><span>Codice di esempio · vale 10 minuti</span></div><button class="btn" data-a="add">${I('plus')}Aggiungi qualcuno ora</button></div>`;
+    if (k === 'tools') return `<div class="g-tools"><span>${I('shield')}Accompagnami</span><span>${I('pin')}Portami a casa</span><span>${I('bell')}Sirena</span><span>${I('phone')}Finta chiamata</span><span>${I('heart')}Primo soccorso</span><span>${I('spark')}Torcia</span></div>`;
+    if (k === 'anon') return `<div class="g-anon"><div class="g-anon-ic">${I('eye')}</div><div class="g-anon-tiles"><i></i><i></i><i></i><i></i></div><p>Tocca «Anonimizza l'app» in Impostazioni</p></div>`;
     return `<div class="g-safe"><button class="btn green" id="g-safe-btn">${I('check')}Sono al sicuro</button><p class="sub" id="g-safe-t">Prova a toccarlo</p></div>`;
   }
   function guideGo(i) {
@@ -1082,7 +1100,7 @@ export function boot(api, native) {
   /* ================= azioni (delegazione) ================= */
   tools = createTools({
     $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs, hhmm, mapsLink, wait,
-    sos: () => { if (st.sosMine) { tab('home'); return toast('Il tuo SOS è già attivo'); } trigger(); },
+    sos: () => { if (st.sosMine) { tab('home'); toast('Il tuo SOS è già attivo'); return Promise.resolve(); } return trigger(); },
     canSos: () => !!st.uid && canSos(), male: () => G() === GG.m, uid: () => st.uid, profile: () => st.p,
     hasSms: () => smsOn().length > 0,
     quickSend: (t, o) => quickSendAll(t, o)

@@ -72,6 +72,7 @@ export function createExtra(ctx, base) {
     ['police', 'Polizia e carabinieri', 'shield', e => e.amenity === 'police'],
     ['hospital', 'Pronto soccorso', 'heart', e => e.amenity === 'hospital' || e.amenity === 'clinic'],
     ['pharmacy', 'Farmacie', 'plus', e => e.amenity === 'pharmacy'],
+    ['defib', 'Defibrillatori', 'heart', e => e.emergency === 'defibrillator'],
     ['open', 'Aperti 24 ore', 'clock', e => /24\/7/.test(e.opening_hours || '')]
   ];
   let safeCache = null;
@@ -83,7 +84,7 @@ export function createExtra(ctx, base) {
     if (!p) { $('#sf-list').innerHTML = `<p class="note">Posizione non disponibile.</p>`; return; }
     try {
       if (!safeCache || Date.now() - safeCache.at > 600000 || km(safeCache.p, p) > 0.4) {
-        const q = `[out:json][timeout:20];(nwr(around:3000,${p.lat},${p.lng})[amenity~"^(police|hospital|clinic|pharmacy|fuel)$"];nwr(around:3000,${p.lat},${p.lng})[shop~"^(supermarket|convenience)$"][opening_hours="24/7"];);out center tags 200;`;
+        const q = `[out:json][timeout:20];(nwr(around:3000,${p.lat},${p.lng})[amenity~"^(police|hospital|clinic|pharmacy|fuel)$"];nwr(around:3000,${p.lat},${p.lng})[emergency=defibrillator];nwr(around:3000,${p.lat},${p.lng})[shop~"^(supermarket|convenience)$"][opening_hours="24/7"];);out center tags 200;`;
         const c = new AbortController(); setTimeout(() => c.abort(), 20000);
         const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + enc(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: c.signal });
         const j = await r.json();
@@ -99,7 +100,7 @@ export function createExtra(ctx, base) {
   function rSafe(cat, p) {
     const f = CATS.find(c => c[0] === cat)[3];
     const l = safeCache.items.filter(f).map(e => ({ ...e, d: km(p, e) })).sort((a, b) => a.d - b.d).slice(0, 12);
-    const name = e => e.name || (e.amenity === 'police' ? (/carabin/i.test(e.operator || '') ? 'Carabinieri' : 'Polizia') : e.amenity === 'pharmacy' ? 'Farmacia' : e.amenity === 'fuel' ? 'Distributore' : e.amenity === 'hospital' ? 'Ospedale' : e.shop ? 'Negozio' : 'Luogo');
+    const name = e => e.name || (e.emergency === 'defibrillator' ? 'Defibrillatore (DAE)' : e.amenity === 'police' ? (/carabin/i.test(e.operator || '') ? 'Carabinieri' : 'Polizia') : e.amenity === 'pharmacy' ? 'Farmacia' : e.amenity === 'fuel' ? 'Distributore' : e.amenity === 'hospital' ? 'Ospedale' : e.shop ? 'Negozio' : 'Luogo');
     const hrs = e => e.opening_hours === '24/7' ? '<span class="tag green">Aperto 24 ore</span>' : e.opening_hours ? esc(e.opening_hours.slice(0, 40)) : '';
     $('#sf-list').innerHTML = l.length ? `<div class="card safe-list">${l.map(e => {
       const tel = e.phone || e['contact:phone'];
@@ -336,10 +337,11 @@ export function createExtra(ctx, base) {
     const ios = P === 'ios';
     openSheet(`<h2>Scorciatoie e widget</h2><p class="sub">Per far partire l'SOS senza cercare l'app.</p>
       ${ios ? `<div class="label">Tieni premuta l'icona</div><p class="note-b">Dall'icona di Vicina escono SOS, Sirena, Accompagnami e Finta chiamata.</p>
+      <div class="label">Widget (Home e schermata di blocco)</div><ol class="steps-list"><li>Tieni premuto sulla schermata Home → <b>+</b> in alto → cerca <b>Vicina</b>.</li><li>Scegli il widget <b>SOS</b> o <b>Chiama 112</b> e aggiungilo.</li><li>Puoi metterli anche sulla <b>schermata di blocco</b> (tieni premuto il lock screen → Personalizza → aggiungi widget).</li></ol>
       <div class="label">«Tocca il retro» (2 o 3 tocchi sul retro dell'iPhone)</div>
       <ol class="steps-list"><li>Apri <b>Comandi</b> → <b>+</b> → «Aggiungi azione» → cerca <b>Apri URL</b>.</li><li>Incolla <b>vicina://sos</b> (copialo qui sotto) e chiama il comando «Vicina SOS».</li><li><b>Impostazioni → Accessibilità → Tocco → Tocca il retro</b> → Tocco triplo → scegli «Vicina SOS».</li><li>Puoi anche dire <b>«Ehi Siri, Vicina SOS»</b>.</li></ol>`
       : `<div class="label">Tieni premuta l'icona</div><p class="note-b">Dall'icona di Vicina escono SOS, Sirena, Accompagnami e Finta chiamata. Puoi trascinarli sulla schermata Home.</p>
-      <div class="label">Widget</div><ol class="steps-list"><li>Tieni premuto su uno spazio vuoto della schermata Home → <b>Widget</b>.</li><li>Cerca <b>Vicina</b> e trascinalo dove vuoi.</li><li>Un tocco sul widget fa partire il conto alla rovescia dell'SOS (5 secondi per annullare).</li></ol>`}
+      <div class="label">Widget sulla Home</div><ol class="steps-list"><li>Tieni premuto su uno spazio vuoto della schermata Home → <b>Widget</b>.</li><li>Cerca <b>Vicina</b>: ci sono due widget, <b>SOS</b> e <b>Chiama 112</b>.</li><li>Il widget <b>SOS</b> fa partire il conto alla rovescia di 3 secondi; <b>Chiama 112</b> apre subito la chiamata.</li></ol>`}
       <p class="note">Ogni scorciatoia apre il conto alla rovescia di 5 secondi: se l'hai toccata per sbaglio, annulli.</p>
       <div class="row2"><button class="btn ghost sm" data-a="x-copy" data-t="vicina://sos">${I('copy')}Copia vicina://sos</button><button class="btn ghost sm" data-a="x-test-url">Prova</button></div>`, 'shortcuts');
   }
@@ -363,11 +365,24 @@ export function createExtra(ctx, base) {
     if (n) { ls.set('testDone:' + uid(), '1'); toast(`Prova inviata a ${n} chat: chiedi se è arrivata`); } else toast('Prima aggiungi qualcuno alla cerchia');
   }
 
+  /* ---------- Panico: tutto insieme con un tocco (sirena + flash + avviso + registra) ---------- */
+  async function panic() {
+    base.h.siren();                                   // sirena a schermo intero
+    torch('sos').catch(() => {});                     // flash lampeggiante
+    buzz([600, 200, 600, 200, 600]);
+    const p = await native.getPos().catch(() => null);
+    const n = await ctx.quickSend(`🆘 Ho bisogno di aiuto SUBITO.${p ? '\nSono qui: ' + mapsLink(p) : ''}`, { sms: true }).catch(() => 0);
+    if (n) toast('Sirena attiva · cerchia avvisata'); else toast('Sirena attiva');
+  }
+
   /* ---------- link vicina://… (scorciatoie, widget, Comandi) ---------- */
   function handleUrl(url) {
     const k = String(url || '').replace(/^vicina:\/\/?/, '').replace(/[/?#].*$/, '');
     switch (k) {
       case 'sos': return base.h.countdown({ secs: 5, title: 'SOS tra 5 secondi', text: 'Aperto da una scorciatoia. Se è stato un errore tocca «Sto bene, annulla».' });
+      case 'sos-widget': return base.h.countdown({ secs: 3, title: 'SOS tra 3 secondi', text: 'Hai toccato il widget. Se è stato per sbaglio tocca «Sto bene, annulla».' });
+      case 'call112': { location.href = 'tel:112'; return; }
+      case 'panic': return panic();
       case 'siren': return base.h.siren();
       case 'walk': return base.h.sheetWalk();
       case 'fake': return base.h.fakeRing(ls.get('fakeName') || 'Mamma');
@@ -380,6 +395,7 @@ export function createExtra(ctx, base) {
 
   /* ---------- azioni ---------- */
   async function handle(a, t) {
+    if (a === 'tool-close' && (torchOn || torchMorse)) torch('off');   // Panico: spegni anche il flash
     switch (a) {
       case 'home': closeSheet(); sheetHome(); return true;
       case 'home-set': sheetHomeSet(); return true;
@@ -396,7 +412,7 @@ export function createExtra(ctx, base) {
         if ($('#hm-walk')?.checked) startWalk(eta, 'verso casa', { quiet: true });
         closeSheet(); open(dirUrl(h, m)); return true;
       }
-      case 'safe': closeSheet(); sheetSafe(); return true;
+      case 'safe-places': closeSheet(); sheetSafe(); return true;
       case 'safe-cat': { document.querySelectorAll('#sf-tabs button').forEach(b => b.classList.toggle('on', b === t)); if (safeCache) rSafe(t.dataset.k, safeCache.p); else sheetSafe(t.dataset.k); return true; }
       case 'taxi': closeSheet(); sheetTaxi(); return true;
       case 'ride-ask': { const p = await pos(); const n = await ctx.quickSend(`🚗 Mi serve un passaggio, qualcuno può venirmi a prendere?${p ? '\nSono qui: ' + mapsLink(p) : ''}`); toast(n ? 'Richiesta inviata alla cerchia' : 'Nessuna chat a cui inviarla'); return true; }
@@ -453,6 +469,7 @@ export function createExtra(ctx, base) {
         say(`Mi chiamo ${me.name || ''} ${me.surname || ''}. ${addr ? 'Mi trovo in ' + addr + '. ' : ''}Le mie coordinate sono: latitudine ${p.lat.toFixed(5).replace('.', ' virgola ')}, longitudine ${p.lng.toFixed(5).replace('.', ' virgola ')}. Ho bisogno di aiuto.`);
         return true;
       }
+      case 'panic': closeSheet(); panic(); return true;
       case 'torch': if (!t.dataset.m) { closeSheet(); sheetTorch(); } else torch(t.dataset.m); return true;
       case 'video': video(); return true;
       case 'video-share': if (lastVideo && !(await native.shareBlob(lastVideo, lastVideo.name || 'video.mp4', 'Video Vicina'))) toast('Condivisione non disponibile'); return true;
@@ -490,13 +507,14 @@ export function createExtra(ctx, base) {
 
   const groups = [
     ['Adesso', [
+      ['panic', 'alert', 'red', 'Panico', 'Sirena, flash e avviso alla cerchia insieme'],
       ['torch', 'spark', 'amber', 'Torcia', 'Il flash vero, anche SOS luminoso'],
       ['speak', 'mic', 'red', 'Parla per me', 'Il telefono parla al posto tuo'],
       ['black', 'eye', 'gray', 'Schermo nero', 'Sembra spento, registra di nascosto'],
       ['cover', 'book', 'gray', 'Schermata finta', 'Copre l\'app con delle note']]],
     ['In giro', [
       ['home', 'pin', 'green', 'Portami a casa', 'Mappe + Accompagnami in un tocco'],
-      ['safe', 'shield', 'blue', 'Luoghi sicuri', 'Polizia, pronto soccorso, farmacie'],
+      ['safe-places', 'shield', 'blue', 'Luoghi sicuri', 'Polizia, pronto soccorso, farmacie'],
       ['taxi', 'send', 'amber', 'Taxi e passaggi', 'Uber, FreeNow, itTaxi, cerchia'],
       ['car', 'lock', 'red', 'Salgo in un\'auto', 'Targa e viaggio alla cerchia'],
       ['date', 'heart', 'violet', 'Appuntamento sicuro', 'Dettagli, calendario e check-in'],
