@@ -237,6 +237,15 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 - **Android**: invariato, aggiornamento con un tocco dentro l'app.
 - Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).
 
+## Novità di questa versione
+
+- **Video iniziale su Android**: niente più player grigio. Il video resta nascosto finché non parte davvero; se non parte, al suo posto c'è un'animazione del logo e poi si entra.
+- **iPad e tablet**: l'app riempie tutto lo schermo (prima era una colonna stretta). In Home SOS e tasti a sinistra, mappa grande a destra; Impostazioni su due colonne; fogli centrati; Mappa con l'elenco a lato in orizzontale. Build universale iPhone + iPad, tutte le rotazioni su iPad, mappe più leggere in memoria e una schermata di riserva («Chiama 112 / Riprova») se l'avvio non va a buon fine.
+- **72 strumenti** (32 nuovi in `src/tools-more.js`): Codice rosso, Strobo, Voce d'allarme, Tienimi d'occhio (2/5/10 min), Guarda dietro, Zoom a distanza, Aiuto senza farsi capire, Segnale con la mano, Respira, Pronto soccorso / Carabinieri / Farmacia / Defibrillatore / Fermate più vicini, Check-in, Il mio percorso, Luoghi preferiti, Salgo su un mezzo, Vado a correre, Dov'è la mia auto, Dove dormo, Coordinate per i soccorsi, Sfondo di emergenza per il blocco schermo, Tessera da portafoglio, Kit di emergenza, Piano di famiglia, Prova l'SOS, Telefono rubato, Il telefono ti spia?, Account al sicuro, Truffe, Chat come prova.
+- **Codice rosso**: chi lo riceve nella cerchia vede un avviso a tutto schermo con vibrazione.
+- **10 widget** su iPhone/iPad e Android: SOS, Chiama 112, Panico, Sirena, Finta chiamata, Accompagnami, Portami a casa, Sto bene, Torcia, Pannello rapido (4 tasti). Su iPhone/iPad i 9 a tasto singolo vanno anche sulla schermata di blocco.
+- **UI rinfrescata**: stessa identità (scuro, rosso, forme morbide) con card e tasti più curati, luce morbida in alto, barra di navigazione aggiornata.
+
 ## Widget ufficiali (iOS e Android)
 
 Due widget da mettere sulla schermata Home:

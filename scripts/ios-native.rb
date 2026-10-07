@@ -14,6 +14,7 @@ end
 target.build_configurations.each do |c|
   c.build_settings['ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES'] = 'AppIconBlue'
   c.build_settings['ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS'] = 'YES'
+  c.build_settings['TARGETED_DEVICE_FAMILY'] = '1,2'   # iPhone e iPad (su iPad a tutto schermo, non in finestrella)
 end
 proj.save
 

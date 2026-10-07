@@ -448,7 +448,7 @@ export function createTools(ctx) {
     <div class="card">${FA.map(([k, ic, c, t, s]) => `<button class="row" data-a="fa" data-k="${k}"><i class="ic-dot ${c}">${I(ic)}</i><div class="fl"><b>${t}</b><span>${s}</span></div>${I('chev', 'chev')}</button>`).join('')}</div>`, 'fa');
   function sheetFAItem(k) {
     const f = FA.find(x => x[0] === k); if (!f) return;
-    const extra = f[6] === 'cpr' ? `<button class="btn red" data-a="cpr">${I('heart')}Avvia il metronomo RCP</button>`
+    const extra = f[6] === 'cpr' ? `<button class="btn red" data-a="cpr">${I('heart')}Avvia il metronomo RCP</button><button class="btn ghost" data-a="near-aed">${I('pin')}Trova il defibrillatore più vicino</button>`
       : f[6] === 'timer' ? `<button class="btn" data-a="stopwatch">${I('clock')}Avvia il cronometro</button>`
       : f[6] === 'clock' ? `<button class="btn ghost" data-a="note-time">${I('clock')}Annota l'ora adesso</button><p class="note" id="noted"></p>` : '';
     openSheet(`<button class="back-link" data-a="fa-list">${I('back')}Primo soccorso</button><h2>${f[3]}</h2>
@@ -650,7 +650,7 @@ export function createTools(ctx) {
       ['nums', 'phone', 'green', 'Numeri utili', '112, 1522, 118…'],
       ['ai', 'spark', 'amber', 'Assistente', 'Chiedi cosa fare']]]
   ];
-  const allTools = () => { const l = TOOLS.map(([g, x]) => [g, [...x]]); (extra?.groups || []).forEach(([g, x, after]) => { const f = l.find(y => y[0] === g); if (f) f[1].push(...x); else l.splice(after ?? l.length, 0, [g, [...x]]); }); return l; };
+  const allTools = () => { const l = TOOLS.map(([g, x]) => [g, [...x]]); extras.flatMap(x => x.groups || []).forEach(([g, x, after]) => { const f = l.find(y => y[0] === g); if (f) f[1].push(...x); else l.splice(after ?? l.length, 0, [g, [...x]]); }); return l; };
   const toolCard = ([a, ic, c, t, s]) => `<button class="tool" data-a="${a}" data-find="${(t + ' ' + s).toLowerCase()}"><i class="ic-dot ${c}">${I(ic)}</i><b>${t}</b><span>${s}</span></button>`;
   const sheetTools = () => { const T = allTools(); openSheet(`<h2>Strumenti</h2><p class="sub">${T.reduce((a, g) => a + g[1].length, 0)} strumenti: molti funzionano anche senza internet.</p>
     <label class="search"><svg class="i"><use href="#i-search"/></svg><input id="tool-find" placeholder="Cerca uno strumento…" autocomplete="off"></label>
@@ -667,9 +667,9 @@ export function createTools(ctx) {
   };
 
   /* ---------- azioni ---------- */
-  let extra = null;
+  const extras = [];
   async function handle(a, t) {
-    if (extra && await extra.handle(a, t)) return true;
+    for (const x of extras) if (await x.handle(a, t)) return true;
     switch (a) {
       case 'tools': sheetTools(); return true;
       case 'walk': closeSheet(); sheetWalk(); return true;
@@ -779,5 +779,5 @@ export function createTools(ctx) {
   }
   const busy = () => !!ovKind;
   const h = { showOv, closeOv, play, keepAwake, buzz, countdown, startWalk, sheetWalk, siren, light, whistle, fakeRing, sheetWhere, sheetMed, med, diary, sheetDiaryNew, sheetQuick, mmss, ov, sx, get walk() { return walk; }, get ovKind() { return ovKind; } };
-  return { handle, rWalk, restore, medicalLine, prefChanged, busy, sheetMed, h, setExtra: x => { extra = x; } };
+  return { handle, rWalk, restore, medicalLine, prefChanged, busy, sheetMed, h, setExtra: x => { extras.push(x); } };
 }

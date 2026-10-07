@@ -42,7 +42,9 @@
 
 <!-- Intro animata a ogni avvio (tocca per saltare) -->
 <div id="intro" aria-hidden="true">
-  <video id="intro-video" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>
+  <!-- animazione di riserva: si vede finché il video non parte davvero (su alcuni Android il video è lento o non parte) -->
+  <div class="intro-fb"><span class="ifb-ring"></span><span class="ifb-ring b"></span><div class="logo ifb-logo"><svg class="i"><use href="#i-shield"/></svg></div><b class="ifb-name">Vicina</b></div>
+  <video id="intro-video" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
   <span class="intro-skip">Tocca per saltare</span>
 </div>
 

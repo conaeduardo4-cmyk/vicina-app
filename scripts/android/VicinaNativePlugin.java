@@ -180,6 +180,7 @@ public class VicinaNativePlugin extends Plugin {
             AppWidgetManager wm = AppWidgetManager.getInstance(getContext());
             int[] ids = wm.getAppWidgetIds(new ComponentName(getContext(), VicinaWidget.class));
             VicinaWidget.updateAll(getContext(), wm, ids);
+            VicinaActionWidget.refreshAll(getContext());
         } catch (Exception ignored) { }
         call.resolve();
     }

@@ -207,7 +207,7 @@ export function createExtra(ctx, base) {
 
   /* ---------- Torcia vera (LED) ---------- */
   let torchOn = false, torchMorse = null;
-  async function torch(mode) {
+  async function torch(mode, { silent = false } = {}) {
     clearInterval(torchMorse); torchMorse = null;
     try {
       if (mode === 'off') { await native.vx.torch(false); torchOn = false; }
@@ -217,7 +217,7 @@ export function createExtra(ctx, base) {
         torchMorse = setInterval(() => { native.vx.torch(PAT[i] === '1').catch(() => {}); i = (i + 1) % PAT.length; }, 240);
       } else { await native.vx.torch(!torchOn); torchOn = !torchOn; }
       rTorch();
-    } catch (e) { toast('Torcia non disponibile su questo telefono: uso lo schermo'); closeSheet(); base.h.light('fix'); }
+    } catch (e) { torchOn = false; if (silent) return; toast('Torcia non disponibile su questo telefono: uso lo schermo'); closeSheet(); base.h.light('fix'); }
   }
   const rTorch = () => { const b = $('#tr-state'); if (b) b.textContent = torchMorse ? 'SOS luminoso in corso' : torchOn ? 'Accesa' : 'Spenta'; $('#tr-big')?.classList.toggle('on', torchOn || !!torchMorse); };
   const sheetTorch = () => openSheet(`<h2>Torcia</h2><p class="sub">Il flash del telefono: per vedere al buio o per farti notare da lontano.</p>
@@ -337,11 +337,11 @@ export function createExtra(ctx, base) {
     const ios = P === 'ios';
     openSheet(`<h2>Scorciatoie e widget</h2><p class="sub">Per far partire l'SOS senza cercare l'app.</p>
       ${ios ? `<div class="label">Tieni premuta l'icona</div><p class="note-b">Dall'icona di Vicina escono SOS, Sirena, Accompagnami e Finta chiamata.</p>
-      <div class="label">Widget (Home e schermata di blocco)</div><ol class="steps-list"><li>Tieni premuto sulla schermata Home → <b>+</b> in alto → cerca <b>Vicina</b>.</li><li>Scegli il widget <b>SOS</b> o <b>Chiama 112</b> e aggiungilo.</li><li>Puoi metterli anche sulla <b>schermata di blocco</b> (tieni premuto il lock screen → Personalizza → aggiungi widget).</li></ol>
+      <div class="label">Widget (Home e schermata di blocco)</div><ol class="steps-list"><li>Tieni premuto sulla schermata Home → <b>+</b> in alto → cerca <b>Vicina</b>.</li><li>Scegli tra i 10 widget (SOS, Chiama 112, Panico, Sirena, Finta chiamata, Accompagnami, Portami a casa, Sto bene, Torcia, Pannello rapido) e aggiungilo.</li><li>Puoi metterli anche sulla <b>schermata di blocco</b> (tieni premuto il lock screen → Personalizza → aggiungi widget).</li></ol>
       <div class="label">«Tocca il retro» (2 o 3 tocchi sul retro dell'iPhone)</div>
       <ol class="steps-list"><li>Apri <b>Comandi</b> → <b>+</b> → «Aggiungi azione» → cerca <b>Apri URL</b>.</li><li>Incolla <b>vicina://sos</b> (copialo qui sotto) e chiama il comando «Vicina SOS».</li><li><b>Impostazioni → Accessibilità → Tocco → Tocca il retro</b> → Tocco triplo → scegli «Vicina SOS».</li><li>Puoi anche dire <b>«Ehi Siri, Vicina SOS»</b>.</li></ol>`
       : `<div class="label">Tieni premuta l'icona</div><p class="note-b">Dall'icona di Vicina escono SOS, Sirena, Accompagnami e Finta chiamata. Puoi trascinarli sulla schermata Home.</p>
-      <div class="label">Widget sulla Home</div><ol class="steps-list"><li>Tieni premuto su uno spazio vuoto della schermata Home → <b>Widget</b>.</li><li>Cerca <b>Vicina</b>: ci sono due widget, <b>SOS</b> e <b>Chiama 112</b>.</li><li>Il widget <b>SOS</b> fa partire il conto alla rovescia di 3 secondi; <b>Chiama 112</b> apre subito la chiamata.</li></ol>`}
+      <div class="label">Widget sulla Home</div><ol class="steps-list"><li>Tieni premuto su uno spazio vuoto della schermata Home → <b>Widget</b>.</li><li>Cerca <b>Vicina</b>: ci sono 10 widget (SOS, Chiama 112, Panico, Sirena, Finta chiamata, Accompagnami, Portami a casa, Sto bene, Torcia e il Pannello rapido con 4 tasti).</li><li>Il widget <b>SOS</b> fa partire il conto alla rovescia di 3 secondi; <b>Chiama 112</b> apre subito la chiamata; gli altri fanno subito la loro azione.</li></ol>`}
       <p class="note">Ogni scorciatoia apre il conto alla rovescia di 5 secondi: se l'hai toccata per sbaglio, annulli.</p>
       <div class="row2"><button class="btn ghost sm" data-a="x-copy" data-t="vicina://sos">${I('copy')}Copia vicina://sos</button><button class="btn ghost sm" data-a="x-test-url">Prova</button></div>`, 'shortcuts');
   }
@@ -368,7 +368,7 @@ export function createExtra(ctx, base) {
   /* ---------- Panico: tutto insieme con un tocco (sirena + flash + avviso + registra) ---------- */
   async function panic() {
     base.h.siren();                                   // sirena a schermo intero
-    torch('sos').catch(() => {});                     // flash lampeggiante
+    torch('sos', { silent: true }).catch(() => {});   // flash lampeggiante (se il telefono ce l'ha)
     buzz([600, 200, 600, 200, 600]);
     const p = await native.getPos().catch(() => null);
     const n = await ctx.quickSend(`🆘 Ho bisogno di aiuto SUBITO.${p ? '\nSono qui: ' + mapsLink(p) : ''}`, { sms: true }).catch(() => 0);
@@ -383,6 +383,8 @@ export function createExtra(ctx, base) {
       case 'sos-widget': return base.h.countdown({ secs: 3, title: 'SOS tra 3 secondi', text: 'Hai toccato il widget. Se è stato per sbaglio tocca «Sto bene, annulla».' });
       case 'call112': { location.href = 'tel:112'; return; }
       case 'panic': return panic();
+      case 'ok': return ctx.quickSend('Sto bene 👍').then(n => toast(n ? 'Hai detto alla cerchia che stai bene' : 'Nessuna chat a cui inviarlo'));
+      case 'safe-places': return sheetSafe();
       case 'siren': return base.h.siren();
       case 'walk': return base.h.sheetWalk();
       case 'fake': return base.h.fakeRing(ls.get('fakeName') || 'Mamma');
@@ -539,5 +541,6 @@ export function createExtra(ctx, base) {
     setInterval(batteryWatch, 180000); setTimeout(batteryWatch, 8000);
     document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && batteryWatch());
   }
-  return { handle, groups, handleUrl, restore, batteryLine: () => (lastBattery && lastBattery.level >= 0 ? `Batteria: ${lastBattery.level}%` : ''), readBattery };
+  const nav = { dirUrl, searchUrl, open, wa, store, km, dist, sendBar, outbox, geocode };
+  return { nav, handle, groups, handleUrl, restore, batteryLine: () => (lastBattery && lastBattery.level >= 0 ? `Batteria: ${lastBattery.level}%` : ''), readBattery };
 }

@@ -2,6 +2,7 @@
 import { TERMS_VERSION, TERMS_DATE, TERMS_KEY, TERMS_SECTIONS } from './terms.js';
 import { createTools } from './tools.js';
 import { createExtra } from './tools-extra.js';
+import { createMore } from './tools-more.js';
 import { createDisguise } from './disguise.js';
 export function boot(api, native) {
   /* ================= utilità ================= */
@@ -104,16 +105,27 @@ export function boot(api, native) {
     const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) { box.remove(); native.hideSplash(); return { done() {} }; }
     const base = 'intro/' + (window.innerHeight >= window.innerWidth ? 'intro-9x16' : 'intro-16x9');
+    // il video resta invisibile finché non mostra davvero dei fotogrammi: niente «player vuoto» su Android
+    let playing = false;
+    const fallback = () => {                       // il video non parte: resta l'animazione di riserva e poi si entra
+      if (playing || finished) return;
+      box.classList.add('fb-only'); native.hideSplash();
+      try { v.pause(); v.removeAttribute('src'); v.innerHTML = ''; v.load(); } catch {}
+      setTimeout(() => done(false), 1500);
+    };
     v.innerHTML = `<source src="${base}.mp4" type="video/mp4"><source src="${base}.webm" type="video/webm">`;
-    v.lastElementChild.addEventListener('error', () => done(true));
-    v.addEventListener('error', () => done(true));
-    v.addEventListener('playing', () => native.hideSplash(), { once: true });
+    v.lastElementChild.addEventListener('error', fallback);
+    v.addEventListener('error', fallback);
+    const shown = () => { if (playing || finished) return; playing = true; box.classList.add('vid-on'); native.hideSplash(); };
+    v.addEventListener('playing', () => { if (v.currentTime > 0 || v.readyState >= 3) shown(); else setTimeout(shown, 120); }, { once: true });
+    v.addEventListener('timeupdate', () => { if (v.currentTime > 0.05) shown(); });
     v.addEventListener('ended', () => done(false));
     box.addEventListener('click', () => done(true));
+    native.hideSplash();                            // lo splash nativo lascia subito il posto all'animazione di riserva
     v.load();
-    const pl = v.play(); if (pl && pl.catch) pl.catch(() => done(true));
-    setTimeout(() => { if (v.readyState < 2) done(true); }, 2500);   // non parte: si entra subito
-    setTimeout(() => done(false), 8000);                              // limite massimo
+    const pl = v.play(); if (pl && pl.catch) pl.catch(fallback);
+    setTimeout(() => { if (!playing) fallback(); }, 1600);   // non parte in fretta: animazione di riserva
+    setTimeout(() => done(false), 8000);                      // limite massimo
     return { done };
   })();
 
@@ -327,6 +339,17 @@ export function boot(api, native) {
     const path = `sos/${st.uid}/${sosId}/voice.${out.ext}`;
     try { await api.uploadAudio(path, out.blob, out.mime); await api.call('attachSosAudio', { sosId, path }); voice.sentFor = sosId; if (st.sosMine) rActive(); toast('Audio inviato alla cerchia'); }
     catch (e) { console.warn('audio automatico', e); }
+  }
+
+  // prova dell'SOS: stessa animazione, ma non parte niente
+  async function simulateSos() {
+    if (sending) return;
+    $('#st2').hidden = false; $('#st5').hidden = !smsOn().length; STEPS.forEach(n => stp(n, ''));
+    const ov = $('#ov-send'); ov.classList.add('on', 'demo'); $('#send-cancel').hidden = false; $('#send-cancel').onclick = () => { ov.classList.remove('on', 'demo'); };
+    const seq = [1, 2, 3, 4].concat(smsOn().length ? [5] : []);
+    for (const n of seq) { if (!ov.classList.contains('on')) return; stp(n, 'run'); await wait(700); stp(n, 'done'); await wait(250); }
+    await wait(900); ov.classList.remove('on', 'demo');
+    dialog({ title: 'Era solo una prova', text: 'Non è stato inviato niente a nessuno. Quando serve davvero tieni premuto il tasto SOS per 1,5 secondi, oppure usa il widget o la scorciatoia.', ok: 'Ho capito', cancel: 'Chiudi' });
   }
 
   /* ================= SOS attivo (mio) ================= */
@@ -763,10 +786,21 @@ export function boot(api, native) {
   });
   $('#txt').addEventListener('blur', () => { if (cl.h && !$('#txt').value.trim()) cl.h.typing(''); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && curScreen === 's-thread') rThread(); });
+  // «Codice rosso» ricevuto da qualcuno della cerchia: avviso a tutto schermo con vibrazione
+  function redCodeCheck(cid, msgs) {
+    const m = [...msgs].reverse().find(x => x.from !== st.uid && x.type === 'text' && /^🔴 CODICE ROSSO/.test(x.text || '') && Date.now() - x.at < 15 * 60000);
+    if (!m || ls.get('rc:' + m.id)) return;
+    ls.set('rc:' + m.id, '1');
+    const who = m.fromName || convs().find(c => c.id === cid)?.name || 'Qualcuno';
+    native.vibrate([500, 200, 500, 200, 800]);
+    dialog({ title: `🔴 Codice rosso da ${who}`, text: 'Ti chiede di chiamarlo subito: non può parlare liberamente. Chiama e fai finta di niente, oppure se non risponde chiama il 112.', ok: 'Apri la chat', cancel: 'Chiudi' })
+      .then(ok => ok && (closeSheet(), openThread(cid)));
+  }
   function syncChats() {
     const ids = new Set(convs().map(c => c.id));
     for (const id of ids) if (!chatUn[id]) chatUn[id] = api.watchChat(id, msgs => {
       st.threads[id] = msgs; if (st.open === id) rThread(); rChats(); rBadge();
+      redCodeCheck(id, msgs);
     });
     for (const id in chatUn) if (!ids.has(id)) { chatUn[id](); delete chatUn[id]; delete st.threads[id]; }
   }
@@ -1113,6 +1147,10 @@ export function boot(api, native) {
     async status() { let perm = {}; try { perm = await native.permState(); } catch {} return { perm, circle: recipients().size + smsOn().length, sms: smsOn().length, phone: st.p?.phone || '' }; }
   }, tools);
   tools.setExtra(extra);
+  tools.setExtra(createMore({
+    $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid, profile: () => st.p,
+    smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o), simulate: () => simulateSos()
+  }, tools, extra));
 
   /* ================= link vicina:// (scorciatoie, widget, Comandi) ================= */
   let pendingLink = null, lastLink = { u: '', t: 0 };

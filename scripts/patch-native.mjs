@@ -58,9 +58,14 @@ if (fs.existsSync(man)) {
     }
     log(m.includes('SosSmsPlugin') ? 'SMS automatici ai contatti senza app (plugin SosSms)' : 'ATTENZIONE: plugin SMS non registrato in MainActivity');
     // integrazioni (icona anonima, torcia, batteria, voce, scorciatoie, widget)
-    for (const f of ['VicinaNativePlugin', 'VicinaWidget', 'VicinaCallWidget']) fs.writeFileSync(dir + '/' + f + '.java', read('scripts/android/' + f + '.java').replace('__PACKAGE__', pkg));
+    for (const f of ['VicinaNativePlugin', 'VicinaWidget', 'VicinaCallWidget', 'VicinaActionWidget']) fs.writeFileSync(dir + '/' + f + '.java', read('scripts/android/' + f + '.java').replace('__PACKAGE__', pkg));
     if (!m.includes('VicinaNativePlugin') && m.includes('registerPlugin(ApkUpdaterPlugin.class);')) {
       m = m.replace('registerPlugin(ApkUpdaterPlugin.class);', 'registerPlugin(ApkUpdaterPlugin.class);\n        registerPlugin(VicinaNativePlugin.class);');
+      fs.writeFileSync(mainAct, m);
+    }
+    // video dell'intro: deve partire da solo (senza tocco) anche nel WebView di Android
+    if (!m.includes('setMediaPlaybackRequiresUserGesture') && /super\.onCreate\(savedInstanceState\);/.test(m)) {
+      m = m.replace(/super\.onCreate\(savedInstanceState\);/, 'super.onCreate(savedInstanceState);\n        try { getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false); } catch (Exception ignored) { }');
       fs.writeFileSync(mainAct, m);
     }
     log(m.includes('VicinaNativePlugin') ? 'integrazioni Vicina (plugin VicinaNative + widget)' : 'ATTENZIONE: plugin VicinaNative non registrato');
@@ -94,6 +99,18 @@ if (fs.existsSync(man)) {
                 <data android:scheme="vicina" />
             </intent-filter>`);
     // widget nella schermata Home
+    // altri widget a tasto singolo + pannello rapido
+    const AW = [['Panic', 'Panico'], ['Siren', 'Sirena'], ['Fake', 'Finta chiamata'], ['Walk', 'Accompagnami'], ['Home', 'Portami a casa'], ['Ok', 'Sto bene'], ['Torch', 'Torcia'], ['Panel', 'Pannello rapido']];
+    for (const [cls, label] of AW) {
+      if (x.includes(`.VicinaActionWidget$${cls}"`)) continue;
+      x = x.replace('</application>', `    <receiver android:name=".VicinaActionWidget$${cls}" android:exported="false" android:label="${label}">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/${cls === 'Panel' ? 'vicina_panel_widget_info' : 'vicina_action_widget_info'}" />
+        </receiver>
+    </application>`);
+    }
     if (!x.includes('.VicinaCallWidget'))
       x = x.replace('</application>', `    <receiver android:name=".VicinaCallWidget" android:exported="false" android:label="Chiama 112">
             <intent-filter>
@@ -150,7 +167,9 @@ if (fs.existsSync(plist)) {
     ITSAppUsesNonExemptEncryption: '<false/>',
     UIFileSharingEnabled: '<true/>',                  // la cartella di Vicina compare nell'app File (aggiornamenti .ipa)
     LSSupportsOpeningDocumentsInPlace: '<true/>',
-    UIUserInterfaceStyle: '<string>Dark</string>'
+    UIUserInterfaceStyle: '<string>Dark</string>',
+    // iPad: tutte le rotazioni (obbligatorie per il multitasking, evitano problemi all'avvio)
+    'UISupportedInterfaceOrientations~ipad': '<array>\n\t\t<string>UIInterfaceOrientationPortrait</string>\n\t\t<string>UIInterfaceOrientationPortraitUpsideDown</string>\n\t\t<string>UIInterfaceOrientationLandscapeLeft</string>\n\t\t<string>UIInterfaceOrientationLandscapeRight</string>\n\t</array>'
   };
   for (const [k, v] of Object.entries(add))
     if (!s.includes(`<key>${k}</key>`)) s = s.replace(/<\/dict>\s*<\/plist>\s*$/, `\t<key>${k}</key>\n\t${v}\n</dict>\n</plist>\n`);
