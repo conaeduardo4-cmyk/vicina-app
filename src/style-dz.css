@@ -33,3 +33,6 @@ html.dz .t-ic.red{background:linear-gradient(145deg,rgba(86,168,255,.28),rgba(47
 html.dz #s-home #sos{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 18px 46px rgba(47,128,237,.32)}
 html.dz nav button.on,html.dz nav button.sosb.on{background:linear-gradient(180deg,rgba(86,168,255,.2),rgba(47,128,237,.12))}
 html.dz .btn.red{box-shadow:0 10px 26px rgba(47,128,237,.3)}
+html.dz .qr-line{background:linear-gradient(90deg,transparent,#56A8FF,transparent);box-shadow:0 0 18px #56A8FF}
+html.dz .opt-qr{background:linear-gradient(135deg,rgba(47,128,237,.14),rgba(47,128,237,.04));border-color:rgba(47,128,237,.3)!important}
+html.dz .tl-big.red{background:linear-gradient(140deg,#2F80ED,#FF5A6A)}

@@ -246,6 +246,16 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 - **10 widget** su iPhone/iPad e Android: SOS, Chiama 112, Panico, Sirena, Finta chiamata, Accompagnami, Portami a casa, Sto bene, Torcia, Pannello rapido (4 tasti). Su iPhone/iPad i 9 a tasto singolo vanno anche sulla schermata di blocco.
 - **UI rinfrescata**: stessa identità (scuro, rosso, forme morbide) con card e tasti più curati, luce morbida in alto, barra di navigazione aggiornata.
 
+## Novità: 102 strumenti, scheda Strumenti, aggiungi con QR
+
+- **Scheda «Strumenti» nella barra in basso** (icona gialla a griglia): 102 strumenti con ricerca, filtri per categoria e «In evidenza» in alto. Nuovi strumenti: SMS rapido, schermo colorato, fonometro (salva nel diario), «chiamami tra…», taxi/farmacie/bagni/acqua/punti di raccolta/caserme vicine, orario di arrivo, nota veloce, testimone, foto ferita, battito, e guide (ipoglicemia, annegamento, morso di serpente, fratture, trauma cranico, asma, freddo, attacco di panico, drink alterato, stalking, violenza in casa, bambino smarrito, foto intime diffuse, bullismo, incidente d'auto).
+- **Assistente in giallo nella Home**, subito sotto il tasto SOS. Home più ordinata: «Azioni rapide» con link a «Tutti gli strumenti».
+- **Aggiungi un amico con il QR**: in Cerchia → «Il mio QR» mostri il tuo codice; l'altra persona tocca «Scansiona QR», si apre la fotocamera di Vicina e il collegamento è immediato. A chi ha mostrato il QR arriva la conferma «X ora è nella tua cerchia» (con «Annulla collegamento»). Il QR si legge anche con la fotocamera del telefono (apre `vicina://add/CODICE`). Il codice di 6 lettere funziona sempre come prima.
+- **iPhone, avviso aggiornamenti sistemato**: GitHub serve `version.json` come file binario e su iPhone arrivava in un formato che l'app non leggeva. Ora viene letto in ogni caso, e se non basta l'app chiede l'ultima release a GitHub. L'avviso mostra il pulsante **«Apri la release X su GitHub»**.
+  ⚠️ Carica anche il nuovo `workflow-github/build-app.yml` in `.github/workflows/build-app.yml`: ora la release viene pubblicata anche quando compila solo iOS, e `version.json` contiene il link alla release.
+- **iPhone, icona dopo «Anonimizza l'app»**: spegnendo la modalità anonima l'icona torna quella normale. Se iOS rifiuta il cambio, l'app riprova e ricontrolla all'apertura.
+- Tablet: Home a due colonne sistemata.
+
 ## Widget ufficiali (iOS e Android)
 
 Due widget da mettere sulla schermata Home:

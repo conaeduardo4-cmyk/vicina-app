@@ -41,9 +41,27 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         let target: String? = call.getString("name") == "blue" ? "AppIconBlue" : nil
         DispatchQueue.main.async {
             guard UIApplication.shared.supportsAlternateIcons else { call.reject("Icone alternative non supportate"); return }
-            if UIApplication.shared.alternateIconName == target { call.resolve(); return }
-            UIApplication.shared.setAlternateIconName(target) { error in
-                if let error = error { call.reject(error.localizedDescription) } else { call.resolve() }
+            self.applyIcon(target, attempt: 0, call: call)
+        }
+    }
+
+    // iOS a volte rifiuta il cambio («Resource temporarily unavailable»), soprattutto tornando all'icona normale:
+    // riproviamo qualche volta e verifichiamo che l'icona sia davvero quella giusta.
+    private func applyIcon(_ target: String?, attempt: Int, call: CAPPluginCall) {
+        if UIApplication.shared.alternateIconName == target { call.resolve(["name": target == nil ? "default" : "blue"]); return }
+        guard UIApplication.shared.applicationState == .active else {
+            if attempt < 8 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { self.applyIcon(target, attempt: attempt + 1, call: call) } }
+            else { call.reject("App non attiva") }
+            return
+        }
+        UIApplication.shared.setAlternateIconName(target) { error in
+            DispatchQueue.main.async {
+                if error == nil && UIApplication.shared.alternateIconName == target { call.resolve(["name": target == nil ? "default" : "blue"]); return }
+                if attempt < 4 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.applyIcon(target, attempt: attempt + 1, call: call) }
+                } else {
+                    call.reject(error?.localizedDescription ?? "Icona non cambiata")
+                }
             }
         }
     }

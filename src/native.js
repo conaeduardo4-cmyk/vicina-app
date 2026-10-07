@@ -8,7 +8,7 @@ import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { webNative, smsUrl, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
+import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
 
 // Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
 const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
@@ -113,10 +113,22 @@ export const native = !isNative ? webNative : {
       try { const i = await ApkUpdater.info(); return { version: i.versionName, code: Number(i.versionCode) || 0, canInstall: i.canInstall !== false }; }
       catch { return null; }
     },
-    async latest(url) {   // richiesta nativa: niente problemi di CORS con GitHub
-      const r = await CapacitorHttp.get({ url: url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), connectTimeout: 12000, readTimeout: 12000, headers: { Accept: 'application/json' } });
+    // richiesta nativa (niente CORS). Su iPhone GitHub manda il file come «application/octet-stream»
+    // e Capacitor lo restituisce in base64: parseJsonLoose lo decodifica. Se non va, si usa l'API di GitHub.
+    async latest(url) {
+      const get = async (u, accept) => CapacitorHttp.get({ url: u, connectTimeout: 12000, readTimeout: 12000, responseType: 'text', headers: { Accept: accept, 'User-Agent': 'Vicina-app' } });
+      try {
+        const r = await get(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), 'application/json, application/octet-stream, */*');
+        if (r.status === 200) { const j = parseJsonLoose(r.data); if (j && j.version) return j; }
+      } catch (e) { console.warn('version.json', e); }
+      const api = apiUrlFor(url); if (!api) throw new Error('Aggiornamenti non raggiungibili');
+      const r = await get(api, 'application/vnd.github+json');
       if (r.status !== 200) throw new Error('HTTP ' + r.status);
-      return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+      const rel = parseJsonLoose(r.data);
+      // se nella release c'è version.json proviamo a leggerlo dall'indirizzo diretto, altrimenti ricostruiamo
+      const vj = (rel?.assets || []).find(x => x.name === 'version.json');
+      if (vj?.browser_download_url) { try { const r2 = await get(vj.browser_download_url, '*/*'); const j = parseJsonLoose(r2.data); if (j && j.version) return { release: rel.html_url, ...j }; } catch {} }
+      const j = releaseToVersion(rel); if (!j) throw new Error('Release non valida'); return j;
     },
     async canInstall() { try { return (await ApkUpdater.info()).canInstall !== false; } catch { return true; } },
     openInstallSettings: () => ApkUpdater.openInstallSettings(),

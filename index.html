@@ -29,6 +29,8 @@
 <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="i-out" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 8l-4 4 4 4M6 12h10"/></symbol>
 <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></symbol>
+<symbol id="i-qr" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2zM16 16h2v2h-2z"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
 <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></symbol>
 <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5M8 7h7"/></symbol>
@@ -103,7 +105,7 @@
   <!-- Home / SOS -->
   <section class="screen tabbed" id="s-home">
     <header class="hh home-h">
-      <div><h1 class="title" id="h-name">Ciao</h1></div>
+      <div><p class="eyebrow home-eye" id="h-eye">Vicina</p><h1 class="title" id="h-name">Ciao</h1></div>
       <button class="avbtn" data-a="tab" data-tab="me" id="h-av" aria-label="Il tuo profilo"></button>
     </header>
     <div class="stage sos-wrap" id="sos-wrap">
@@ -115,17 +117,23 @@
       </button>
     </div>
     <div class="walk-bar" id="walk-bar" hidden></div>
+    <button class="ai-card" data-a="ai" aria-label="Apri l'assistente">
+      <i class="ai-ic"><svg class="i"><use href="#i-spark"/></svg></i>
+      <span class="ai-txt"><b>Assistente</b><span>Chiedimi cosa fare, adesso</span></span>
+      <span class="ai-go"><svg class="i"><use href="#i-chev"/></svg></span>
+    </button>
+    <div class="sec-h home-sec"><b>Azioni rapide</b><button class="sec-link" data-a="tools">Tutti gli strumenti</button></div>
     <div class="tiles">
       <a class="tile white" href="tel:112"><i class="t-ic"><svg class="i"><use href="#i-phone"/></svg></i><b data-dz="Chiamata rapida">Chiama 112</b></a>
       <button class="tile" data-a="walk"><i class="t-ic red"><svg class="i"><use href="#i-shield"/></svg></i><b>Accompagnami</b></button>
       <button class="tile" data-a="siren"><i class="t-ic amber"><svg class="i"><use href="#i-bell"/></svg></i><b>Sirena</b></button>
-      <button class="tile" data-a="tools"><i class="t-ic violet"><svg class="i"><use href="#i-spark"/></svg></i><b>Strumenti</b></button>
+      <button class="tile" data-a="fake"><i class="t-ic green"><svg class="i"><use href="#i-phone"/></svg></i><b>Finta chiamata</b></button>
     </div>
     <div class="quick-row" role="toolbar" aria-label="Strumenti rapidi">
       <button class="qr-panic" data-a="panic"><svg class="i"><use href="#i-alert"/></svg>Panico</button>
       <button data-a="home"><svg class="i"><use href="#i-pin"/></svg>Portami a casa</button>
       <button data-a="safe-places"><svg class="i"><use href="#i-shield"/></svg>Luoghi sicuri</button>
-      <button data-a="fake"><svg class="i"><use href="#i-phone"/></svg>Finta chiamata</button>
+      <button data-a="redcode"><svg class="i"><use href="#i-alert"/></svg>Codice rosso</button>
       <button data-a="torch"><svg class="i"><use href="#i-spark"/></svg>Torcia</button>
       <button data-a="speak"><svg class="i"><use href="#i-mic"/></svg>Parla per me</button>
       <button data-a="where"><svg class="i"><use href="#i-pin"/></svg>Dove sono</button>
@@ -180,6 +188,9 @@
     <div class="map-list" id="map-list"></div>
   </section>
 
+  <!-- Strumenti -->
+  <section class="screen tabbed" id="s-tools"><div class="sc tl-sc" id="tl-root"></div></section>
+
   <!-- Cerchia -->
   <section class="screen tabbed" id="s-circle">
     <header class="hh"><div><p class="eyebrow">La tua cerchia</p><h1 class="title count" id="c-count">Cerchia</h1></div><button class="iconbtn white" data-a="add" aria-label="Aggiungi"><svg class="i"><use href="#i-plus"/></svg></button></header>
@@ -213,6 +224,7 @@
   <nav id="nav" hidden>
     <button data-a="tab" data-tab="home" class="sosb"><svg class="i"><use href="#i-shield"/></svg><span>Home</span></button>
     <button data-a="tab" data-tab="map"><svg class="i"><use href="#i-pin"/></svg><span>Mappa</span><b class="badge live" id="map-badge" hidden></b></button>
+    <button data-a="tab" data-tab="tools" class="nav-tools"><svg class="i"><use href="#i-grid"/></svg><span>Strumenti</span></button>
     <button data-a="tab" data-tab="chat"><svg class="i"><use href="#i-chat"/></svg><span>Avvisi</span><b class="badge" id="badge" hidden></b></button>
     <button data-a="tab" data-tab="circle"><svg class="i"><use href="#i-people"/></svg><span>Cerchia</span></button>
     <button data-a="tab" data-tab="me"><svg class="i"><use href="#i-user"/></svg><span>Tu</span></button>

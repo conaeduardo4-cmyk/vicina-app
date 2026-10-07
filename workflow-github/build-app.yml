@@ -185,8 +185,8 @@ jobs:
   release:
     name: Pubblica aggiornamento (GitHub Releases + version.json)
     needs: [android, ios]
-    # parte se Android è compilato: con i tag v* sempre, con "Run workflow" se è spuntato "Pubblica"
-    if: always() && needs.android.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.pubblica))
+    # parte se almeno una piattaforma è compilata (anche solo iOS): con i tag v* sempre, con "Run workflow" se è spuntato "Pubblica"
+    if: always() && (needs.android.result == 'success' || needs.ios.result == 'success') && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.pubblica))
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
@@ -205,26 +205,35 @@ jobs:
           if [ -n "$SIGNED" ]; then
             cp "$SIGNED" files/Vicina.apk; cp "$SIGNED" files/Eduardo.apk   # link fissi per il sito
             APK="$BASE/Vicina.apk"; SHA=$(sha256sum files/Vicina.apk | cut -d' ' -f1)
-          else
+          elif ls files/*-debug.apk >/dev/null 2>&1; then
             echo "::warning::APK non firmato: pubblico la versione debug ma gli aggiornamenti automatici restano spenti finché non aggiungi la chiave di firma."
             cp files/*-debug.apk files/Eduardo.apk; APK=""; SHA=""
+          else
+            echo "Questa compilazione non ha Android: per Android resta valido l'ultimo APK pubblicato."; APK=""; SHA=""
           fi
           IPA=$(cd files && ls *-unsigned.ipa 2>/dev/null | head -1 || true)
           [ -z "$NOTE" ] && NOTE="$(git log -1 --pretty=%s)"
           PAGE="${SITE_URL:-https://github.com/$GITHUB_REPOSITORY/releases/latest}"
           # versione iOS precedente: se questa build non ha l'IPA, gli iPhone restano sull'ultimo IPA pubblicato
           curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/version.json" -o prev.json 2>/dev/null || echo '{}' > prev.json
-          python3 - "$APP_VERSION" "${{ github.run_number }}" "$APK" "$SHA" "$PAGE" "${IPA:+$BASE/$IPA}" <<'PY'
+          REL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          python3 - "$APP_VERSION" "${{ github.run_number }}" "$APK" "$SHA" "$PAGE" "${IPA:+$BASE/$IPA}" "$REL" <<'PY'
           import json, sys, os, datetime
-          v, code, apk, sha, page, ipa = sys.argv[1:7]
-          try: prev = json.load(open("prev.json")).get("ios") or {}
-          except Exception: prev = {}
+          v, code, apk, sha, page, ipa, rel = sys.argv[1:8]
+          try: prevAll = json.load(open("prev.json"))
+          except Exception: prevAll = {}
+          prev = prevAll.get("ios") or {}
+          prevA = prevAll.get("android") or {}
           note = os.environ.get("NOTE", "")[:2000]
-          ios = {"ipa": ipa, "version": v, "code": int(code), "notes": note, "page": page} if ipa else \
-                {"ipa": prev.get("ipa"), "version": prev.get("version"), "code": prev.get("code", 0), "notes": prev.get("notes", ""), "page": page}
-          d = {"version": v, "code": int(code), "date": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-               "notes": note, "page": page,
-               "android": {"apk": apk or None, "sha256": sha or None},
+          # iOS: se questa build ha l'IPA è la nuova versione, altrimenti resta quella pubblicata prima (con il suo link)
+          ios = {"ipa": ipa, "version": v, "code": int(code), "notes": note, "page": page, "release": rel} if ipa else \
+                {"ipa": prev.get("ipa"), "version": prev.get("version"), "code": prev.get("code", 0), "notes": prev.get("notes", ""), "page": page, "release": prev.get("release") or page}
+          # Android: idem (build solo iOS → resta l'ultimo APK)
+          android = {"apk": apk or None, "sha256": sha or None} if apk else {"apk": prevA.get("apk"), "sha256": prevA.get("sha256")}
+          acode = int(code) if apk else int(prevAll.get("code", 0) or 0)
+          d = {"version": v if apk else (prevAll.get("version") or v), "code": acode, "date": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "notes": note, "page": page, "release": rel,
+               "android": android,
                "ios": ios}
           json.dump(d, open("files/version.json", "w"), ensure_ascii=False, indent=2)
           print(json.dumps(d, ensure_ascii=False, indent=2))

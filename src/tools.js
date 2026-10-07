@@ -666,12 +666,46 @@ export function createTools(ctx) {
     });
   };
 
+  /* ---------- pagina «Strumenti» (scheda della barra in basso) ---------- */
+  const FEATURED = [['panic', 'alert', 'red', 'Panico', 'Sirena, flash e avviso'], ['walk', 'shield', 'violet', 'Accompagnami', 'Se non arrivi parte l\'SOS'], ['home', 'pin', 'green', 'Portami a casa', 'Strada + timer'],
+    ['safe-places', 'shield', 'blue', 'Luoghi sicuri', 'Polizia, pronto soccorso'], ['fake', 'phone', 'amber', 'Finta chiamata', 'Per andartene'], ['fa', 'heart', 'red', 'Primo soccorso', 'RCP e altro']];
+  const slug = g => g.toLowerCase().normalize('NFD').replace(/[^a-z]+/g, '-');
+  function renderScreen(el) {
+    const T = allTools(), n = T.reduce((a, g) => a + g[1].length, 0);
+    el.innerHTML = `<div class="tl-head"><p class="eyebrow">${n} strumenti</p><h1 class="title">Strumenti</h1>
+        <label class="search"><svg class="i"><use href="#i-search"/></svg><input id="tl-find" placeholder="Cerca: casa, taxi, ferita, QR…" autocomplete="off"></label>
+        <div class="tl-chips" id="tl-chips"><button class="on" data-g="">Tutti</button>${T.map(([g]) => `<button data-g="${slug(g)}">${g}</button>`).join('')}</div></div>
+      <div class="tl-body" id="tl-body">
+        <section class="tl-sec" data-sec="feat"><div class="sec-h"><b>In evidenza</b><span>I più usati quando serve</span></div>
+          <div class="tl-feat">${FEATURED.map(([a, ic, c, t, sub]) => `<button class="tl-big ${c}" data-a="${a}" data-find="${(t + ' ' + sub).toLowerCase()}"><i>${I(ic)}</i><b>${t}</b><span>${sub}</span></button>`).join('')}</div></section>
+        ${T.map(([g, l]) => `<section class="tl-sec" data-sec="${slug(g)}"><div class="sec-h"><b>${g}</b><span>${l.length}</span></div><div class="tools-grid">${l.map(toolCard).join('')}</div></section>`).join('')}
+        <p class="note" id="tl-none" hidden>Nessuno strumento trovato.</p>
+        <div class="card tl-shake"><label class="row toggle-row"><i class="ic-dot violet">${I('alert')}</i><div class="fl wrap"><b>Scuoti per SOS</b><span>Scuoti forte il telefono: dopo 5 secondi parte l'SOS (con l'app aperta)</span></div><input type="checkbox" class="switch" data-pref="shake" ${prefs.shake ? 'checked' : ''}></label></div>
+      </div>`;
+    const body = el.querySelector('#tl-body'), find = el.querySelector('#tl-find');
+    find.addEventListener('input', () => {
+      const q = find.value.trim().toLowerCase(); let k = 0;
+      body.querySelectorAll('.tool,.tl-big').forEach(b => { const ok = !q || (b.dataset.find || '').includes(q); b.hidden = !ok; if (ok && b.classList.contains('tool')) k++; });
+      body.querySelectorAll('.tl-sec').forEach(sct => { sct.hidden = ![...sct.querySelectorAll('.tool,.tl-big')].some(b => !b.hidden); });
+      el.querySelector('#tl-none').hidden = k > 0 || !q;
+    });
+    el.querySelector('#tl-chips').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      el.querySelectorAll('#tl-chips button').forEach(x => x.classList.toggle('on', x === b));
+      const sec = b.dataset.g ? body.querySelector(`[data-sec="${b.dataset.g}"]`) : null;
+      body.querySelectorAll('.tl-sec').forEach(x => { x.hidden = !!b.dataset.g && x !== sec; });
+      el.scrollTo?.({ top: 0, behavior: 'smooth' });
+    });
+    el.addEventListener('change', e => { const k = e.target.dataset.pref; if (!k) return; prefs[k] = e.target.checked; savePrefs(); prefChanged(k, prefs[k], e.target); });
+    return n;
+  }
+
   /* ---------- azioni ---------- */
   const extras = [];
   async function handle(a, t) {
     for (const x of extras) if (await x.handle(a, t)) return true;
     switch (a) {
-      case 'tools': sheetTools(); return true;
+      case 'tools': closeSheet(); if (ctx.showTools) ctx.showTools(); else sheetTools(); return true;
       case 'walk': closeSheet(); sheetWalk(); return true;
       case 'walk-start': { const b = $('#wk-min .on'); startWalk(Number(b?.dataset.m || 20), ($('#wk-dest')?.value || '').trim()); return true; }
       case 'walk-ok': endWalk(`Bene, sei arrivat${sx()}`); native.haptic('medium'); return true;
@@ -779,5 +813,5 @@ export function createTools(ctx) {
   }
   const busy = () => !!ovKind;
   const h = { showOv, closeOv, play, keepAwake, buzz, countdown, startWalk, sheetWalk, siren, light, whistle, fakeRing, sheetWhere, sheetMed, med, diary, sheetDiaryNew, sheetQuick, mmss, ov, sx, get walk() { return walk; }, get ovKind() { return ovKind; } };
-  return { handle, rWalk, restore, medicalLine, prefChanged, busy, sheetMed, h, setExtra: x => { extras.push(x); } };
+  return { handle, rWalk, restore, medicalLine, prefChanged, busy, sheetMed, h, renderScreen, count: () => allTools().reduce((a, g) => a + g[1].length, 0), setExtra: x => { extras.push(x); } };
 }

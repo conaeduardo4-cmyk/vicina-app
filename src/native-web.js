@@ -68,6 +68,26 @@ export const smsUrl = (nums, body, apple) => apple
 const dataUrlToFile = (d, name) => { const [h, b] = d.split(','), bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new File([u], name, { type: (h.match(/:(.*?);/) || [])[1] || 'image/jpeg' }); };
 
 let webTorch = null;
+
+// version.json può arrivare come oggetto, come testo o (su iPhone, con GitHub) come base64: lo leggiamo in tutti i casi
+export function parseJsonLoose(d) {
+  if (d && typeof d === 'object') return d;
+  const s = String(d ?? '').trim(); if (!s) return null;
+  try { return JSON.parse(s); } catch {}
+  try { const b = atob(s.replace(/\s+/g, '')); try { return JSON.parse(decodeURIComponent(escape(b))); } catch { return JSON.parse(b); } } catch {}
+  return null;
+}
+// riserva: se version.json non si legge, ricostruiamo le informazioni dall'ultima release di GitHub
+export function releaseToVersion(r) {
+  if (!r || !r.tag_name) return null;
+  const v = String(r.tag_name).replace(/^v/, ''), code = Number((v.match(/(\d+)$/) || [])[1] || 0);
+  const a = name => (r.assets || []).find(x => name.test(x.name))?.browser_download_url || null;
+  const ipa = a(/\.ipa$/i), apk = a(/^Vicina\.apk$/i);
+  return { version: v, code, date: r.published_at, notes: r.body || '', page: r.html_url, release: r.html_url,
+    android: { apk, sha256: null }, ios: { ipa, version: v, code: ipa ? code : 0, notes: r.body || '', page: r.html_url, release: r.html_url } };
+}
+export const apiUrlFor = url => { const m = String(url).match(/github\.com\/([^/]+)\/([^/]+)\/releases/); return m ? `https://api.github.com/repos/${m[1]}/${m[2]}/releases/latest` : null; };
+
 export const webNative = {
   isNative: false, platform: 'web',
   async openMaps(lat, lng, name, nav) { window.open(mapsLinks(lat, lng, name, nav, 'web').web, '_blank', 'noopener'); },
@@ -75,7 +95,12 @@ export const webNative = {
   update: {
     autoInstall: false,
     async current() { return null; },
-    async latest(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); },
+    async latest(url) {
+      try { const r = await fetch(url, { cache: 'no-store' }); if (r.ok) { const j = parseJsonLoose(await r.text()); if (j) return j; } } catch {}
+      const api = apiUrlFor(url); if (!api) throw new Error('Aggiornamenti non raggiungibili');
+      const r = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } }); if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = releaseToVersion(await r.json()); if (!j) throw new Error('Release non valida'); return j;
+    },
     async canInstall() { return false; },
     async openInstallSettings() {},
     async install(url) { window.open(url, '_blank', 'noopener'); }
@@ -160,7 +185,7 @@ export const webNative = {
     async setShortcuts() {},
     async updateWidget() {},
     async channels() {},
-    onUrl(cb) { const h = () => { const m = location.hash.match(/vicina=([\w-]+)/); if (m) { cb('vicina://' + m[1]); history.replaceState(null, '', location.pathname); } }; window.addEventListener('hashchange', h); setTimeout(h, 1500); }
+    onUrl(cb) { const h = () => { const m = location.hash.match(/vicina=([\w\/-]+)/); if (m) { cb('vicina://' + m[1]); history.replaceState(null, '', location.pathname); } }; window.addEventListener('hashchange', h); setTimeout(h, 1500); }
   },
   startRecording,
   snap

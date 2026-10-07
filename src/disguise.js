@@ -9,7 +9,7 @@ const MAP = [
   [/\bAllarmi\b/g, 'Avvisi'], [/\ballarmi\b/g, 'avvisi'], [/\bAllarme\b/g, 'Avviso'], [/\ballarme\b/g, 'avviso'],
   [/\bEmergenza\b/g, 'Urgenza'], [/\bemergenza\b/g, 'urgenza'], [/\bemergenze\b/g, 'urgenze'], [/\bEMERGENZA\b/g, 'URGENZA'],
   [/\bpericolo\b/g, 'difficoltà'], [/\bPericolo\b/g, 'Difficoltà'],
-  [/\bsoccorritori\b/g, 'chi ti assiste'], [/\bSoccorso\b/g, 'Assistenza'], [/\bsoccorso\b/g, 'assistenza'],
+  [/\bPrimo soccorso\b/g, 'Prime cure'], [/\bprimo soccorso\b/g, 'prime cure'], [/\bsoccorritori\b/g, 'chi ti assiste'], [/\bSoccorso\b/g, 'Assistenza'], [/\bsoccorso\b/g, 'assistenza'],
   [/\bha bisogno di aiuto\b/g, 'ti sta cercando'], [/\bHa bisogno di aiuto\b/g, 'Ti sta cercando'], [/\bho bisogno di aiuto\b/gi, 'mi serve una mano'],
   [/\bchiedere aiuto\b/g, 'chiedere una mano'], [/\bchiedi aiuto\b/g, 'chiedi una mano'], [/\bAIUTO\b/g, 'ATTENZIONE'], [/\bAiuto\b/g, 'Supporto'], [/\baiuto\b/g, 'una mano'],
   [/\bSono al sicuro\b/g, 'Tutto ok'], [/\bsono al sicuro\b/g, 'tutto ok'], [/\bSei al sicuro\?/g, 'Tutto ok?'], [/\bè al sicuro\b/g, 'sta bene'], [/\bal sicuro\b/g, 'a posto'],
@@ -80,6 +80,19 @@ export function createDisguise({ native, api, onChange }) {
     api.setDiscreet?.(on);
     return { icon };
   }
+  // l'icona sul telefono deve corrispondere alla modalità scelta (iPhone a volte non la cambia al primo colpo):
+  // a ogni avvio e quando l'app torna in primo piano la riallineiamo
+  async function syncIcon() {
+    if (!native.vx?.native) return;
+    try {
+      const cur = await native.vx.getIcon();
+      if (!cur?.supported) return;
+      const want = on ? 'blue' : 'default';
+      if (cur.name !== want) await native.vx.setIcon(want);
+    } catch (e) { console.warn('icona', e); }
+  }
+  setTimeout(syncIcon, 2500);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(syncIcon, 800); });
   // testo neutro per frasi costruite nel codice (es. SMS, titoli)
-  return { apply, conv, get on() { return on; } };
+  return { apply, conv, syncIcon, get on() { return on; } };
 }

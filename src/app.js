@@ -3,7 +3,9 @@ import { TERMS_VERSION, TERMS_DATE, TERMS_KEY, TERMS_SECTIONS } from './terms.js
 import { createTools } from './tools.js';
 import { createExtra } from './tools-extra.js';
 import { createMore } from './tools-more.js';
+import { createMore2 } from './tools-more2.js';
 import { createDisguise } from './disguise.js';
+import { qrSvg, openScanner, inviteLink, parseInvite } from './qr.js';
 export function boot(api, native) {
   /* ================= utilità ================= */
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -130,9 +132,9 @@ export function boot(api, native) {
   })();
 
   /* ================= navigazione ================= */
-  const TABS = { home: 's-home', map: 's-map', chat: 's-chat', circle: 's-circle', me: 's-me' };
+  const TABS = { home: 's-home', map: 's-map', tools: 's-tools', chat: 's-chat', circle: 's-circle', me: 's-me' };
   // Transizioni: le schede scorrono di lato nell'ordine della barra, le schermate interne entrano da destra ed escono a sinistra.
-  const ORDER = ['s-home', 's-map', 's-chat', 's-circle', 's-me'];
+  const ORDER = ['s-home', 's-map', 's-tools', 's-chat', 's-circle', 's-me'];
   let curScreen = 's-load';
   function show(id, how) {
     const prev = curScreen; curScreen = id;
@@ -150,6 +152,7 @@ export function boot(api, native) {
     st.tab = t; st.open = null;
     if (t === 'home' && st.sosMine) { rActive(); return show('s-active', how); }
     show(TABS[t], how); render();
+    if (t === 'tools') { const r = $('#tl-root'); if (!r.dataset.n || Number(r.dataset.n) !== tools.count()) r.dataset.n = tools.renderScreen(r); }
     if (t === 'map') openMapTab(); else closeMapTab();
     if (t === 'home') setTimeout(() => homeApi?.resize(), 80);
   }
@@ -227,6 +230,7 @@ export function boot(api, native) {
   function rHome() {
     if (!st.p) return;
     $('#h-name').textContent = 'Ciao, ' + st.p.name;
+    { const n0 = recipients().size + smsOn().length, e = $('#h-eye'); if (e) { e.textContent = n0 ? `Sei ${G().prot} · ${n0} ${n0 === 1 ? 'persona' : 'persone'}` : 'Aggiungi qualcuno alla cerchia'; e.classList.toggle('ok', !!n0); } }
     $('#h-av').innerHTML = AV(st.p.name + ' ' + st.p.surname);
     const n = recipients().size + smsOn().length;
     $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
@@ -836,7 +840,7 @@ export function boot(api, native) {
     const smsRow = c => `<div class="row sms-row"><button class="sms-who" data-a="sms-edit" data-id="${c.id}">${AV(c.name)}<div class="fl"><b>${esc(c.name)}</b><span>${esc(c.phone)}</span></div></button><input type="checkbox" class="switch" data-sms="${c.id}" ${c.on ? 'checked' : ''} aria-label="Avvisa ${esc(c.name)} ad SOS"></div>`;
     const smsBlock = `<div class="label">Senza app · via SMS · ${sl.length}</div><div class="card">${sl.map(smsRow).join('')}<button class="row add" data-a="sms-add"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>Aggiungi contatto</b><span>Basta il numero: riceve posizione e foto via SMS</span></div></button></div>`;
     $('#p-list').innerHTML = status + how + body + smsBlock
-      + `<div class="circle-acts"><button class="btn" data-a="add">${I('plus')}Invita qualcuno</button><button class="btn ghost" data-a="code">${I('key')}Ho un codice</button></div>
+      + `<div class="circle-acts"><button class="btn" data-a="invite" data-k="friend">${I('qr')}Il mio QR</button><button class="btn ghost" data-a="qr-scan">${I('camera')}Scansiona QR</button></div>
         <p class="note">L'SOS arriva a tutte le persone qui sopra, ai gruppi attivi e ai contatti SMS con la spunta.</p>`;
   }
   // contatto senza app: aggiungi / modifica
@@ -865,8 +869,9 @@ export function boot(api, native) {
     if (c.on) smsPermCheck();
   });
   const addOptions = () => `
+    <button class="opt opt-qr" data-a="qr-scan"><i class="ic-dot red">${I('qr')}</i><div class="fl"><b>Scansiona un QR</b><span>Apri la fotocamera e inquadra il QR dell'altra persona</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="invite" data-k="partner"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Invita il partner</b><span>Genera un codice da condividere</span></div>${I('chev', 'chev')}</button>
-    <button class="opt" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('user')}</i><div class="fl"><b>Invita ${G().amico}</b><span>Genera un codice da condividere</span></div>${I('chev', 'chev')}</button>
+    <button class="opt" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('user')}</i><div class="fl"><b>Mostra il mio QR</b><span>Per farti aggiungere da ${G().amico}: QR o codice da condividere</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="newgroup"><i class="ic-dot blue">${I('group')}</i><div class="fl"><b>Crea un gruppo</b><span>Fino a 8 persone, approvi tu chi entra</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="sms-add"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>Contatto senza app</b><span>Riceve l'SOS via SMS, basta il numero</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="code"><i class="ic-dot gray">${I('key')}</i><div class="fl"><b>Ho ricevuto un codice</b><span>Collegati a una persona o a un gruppo</span></div>${I('chev', 'chev')}</button>`;
@@ -998,7 +1003,8 @@ export function boot(api, native) {
   let inviteTimer;
   async function sheetInvite(kind) {
     if (kind === 'partner' && partner()) return toast('Hai già un partner collegato');
-    openSheet(`<h2>${kind === 'partner' ? 'Invita il partner' : 'Invita ' + G().amico}</h2><p class="sub">Condividi questo codice. Quando la persona lo inserisce nella sua app, siete collegati.</p>
+    openSheet(`<h2>${kind === 'partner' ? 'Invita il partner' : 'Invita ' + G().amico}</h2><p class="sub">Fai scansionare questo QR con Vicina (Cerchia → Scansiona QR) o con la fotocamera del telefono. Oppure condividi il codice.</p>
+      <div class="qr-box" id="inv-qr"><div class="qr-ph"></div></div>
       <div class="code"><b id="inv-code">······</b><span id="inv-exp">Genero il codice…</span></div>
       <div class="row2"><button class="btn ghost" data-a="inv-copy">${I('copy')}Copia</button><button class="btn" data-a="inv-share">${I('share')}Condividi</button></div>
       <div class="or">oppure inserisci il suo</div>
@@ -1008,10 +1014,25 @@ export function boot(api, native) {
       const r = await api.call('createInvite', { kind });
       if (curSheet !== 'invite') return;
       $('#inv-code').textContent = r.code; const exp = r.expiresAt || Date.now() + 6e5;
+      qrSvg(inviteLink(r.code)).then(svg => { const b = $('#inv-qr'); if (b && curSheet === 'invite') { b.innerHTML = svg; b.classList.add('ready'); } }).catch(e => console.warn('qr', e));
       const tick = () => { const s = Math.max(0, Math.round((exp - Date.now()) / 1000)); const e = $('#inv-exp'); if (!e) return clearInterval(inviteTimer);
         e.textContent = s ? `Valido ancora ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : 'Scaduto: chiudi e riapri per un nuovo codice'; if (!s) clearInterval(inviteTimer); };
       clearInterval(inviteTimer); tick(); inviteTimer = setInterval(tick, 1000);
     } catch (e) { $('#inv-exp') && ($('#inv-exp').textContent = errMsg(e)); }
+  }
+  /* ---------- collegarsi con un codice o un QR ---------- */
+  let justRedeemed = 0;
+  async function redeemCode(c) {
+    justRedeemed = Date.now();
+    try {
+      const r = await api.call('redeemInvite', { code: c }); closeSheet(); native.haptic('medium');
+      if (st.setup === 3 && $('#s-setup').classList.contains('on')) setup(3);
+      if (r.kind === 'group') toast(`Richiesta inviata a "${r.name}": attendi l'approvazione`);
+      else dialog({ title: `Collegat${st.p?.gender === 'm' ? 'o' : 'a'} con ${r.name}`, text: `Ora ${r.name} è nella tua cerchia e riceve i tuoi SOS (e tu i suoi). Le abbiamo mandato una conferma.`, ok: 'Perfetto', cancel: 'Chiudi' });
+    } catch (e) { justRedeemed = 0; toast(errMsg(e)); }
+  }
+  function scanQr() {
+    openScanner({ onCode: code => redeemCode(code), onManual: () => { sheetCode(); setTimeout(() => $('#code-in')?.focus(), 300); } });
   }
   const sheetCode = () => openSheet(`<h2>Inserisci un codice</h2><p class="sub">Funziona sia per le persone sia per i gruppi. Per i gruppi l'admin dovrà approvarti.</p>
     <label class="field"><input id="code-in" class="codein" maxlength="6" placeholder="ABC123" autocapitalize="characters" autocomplete="off"></label>
@@ -1136,6 +1157,7 @@ export function boot(api, native) {
     $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs, hhmm, mapsLink, wait,
     sos: () => { if (st.sosMine) { tab('home'); toast('Il tuo SOS è già attivo'); return Promise.resolve(); } return trigger(); },
     canSos: () => !!st.uid && canSos(), male: () => G() === GG.m, uid: () => st.uid, profile: () => st.p,
+    showTools: () => tab('tools'),
     hasSms: () => smsOn().length > 0,
     quickSend: (t, o) => quickSendAll(t, o)
   });
@@ -1151,13 +1173,23 @@ export function boot(api, native) {
     $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid, profile: () => st.p,
     smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o), simulate: () => simulateSos()
   }, tools, extra));
+  tools.setExtra(createMore2({
+    $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid,
+    smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o)
+  }, tools, extra));
 
   /* ================= link vicina:// (scorciatoie, widget, Comandi) ================= */
-  let pendingLink = null, lastLink = { u: '', t: 0 };
+  let pendingLink = null, pendingAdd = null, lastLink = { u: '', t: 0 };
   native.vx?.onUrl?.(url => {
     if (!/^vicina:/i.test(url || '')) return;
     if (url === lastLink.u && Date.now() - lastLink.t < 4000) return;
     lastLink = { u: url, t: Date.now() };
+    const addCode = /^vicina:\/\/add\//i.test(url) ? parseInvite(url) : null;
+    if (addCode) {
+      const go = () => dialog({ title: 'Collegarti con questa persona?', text: `Hai aperto un invito di Vicina (codice ${addCode}). Se confermi entrate nella stessa cerchia.`, ok: 'Collegami', cancel: 'No' }).then(ok => ok && redeemCode(addCode));
+      if (st.uid && st.p) go(); else pendingAdd = go;
+      return;
+    }
     if (st.uid && st.p && curScreen !== 's-load' && !curScreen.startsWith('s-setup')) extra.handleUrl(url); else pendingLink = url;
   });
   const shortcutItems = () => prefs.disguise
@@ -1175,7 +1207,8 @@ export function boot(api, native) {
     const r = await dz.apply(on, { fromUser: true });
     native.vx?.setShortcuts?.(shortcutItems());
     rMe();
-    toast(on ? (r?.icon === false ? 'Fatto. L\'icona cambierà con il prossimo aggiornamento dell\'app' : 'Fatto: Vicina ora è anonima') : 'Tema normale ripristinato');
+    if (r?.icon === false && native.vx?.native) setTimeout(() => dz.syncIcon(), 1500);   // iPhone: secondo tentativo per l'icona
+    toast(on ? (r?.icon === false ? 'Fatto. L\'icona si sistema da sola alla prossima apertura' : 'Fatto: Vicina ora è anonima') : (r?.icon === false ? 'Tema normale ripristinato. L\'icona torna normale alla prossima apertura' : 'Tema normale ripristinato'));
   }
   document.addEventListener('click', async e => {
     const t = e.target.closest('[data-a]'); if (!t) return;
@@ -1265,13 +1298,10 @@ export function boot(api, native) {
         case 'grp-share': { const g = groups().find(x => x.id === id); if (g) await native.share({ title: 'Vicina', text: `Entra nel gruppo "${g.name}" su Vicina con il codice: ${g.code}` }); break; }
         case 'redeem': {
           const c = ($('#code-in').value || '').trim().toUpperCase(); if (!/^[A-Z0-9]{6}$/.test(c)) return toast('Il codice ha 6 caratteri');
-          await busy(t, async () => {
-            const r = await api.call('redeemInvite', { code: c }); closeSheet(); native.haptic('medium');
-            toast(r.kind === 'group' ? `Richiesta inviata a "${r.name}": attendi l'approvazione` : `Ora sei collegat${st.p.gender === 'm' ? 'o' : 'a'} con ${r.name}`);
-            if (st.setup === 3 && $('#s-setup').classList.contains('on')) setup(3);
-          });
+          await busy(t, () => redeemCode(c));
           break;
         }
+        case 'qr-scan': closeSheet(); scanQr(); break;
         case 'mkgroup': {
           const n = $('#g-name').value.trim(); if (!n) return toast('Dai un nome al gruppo');
           await busy(t, async () => {
@@ -1359,7 +1389,14 @@ export function boot(api, native) {
         const before = new Set(st.links.map(l => l.id)), first = !linksLoaded; linksLoaded = true;
         st.links = ls_.map(l => { const o = l.uids.find(x => x !== st.uid); return { id: l.id, kind: l.kind, other: o, otherName: l.names?.[o] || 'Contatto' }; });
         const added = first ? null : st.links.find(l => !before.has(l.id));
-        if (added && curSheet === 'invite') { closeSheet(); native.haptic('medium'); toast('Collegamento riuscito con ' + added.otherName); }
+        if (added) {
+          if (curSheet === 'invite') closeSheet();
+          if (Date.now() - justRedeemed > 20000 && !$('#s-setup').classList.contains('on')) {   // chi ha mostrato il QR riceve la conferma (chi ha scansionato l'ha già vista)
+            native.haptic('medium'); native.vibrate([80, 60, 80]);
+            dialog({ title: `${added.otherName} ora è nella tua cerchia`, text: `Ha scansionato il tuo QR (o inserito il tuo codice): adesso siete collegati e vi avvisate a vicenda in caso di SOS.`, ok: 'Va bene', cancel: 'Annulla collegamento' })
+              .then(ok => { if (!ok) api.call('removeLink', { linkId: added.id }).then(() => toast('Collegamento annullato')).catch(e => toast(errMsg(e))); });
+          } else toast('Collegamento riuscito con ' + added.otherName);
+        }
         syncChats(); render(); refreshSheet(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
       },
       groups: gs => {
@@ -1517,14 +1554,15 @@ export function boot(api, native) {
              <button class="btn red" data-a="upd-ipa-share">${I('share')}Apri con…</button>`
         : `<div class="upd-steps"><b>Su iPhone l’aggiornamento si completa a mano:</b><ol><li>Tocca «Scarica in File»: il file <b>.ipa</b> viene salvato nell'app File.</li><li>Aprilo con SideStore, AltStore o Sideloadly per installarlo.</li></ol></div>
              <button class="btn red" data-a="upd-ipa">${I('share')}Scarica in File</button>`}
+        ${(l.ios.release || l.release || l.ios.page) ? `<button class="btn ghost" data-a="upd-page" data-u="${esc(l.ios.release || l.release || l.ios.page)}">${I('book')}Apri la release ${esc(lastVersion())} su GitHub</button>` : ''}
         ${upd.busy ? '' : `<button class="btn link" data-a="upd-later">Più tardi</button>`}`;
     } else {
-      const page = (ios && l.ios?.page) || l.page || '';
+      const page = (ios && (l.ios?.release || l.ios?.page)) || l.release || l.page || '';
       h = `<h2>Nuova versione disponibile</h2><p class="sub">Vicina <b>${esc(lastVersion())}</b> è pronta. Tu hai la ${esc(c.version)}.</p>${notesHtml(l.notes)}
         <div class="upd-steps"><b>${ios ? 'Su iPhone l’aggiornamento si fa a mano:' : 'Come aggiornare:'}</b>
           <ol>${ios ? `<li>Apri la pagina di download qui sotto.</li><li>Scarica la nuova versione e installala con l'app che hai usato la prima volta (AltStore, SideStore o Sideloadly).</li><li>Si installa sopra quella vecchia: account e cerchia restano.</li>`
                     : `<li>Apri la pagina di download.</li><li>Scarica e installa la nuova versione.</li>`}</ol></div>
-        ${page ? `<button class="btn red" data-a="upd-page" data-u="${esc(page)}">Apri la pagina di download</button>` : ''}
+        ${page ? `<button class="btn red" data-a="upd-page" data-u="${esc(page)}">Apri la release ${esc(lastVersion())}</button>` : ''}
         <button class="btn link" data-a="upd-later">Più tardi</button>`;
     }
     openSheet(h, 'update');
@@ -1575,6 +1613,7 @@ export function boot(api, native) {
     if (ls.get('permAsked')) registerPush();
     setTimeout(() => { tools.restore(); extra.restore(); }, 600);
     if (pendingLink) { const u = pendingLink; pendingLink = null; setTimeout(() => extra.handleUrl(u), 1200); }
+    if (pendingAdd) { const f = pendingAdd; pendingAdd = null; setTimeout(f, 1500); }
     if (!ls.get('setup:' + st.uid) && !ls.get('permAsked')) return setup(2);
     tab('home');
   }
