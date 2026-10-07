@@ -1,5 +1,6 @@
 // Vicina – interfaccia. Non importa nulla da npm: riceve "api" (server) e "native" (telefono) da main.js / demo.js.
 import { TERMS_VERSION, TERMS_DATE, TERMS_KEY, TERMS_SECTIONS } from './terms.js';
+import { createTools } from './tools.js';
 export function boot(api, native) {
   /* ================= utilità ================= */
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -12,6 +13,7 @@ export function boot(api, native) {
     ? `<div class="av ${cls}" style="background:linear-gradient(145deg,#9C8CFF,#5B4BD6)">${I('group')}</div>`
     : `<div class="av ${cls}" style="background:${col(n)}">${esc(initials(n))}</div>`;
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  let tools = null;   // strumenti (tools.js), creati più sotto
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   const hhmm = ms => ms ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
   const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'adesso' : m < 60 ? `${m} min fa` : `${Math.floor(m / 60)} h fa`; };
@@ -73,6 +75,7 @@ export function boot(api, native) {
     const L = [`SOS da ${me}: ha bisogno di aiuto. Ti ha scelto come contatto di emergenza (app Vicina).`];
     L.push(pos ? `Posizione alle ${hhmm(Date.now())} (±${Math.max(5, Math.round(pos.acc || 0))} m): ${mapsLink(pos)}` : 'Posizione non disponibile.');
     if (links?.length) L.push('Foto: ' + links.join(' '));
+    { const md = tools?.medicalLine(); if (md) L.push(md); }
     if (st.p?.phone) L.push('Chiama: ' + st.p.phone);
     L.push('Se non risponde chiama il 112.');
     return L.join('\n');
@@ -212,7 +215,7 @@ export function boot(api, native) {
     $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
     $('#sos-wrap').classList.toggle('off', !n);
     $('#sos-hint').textContent = n ? 'Tieni premuto' : 'Aggiungi qualcuno';
-    homeMap();
+    homeMap(); tools?.rWalk();
   }
 
   /* ================= SOS: pressione prolungata ================= */
@@ -275,13 +278,13 @@ export function boot(api, native) {
         try {
           res = await api.call('sendSos', { sosId, lat: pos?.lat ?? null, lng: pos?.lng ?? null, acc: pos?.acc ?? null, live: true });
           if (res.liveUntil) startLive(sosId, res.liveUntil);
-          stp(2, 'done'); native.vibrate([80, 60, 80]);
+          stp(2, 'done'); if (!prefs.quiet) native.vibrate([80, 60, 80]);
         } catch (e) { stp(2, 'fail'); srvErr = e; if (!sms.length) throw e; }
       }
       for (const [n, facing, file] of [[3, 'environment', 'back'], [4, 'user', 'front']]) {
         stp(n, 'run'); const img = await native.snap(facing);
         if (img) {
-          imgs.push(img); $('#flash').classList.add('go');
+          imgs.push(img); if (!prefs.quiet) $('#flash').classList.add('go');
           const path = `sos/${st.uid}/${sosId}/${file}.jpg`;
           try {
             await api.uploadPhoto(path, img);
@@ -738,6 +741,12 @@ export function boot(api, native) {
       <div class="label">SOS</div><div class="card">
         <div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Sempre attiva dopo l'SOS, finché non tocchi «Sono al sicuro»</span></div></div>
         ${toggleRow('voice', 'mic', 'amber', 'Messaggio vocale', 'Dopo l\'SOS puoi registrarne uno (facoltativo)')}
+        ${toggleRow('shake', 'alert', 'violet', 'Scuoti per SOS', 'Scuoti forte il telefono: dopo 5 secondi parte l\'SOS (con l\'app aperta)')}
+        ${toggleRow('quiet', 'eye', 'gray', 'SOS discreto', 'Niente vibrazioni e flash mentre l\'SOS parte')}
+      </div>
+      <div class="label">Strumenti</div><div class="card">
+        <button class="row" data-a="med"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Scheda medica</b><span>Gruppo sanguigno, allergie, farmaci</span></div>${I('chev', 'chev')}</button>
+        <button class="row" data-a="tools"><i class="ic-dot blue">${I('shield')}</i><div class="fl"><b>Tutti gli strumenti</b><span>Accompagnami, sirena, finta chiamata…</span></div>${I('chev', 'chev')}</button>
       </div>
       <div class="label">Aiuto</div><div class="card">
         <button class="row" data-a="guide"><i class="ic-dot violet">${I('book')}</i><div class="fl"><b>Guida rapida</b><span>5 passi interattivi, 1 minuto</span></div>${I('chev', 'chev')}</button>
@@ -759,7 +768,9 @@ export function boot(api, native) {
   $('#m-body').addEventListener('change', e => {
     const k = e.target.dataset.pref; if (!k) return;
     prefs[k] = e.target.checked; savePrefs(); native.haptic('light');
-    toast(prefs.voice ? 'Messaggio vocale attivo' : 'Messaggio vocale disattivato');
+    if (k === 'voice') toast(prefs.voice ? 'Messaggio vocale attivo' : 'Messaggio vocale disattivato');
+    else if (k === 'quiet') toast(prefs.quiet ? 'SOS discreto attivo' : 'SOS discreto disattivato');
+    else tools.prefChanged(k, prefs[k], e.target);
   });
   const sheetPerms = () => openSheet(`<h2>Permessi</h2><p class="sub">Servono perché l'SOS parta subito, senza richieste.</p><div class="card" style="margin-top:14px">${permRows()}</div>
     <button class="btn" data-a="perms">Attiva quelli mancanti</button>`, 'perms');
@@ -871,6 +882,7 @@ export function boot(api, native) {
       ${g.admin ? `<button class="btn danger" data-a="delgroup" data-id="${id}">Elimina gruppo</button>` : `<button class="btn danger" data-a="leave" data-id="${id}">Esci dal gruppo</button>`}`, 'group:' + id);
   }
   $('#sheet').addEventListener('change', async e => {
+    if (e.target.dataset.pref) { const k = e.target.dataset.pref; prefs[k] = e.target.checked; savePrefs(); native.haptic('light'); tools.prefChanged(k, prefs[k], e.target); rMe(); return; }
     const id = e.target.dataset.mute; if (!id) return;
     try { await api.setMuted(st.uid, id, !e.target.checked); } catch (x) { toast(errMsg(x)); e.target.checked = !e.target.checked; }
   });
@@ -958,10 +970,16 @@ export function boot(api, native) {
   $('#ai-txt').onkeydown = e => { if (e.key === 'Enter') sendAI($('#ai-txt').value); };
 
   /* ================= azioni (delegazione) ================= */
+  tools = createTools({
+    $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs, hhmm, mapsLink, wait,
+    sos: () => { if (st.sosMine) { tab('home'); return toast('Il tuo SOS è già attivo'); } trigger(); },
+    canSos: () => !!st.uid && canSos(), male: () => G() === GG.m, uid: () => st.uid, profile: () => st.p
+  });
   document.addEventListener('click', async e => {
     const t = e.target.closest('[data-a]'); if (!t) return;
     const a = t.dataset.a, id = t.dataset.id;
     try {
+      if (await tools.handle(a, t)) return;
       switch (a) {
         case 'wel-start': ls.set('seen', '1'); authMode('up'); show('s-auth'); break;
         case 'wel-login': ls.set('seen', '1'); authMode('in'); show('s-auth'); break;
@@ -1353,6 +1371,7 @@ export function boot(api, native) {
     if (!p) { draft = { gender: null }; return setup(1); }
     st.p = pick(p); startData();
     if (ls.get('permAsked')) registerPush();
+    setTimeout(() => tools.restore(), 600);
     if (!ls.get('setup:' + st.uid) && !ls.get('permAsked')) return setup(2);
     tab('home');
   }

@@ -237,6 +237,22 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 - **Android**: invariato, aggiornamento con un tocco dentro l'app.
 - Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).
 
+## Strumenti di sicurezza
+
+In Home: **Chiama 112 · Accompagnami · Sirena · Strumenti**. Tutto funziona sul telefono, anche offline.
+
+- **Accompagnami**: scegli quanto ci metti (10 min – 1,5 ore). Se non tocchi «Sono arrivata/o» in tempo, compare «Tutto bene?» con 30 secondi di conto alla rovescia e suoneria, poi parte l'SOS da solo. Resta attivo a schermo spento (usa la posizione in background); +10 min per allungare.
+- **Sirena**: suono fortissimo e schermo che lampeggia rosso/bianco (su iPhone suona anche in modalità silenziosa da iOS 17).
+- **Luce**: schermo bianco fisso o SOS luminoso in codice Morse.
+- **Finta chiamata**: una chiamata finta con suoneria tra 5 s – 5 min (tenere l'app aperta).
+- **Dove sono**: indirizzo (se c'è internet) e coordinate da leggere al 112; copia, condividi, apri in Mappe.
+- **Scheda medica**: gruppo sanguigno, allergie, farmaci, patologie. «Mostra ai soccorritori» a schermo intero; si può aggiungere agli SMS di SOS. Resta solo sul telefono.
+- **Numeri utili**: 112, 118, 113, 115, 1522, 114, 1530, 116117, Telefono Amico.
+- **Scuoti per SOS** (Impostazioni o Strumenti): scuotendo forte il telefono parte un conto alla rovescia di 5 secondi e poi l'SOS. Funziona con l'app aperta.
+- **SOS discreto** (Impostazioni): niente vibrazioni e flash mentre l'SOS parte.
+
+Nuovo file: `src/tools.js` (va caricato insieme a `src/app.js`).
+
 ## Contatti senza app (SMS)
 
 In **Cerchia → Senza app · via SMS → Aggiungi contatto** inserisci nome e numero e lascia attiva la spunta «Avvisa ad SOS».
@@ -249,7 +265,7 @@ link alle 2 foto (validi 7 giorni) e il tuo numero.
 - Dalla schermata «SOS attivo»: **Rimanda SMS** (posizione aggiornata) e **Invia le foto** (le foto vere, tramite il foglio di condivisione).
 - I contatti SMS sono salvati sul telefono (non servono modifiche al database). Gli SMS costano come normali messaggi del piano.
 
-File da caricare su GitHub per questa funzione: `scripts/android/SosSmsPlugin.java`, `scripts/patch-native.mjs`, `src/native.js`, `src/native-web.js`, `src/api-supabase.js`, `src/app.js`, `src/style.css`, `src/map.js`, `index.html`.
+File da caricare su GitHub per questa funzione: `src/tools.js`, `scripts/android/SosSmsPlugin.java`, `scripts/patch-native.mjs`, `src/native.js`, `src/native-web.js`, `src/api-supabase.js`, `src/app.js`, `src/style.css`, `src/map.js`, `index.html`.
 
 ## Regole dei file (solo se compare l'avviso "Regole dei file non aggiornate")
 Su alcuni progetti Supabase il database non può modificare le regole dello spazio file: in quel caso la pubblicazione **non si blocca più**,

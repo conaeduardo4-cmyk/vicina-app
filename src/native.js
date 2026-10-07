@@ -78,11 +78,11 @@ export const native = !isNative ? webNative : {
   },
 
   // Posizione live per l'SOS: prima il plugin in background, se non c'è la posizione normale (solo app aperta)
-  async watchLive(cb) {
+  async watchLive(cb, o = {}) {
     try {
       const id = await BackgroundGeolocation.addWatcher({
-        backgroundTitle: 'SOS attivo · posizione live',
-        backgroundMessage: 'Vicina sta condividendo la tua posizione con la tua cerchia.',
+        backgroundTitle: o.title || 'SOS attivo · posizione live',
+        backgroundMessage: o.message || 'Vicina sta condividendo la tua posizione con la tua cerchia.',
         requestPermissions: true, stale: false, distanceFilter: 10
       }, (loc, err) => { if (loc && !err) cb({ lat: loc.latitude, lng: loc.longitude, acc: loc.accuracy }); });
       return () => BackgroundGeolocation.removeWatcher({ id }).catch(() => {});
