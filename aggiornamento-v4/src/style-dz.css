@@ -1,0 +1,38 @@
+/* modalità anonima: generato da scripts/dev/gen-dz-css.py, palette blu al posto del rosso */
+html.dz{--red:#2F80ED;--red2:#56A8FF;--redbg:rgba(47,128,237,.16)}
+html.dz .logo{background:linear-gradient(145deg,var(--red2),var(--red) 55%,#1E63C4);box-shadow:0 14px 40px rgba(77,155,255,.45)}
+html.dz .orb-ring{border:1.5px solid rgba(77,155,255,.35)}
+html.dz #s-home{background:radial-gradient(90% 55% at 50% 50%,rgba(77,155,255,.13),transparent 70%)}
+html.dz .halo{border:1.5px solid rgba(77,155,255,.45)}
+html.dz #sos{background:radial-gradient(circle at 35% 25%,#8CC8FF 0%,var(--red) 45%,#1A56B0 100%);box-shadow:0 24px 60px rgba(77,155,255,.5),inset 0 2px 0 rgba(255,255,255,.3),inset 0 -14px 30px rgba(0,0,0,.25)}
+html.dz .active-bg{background:radial-gradient(80% 50% at 50% 30%,rgba(77,155,255,.35),transparent 70%)}
+html.dz .beacon{box-shadow:0 0 60px rgba(77,155,255,.6)}
+html.dz .overlay.alert{background:linear-gradient(180deg,#0A2440 0%,#060E1A 45%,var(--bg) 100%)}
+html.dz .msg.sos{border:1.5px solid rgba(77,155,255,.6);box-shadow:0 8px 30px rgba(77,155,255,.15)}
+html.dz .msg.danger{border:1.5px solid rgba(77,155,255,.5)}
+html.dz #g-sos{background:radial-gradient(circle at 35% 25%,#8CC8FF 0%,var(--red) 45%,#1A56B0 100%);box-shadow:0 18px 44px rgba(77,155,255,.45)}
+html.dz .g-alert{background:linear-gradient(180deg,#0A2440,#06101C);border:1.5px solid rgba(77,155,255,.5);box-shadow:0 20px 50px rgba(77,155,255,.2)}
+html.dz .vcard.rec{border-color:rgba(77,155,255,.5)}
+html.dz .map-card.mine{border-color:rgba(77,155,255,.35)}
+html.dz #sos{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 20px 50px rgba(47,128,237,.35)}
+html.dz .hero-av{color:#1C5DB8}
+html.dz .msg.sos{border-color:rgba(47,128,237,.6)}
+html.dz .overlay.send{background:radial-gradient(90% 60% at 50% 22%,rgba(47,128,237,.22),transparent 70%),var(--bg)}
+html.dz .radar-core{box-shadow:0 10px 30px rgba(47,128,237,.5)}
+html.dz .overlay.send .step.run{border-color:rgba(47,128,237,.5)}
+html.dz .wel-logo .logo{box-shadow:0 12px 34px rgba(47,128,237,.45)}
+html.dz .wel-ring{border:1.5px solid rgba(47,128,237,.4)}
+html.dz .logo.sm{box-shadow:0 8px 24px rgba(47,128,237,.4)}
+html.dz .tool-ov.cd{background:radial-gradient(120% 70% at 50% 30%,#0A2440,#000)}
+html.dz .md-eye{color:#2F80ED}
+html.dz .cpr-dot{box-shadow:0 0 0 0 rgba(47,128,237,.5)}
+html.dz .quick-row .qr-panic{border-color:rgba(47,128,237,.4)}
+html.dz .ifb-ring{border:2px solid rgba(86,168,255,.5)}
+html.dz{--glow:rgba(47,128,237,.10)}
+html.dz .t-ic.red{background:linear-gradient(145deg,rgba(86,168,255,.28),rgba(47,128,237,.12))}
+html.dz #s-home #sos{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 18px 46px rgba(47,128,237,.32)}
+html.dz nav button.on,html.dz nav button.sosb.on{background:linear-gradient(180deg,rgba(86,168,255,.2),rgba(47,128,237,.12))}
+html.dz .btn.red{box-shadow:0 10px 26px rgba(47,128,237,.3)}
+html.dz .qr-line{background:linear-gradient(90deg,transparent,#56A8FF,transparent);box-shadow:0 0 18px #56A8FF}
+html.dz .opt-qr{background:linear-gradient(135deg,rgba(47,128,237,.14),rgba(47,128,237,.04));border-color:rgba(47,128,237,.3)!important}
+html.dz .tl-big.red{background:linear-gradient(140deg,#2F80ED,#FF5A6A)}

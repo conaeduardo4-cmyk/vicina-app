@@ -237,6 +237,113 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 - **Android**: invariato, aggiornamento con un tocco dentro l'app.
 - Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).
 
+## Novità di questa versione
+
+- **Video iniziale su Android**: niente più player grigio. Il video resta nascosto finché non parte davvero; se non parte, al suo posto c'è un'animazione del logo e poi si entra.
+- **iPad e tablet**: l'app riempie tutto lo schermo (prima era una colonna stretta). In Home SOS e tasti a sinistra, mappa grande a destra; Impostazioni su due colonne; fogli centrati; Mappa con l'elenco a lato in orizzontale. Build universale iPhone + iPad, tutte le rotazioni su iPad, mappe più leggere in memoria e una schermata di riserva («Chiama 112 / Riprova») se l'avvio non va a buon fine.
+- **72 strumenti** (32 nuovi in `src/tools-more.js`): Codice rosso, Strobo, Voce d'allarme, Tienimi d'occhio (2/5/10 min), Guarda dietro, Zoom a distanza, Aiuto senza farsi capire, Segnale con la mano, Respira, Pronto soccorso / Carabinieri / Farmacia / Defibrillatore / Fermate più vicini, Check-in, Il mio percorso, Luoghi preferiti, Salgo su un mezzo, Vado a correre, Dov'è la mia auto, Dove dormo, Coordinate per i soccorsi, Sfondo di emergenza per il blocco schermo, Tessera da portafoglio, Kit di emergenza, Piano di famiglia, Prova l'SOS, Telefono rubato, Il telefono ti spia?, Account al sicuro, Truffe, Chat come prova.
+- **Codice rosso**: chi lo riceve nella cerchia vede un avviso a tutto schermo con vibrazione.
+- **10 widget** su iPhone/iPad e Android: SOS, Chiama 112, Panico, Sirena, Finta chiamata, Accompagnami, Portami a casa, Sto bene, Torcia, Pannello rapido (4 tasti). Su iPhone/iPad i 9 a tasto singolo vanno anche sulla schermata di blocco.
+- **UI rinfrescata**: stessa identità (scuro, rosso, forme morbide) con card e tasti più curati, luce morbida in alto, barra di navigazione aggiornata.
+
+## Novità: 102 strumenti, scheda Strumenti, aggiungi con QR
+
+- **Scheda «Strumenti» nella barra in basso** (icona gialla a griglia): 102 strumenti con ricerca, filtri per categoria e «In evidenza» in alto. Nuovi strumenti: SMS rapido, schermo colorato, fonometro (salva nel diario), «chiamami tra…», taxi/farmacie/bagni/acqua/punti di raccolta/caserme vicine, orario di arrivo, nota veloce, testimone, foto ferita, battito, e guide (ipoglicemia, annegamento, morso di serpente, fratture, trauma cranico, asma, freddo, attacco di panico, drink alterato, stalking, violenza in casa, bambino smarrito, foto intime diffuse, bullismo, incidente d'auto).
+- **Assistente in giallo nella Home**, subito sotto il tasto SOS. Home più ordinata: «Azioni rapide» con link a «Tutti gli strumenti».
+- **Aggiungi un amico con il QR**: in Cerchia → «Il mio QR» mostri il tuo codice; l'altra persona tocca «Scansiona QR», si apre la fotocamera di Vicina e il collegamento è immediato. A chi ha mostrato il QR arriva la conferma «X ora è nella tua cerchia» (con «Annulla collegamento»). Il QR si legge anche con la fotocamera del telefono (apre `vicina://add/CODICE`). Il codice di 6 lettere funziona sempre come prima.
+- **iPhone, avviso aggiornamenti sistemato**: GitHub serve `version.json` come file binario e su iPhone arrivava in un formato che l'app non leggeva. Ora viene letto in ogni caso, e se non basta l'app chiede l'ultima release a GitHub. L'avviso mostra il pulsante **«Apri la release X su GitHub»**.
+  ⚠️ Carica anche il nuovo `workflow-github/build-app.yml` in `.github/workflows/build-app.yml`: ora la release viene pubblicata anche quando compila solo iOS, e `version.json` contiene il link alla release.
+- **iPhone, icona dopo «Anonimizza l'app»**: spegnendo la modalità anonima l'icona torna quella normale. Se iOS rifiuta il cambio, l'app riprova e ricontrolla all'apertura.
+- Tablet: Home a due colonne sistemata.
+- **«Vicino a te» sistemato**: il server di OpenStreetMap usato prima (overpass-api.de) è spesso sovraccarico e rispondeva con errori, quindi non si trovava niente. Ora l'app prova altri 3 server uguali uno dopo l'altro e, se nessuno risponde, cerca per nome con Nominatim. Sul telefono la richiesta parte dal codice nativo (niente blocchi del browser).
+- Home: il riquadro giallo dell'Assistente non si schiaccia più sugli schermi bassi.
+
+## Widget ufficiali (iOS e Android)
+
+Due widget da mettere sulla schermata Home:
+- **SOS**: un tocco apre Vicina con un conto alla rovescia di 3 secondi (annullabile) e poi parte l'SOS.
+- **Chiama 112**: un tocco apre il telefono con il 112 già pronto (le app non possono comporre da sole un numero d'emergenza, serve l'ultima conferma).
+
+Su iPhone i widget vanno anche sulla **schermata di blocco**. Li aggiunge il workflow durante la build:
+- iOS: estensione WidgetKit in `scripts/ios/VicinaWidgets/` + `scripts/ios-widgets.rb` (per saltarla: crea un file vuoto `scripts/ios/NO_WIDGETS`).
+- Android: `scripts/android/VicinaWidget.java` (SOS, link `vicina://sos-widget`) e `scripts/android/VicinaCallWidget.java` (112, `tel:112`).
+
+## Novità strumenti e SOS
+
+- **Panico** (tasto rosso in Home e in Strumenti): con un tocco parte la sirena, il flash lampeggia e la cerchia riceve «ho bisogno di aiuto subito» con la posizione (anche via SMS).
+- **Registra audio dopo l'SOS** (Impostazioni → SOS): dopo le foto l'app registra da sola 30 secondi di quello che succede intorno e lo manda alla cerchia come vocale.
+- **Defibrillatori (DAE)** tra i Luoghi sicuri.
+- **Strumenti con ricerca**: il foglio Strumenti (40 in tutto) ha una barra per cercarli al volo.
+- **Guida rapida** aggiornata: 6 passi (compresi strumenti, contatti SMS e modalità anonima).
+- Ritocco leggero all'impaginazione delle schermate diverse dalla Home (intestazioni di sezione e card).
+
+## Modalità anonima («Anonimizza l'app»)
+
+Impostazioni → Privacy → **Anonimizza l'app**. Quando è attiva:
+- l'icona diventa una nuvoletta celeste (iPhone mostra un avviso di sistema; su Android l'icona sulla Home può sparire un attimo: rimettila dall'elenco app);
+- tutta l'app diventa blu e spariscono «SOS», «allarme», «sirena», «aiuto»… (diventano «segnale», «avviso», «suono»…);
+- le notifiche che ricevi non nominano l'SOS («Giulia ti cerca · Apri Vicina»), il canale Android si chiama «Avvisi importanti»,
+  la notifica della posizione dice «Vicina · posizione attiva», gli SMS ai contatti iniziano con «ho bisogno di te, chiamami subito»;
+- le scorciatoie sull'icona si chiamano Segnale / Suono / Percorso / Chiamata.
+Togliendola torna tutto normale. Le funzioni restano identiche.
+
+**Una volta sola**: Supabase → SQL Editor → `supabase/aggiornamento-anonima.sql` → Run, e ripubblica la funzione `vicina`
+(`supabase/functions/vicina/index.ts`, la pubblica il workflow del server). Senza, le notifiche restano quelle normali.
+
+## Integrazioni con il telefono
+
+- **Scorciatoie sull'icona** (tieni premuta l'icona): SOS, Sirena, Accompagnami, Finta chiamata.
+- **Widget Android** «Vicina» per la schermata Home: un tocco = conto alla rovescia di 5 s e SOS.
+- **Link `vicina://sos`** (anche `siren`, `walk`, `fake`, `torch`, `home`, `where`): su iPhone con l'app Comandi → «Tocca il retro» o Siri.
+- **Torcia vera** (flash), **batteria** (anche negli SMS di SOS e avviso automatico sotto il 15%), **voce** che legge un testo, **apri impostazioni** dai permessi.
+- Mappe (Apple Mappe / Google Maps), WhatsApp, Telegram, SMS, Email, Calendario (.ics e Google Calendar), Uber, FreeNow, itTaxi, Salute (iPhone).
+
+Pezzi nativi (li aggiunge `scripts/patch-native.mjs` durante la compilazione):
+`scripts/android/VicinaNativePlugin.java`, `scripts/android/VicinaWidget.java`, `scripts/android/res/…` (icona celeste, widget),
+`scripts/ios/VicinaNative.swift`, `scripts/ios/AppIconBlue.appiconset/…`, `scripts/ios-native.rb` (usa la gemma xcodeproj già installata dal workflow).
+
+## Altri strumenti (39 in tutto)
+
+Home: tasti rapidi Portami a casa · Luoghi sicuri · Finta chiamata · Torcia · Parla per me · Dove sono · Sto bene.
+Nuovi: Portami a casa, Luoghi sicuri vicini (OpenStreetMap: polizia/carabinieri, pronto soccorso, farmacie, aperti 24 ore), Taxi e passaggi,
+Salgo in un'auto (targa + foto + Accompagnami), Appuntamento sicuro (cerchia, WhatsApp, calendario, check-in), Serata fuori (check-in periodici),
+Punto d'incontro, Torcia vera con SOS luminoso, Parla per me (5 lingue, legge anche la tua posizione al 112), Schermo nero (registra di nascosto),
+Schermata finta (note), Registra video, WhatsApp e altre app, Chiamate rapide, Scorciatoie e widget, Funzioni del telefono, App ufficiali
+(Where ARE U, YouPol, 1522, Commissariato online), Batteria, Controllo sicurezza, Prova la cerchia.
+
+`src/style-dz.css` è generato: dopo aver cambiato colori in `style.css` rilancia `python3 scripts/dev/gen-dz-css.py src/style.css > src/style-dz.css`.
+
+## Chat: «sta scrivendo» con anteprima e spunte di lettura
+
+- Mentre l'altra persona scrive compare una nuvoletta con il testo che si forma lettera per lettera (e i tre puntini); in alto «sta scrivendo…» oppure «online».
+  Chi non vuole mostrare l'anteprima la spegne in Impostazioni → Chat (gli altri vedono solo i puntini).
+- Spunte sotto i tuoi messaggi: una = inviato, due verdi = letto. Sotto l'ultimo messaggio: «Letto alle 09:38» (nei gruppi «Letto da 2 su 3»).
+- **Una volta sola**: Supabase → SQL Editor → incolla `supabase/aggiornamento-chat.sql` → Run (crea la tabella delle letture).
+  Senza questo passaggio anteprima e «online» funzionano lo stesso, ma le spunte si vedono solo se l'altra persona ha la chat aperta.
+
+## Strumenti (19)
+
+Adesso: Sirena · Fischietto di soccorso · «Se lo lasci, suona» (anti-scippo) · Allarme movimento · Luce/SOS luminoso · Finta chiamata · Cartello gigante (IT, EN, ES, FR, DE).
+In giro: Accompagnami · Messaggio rapido alla cerchia (con posizione, anche via SMS) · Dove sono · Bussola.
+Prove: Foto con data, ora e posizione stampate · Registra audio · Diario episodi (esportabile per una denuncia).
+Salute e guide: Primo soccorso (RCP con metronomo 110/min, cronometro crisi, ictus con ora) · Cosa fare se… (seguita/o, aggressione, terremoto, incendio, gas, alluvione, incidente) · Scheda medica · Numeri utili · Assistente.
+
+## Strumenti di sicurezza
+
+In Home: **Chiama 112 · Accompagnami · Sirena · Strumenti**. Tutto funziona sul telefono, anche offline.
+
+- **Accompagnami**: scegli quanto ci metti (10 min – 1,5 ore). Se non tocchi «Sono arrivata/o» in tempo, compare «Tutto bene?» con 30 secondi di conto alla rovescia e suoneria, poi parte l'SOS da solo. Resta attivo a schermo spento (usa la posizione in background); +10 min per allungare.
+- **Sirena**: suono fortissimo e schermo che lampeggia rosso/bianco (su iPhone suona anche in modalità silenziosa da iOS 17).
+- **Luce**: schermo bianco fisso o SOS luminoso in codice Morse.
+- **Finta chiamata**: una chiamata finta con suoneria tra 5 s – 5 min (tenere l'app aperta).
+- **Dove sono**: indirizzo (se c'è internet) e coordinate da leggere al 112; copia, condividi, apri in Mappe.
+- **Scheda medica**: gruppo sanguigno, allergie, farmaci, patologie. «Mostra ai soccorritori» a schermo intero; si può aggiungere agli SMS di SOS. Resta solo sul telefono.
+- **Numeri utili**: 112, 118, 113, 115, 1522, 114, 1530, 116117, Telefono Amico.
+- **Scuoti per SOS** (Impostazioni o Strumenti): scuotendo forte il telefono parte un conto alla rovescia di 5 secondi e poi l'SOS. Funziona con l'app aperta.
+- **SOS discreto** (Impostazioni): niente vibrazioni e flash mentre l'SOS parte.
+
+Nuovo file: `src/tools.js` (va caricato insieme a `src/app.js`).
+
 ## Contatti senza app (SMS)
 
 In **Cerchia → Senza app · via SMS → Aggiungi contatto** inserisci nome e numero e lascia attiva la spunta «Avvisa ad SOS».
@@ -249,7 +356,7 @@ link alle 2 foto (validi 7 giorni) e il tuo numero.
 - Dalla schermata «SOS attivo»: **Rimanda SMS** (posizione aggiornata) e **Invia le foto** (le foto vere, tramite il foglio di condivisione).
 - I contatti SMS sono salvati sul telefono (non servono modifiche al database). Gli SMS costano come normali messaggi del piano.
 
-File da caricare su GitHub per questa funzione: `scripts/android/SosSmsPlugin.java`, `scripts/patch-native.mjs`, `src/native.js`, `src/native-web.js`, `src/api-supabase.js`, `src/app.js`, `src/style.css`, `src/map.js`, `index.html`.
+File da caricare su GitHub per questa funzione: `src/tools.js`, `scripts/android/SosSmsPlugin.java`, `scripts/patch-native.mjs`, `src/native.js`, `src/native-web.js`, `src/api-supabase.js`, `src/app.js`, `src/style.css`, `src/map.js`, `index.html`.
 
 ## Regole dei file (solo se compare l'avviso "Regole dei file non aggiornate")
 Su alcuni progetti Supabase il database non può modificare le regole dello spazio file: in quel caso la pubblicazione **non si blocca più**,
