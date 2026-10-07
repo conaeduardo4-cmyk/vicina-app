@@ -121,6 +121,7 @@ export function createDemoApi() {
     async deleteAccount() { Object.assign(db, { user: null, links: [], groups: [], sos: [], chats: {} }); return { ok: true }; }
   };
 
+  const liveH = {};
   return {
     demo: true, version: 'demo',
     onAuth(cb) { authCb = cb; setTimeout(() => cb(null), 400); return () => {}; },
@@ -140,8 +141,17 @@ export function createDemoApi() {
       push(id, { type: 'text', from: 'me', text });
       const l = db.links.find(x => x.id === id), g = db.groups.find(x => x.id === id);
       const other = l ? l.uids.find(x => x !== 'me') : g?.memberUids.find(x => x !== 'me');
-      if (other) setTimeout(() => push(id, { type: 'text', from: other, text: ['Ok 👍', 'Tutto bene?', 'Ricevuto!', 'Ci sentiamo dopo'][Math.floor(Math.random() * 4)] }), 1800);
+      if (!other) return;
+      const reply = ['Ok, ricevuto 👍', 'Tutto bene? Fammi sapere quando arrivi', 'Arrivo tra 10 minuti', 'Ci sentiamo dopo!'][Math.floor(Math.random() * 4)];
+      const lv = liveH[id], name = 'Giulia';
+      // simulazione: legge, scrive (con anteprima lettera per lettera) e risponde
+      setTimeout(() => lv?.read?.({ uid: other, at: Date.now() }), 900);
+      for (let i = 1; i <= reply.length; i++) setTimeout(() => liveH[id]?.typing?.({ uid: other, name, text: reply.slice(0, i), at: Date.now() }), 1500 + i * 70);
+      setTimeout(() => { liveH[id]?.typing?.({ uid: other, name, text: '', at: 0 }); push(id, { type: 'text', from: other, text: reply }); }, 1700 + reply.length * 70);
     },
+    chatLive(id, me, hh) { liveH[id] = hh; setTimeout(() => hh.presence?.(['p']), 300); return { typing() {}, read() {}, close() { delete liveH[id]; } }; },
+    async markRead() {},
+    async getReads() { return {}; },
     async askAI(messages) {
       await wait(1100);
       const q = messages[messages.length - 1].text.toLowerCase();

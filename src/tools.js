@@ -32,7 +32,11 @@ export function createTools(ctx) {
     // squillo di telefono generico
     ring: () => wavUrl(t => { const x = t % 3, on = x < 0.4 || (x > 0.6 && x < 1.0); return [t % 0.05 < 0.025 ? 440 : 480, ph => (on ? Math.sin(ph) * 0.9 : 0)]; }, 3),
     // bip di avviso (conto alla rovescia)
-    beep: () => wavUrl(t => { const x = t % 1; return [880, ph => (x < 0.18 || (x > 0.3 && x < 0.48) ? sq(ph) * 0.9 : 0)]; }, 1)
+    beep: () => wavUrl(t => { const x = t % 1; return [880, ph => (x < 0.18 || (x > 0.3 && x < 0.48) ? sq(ph) * 0.9 : 0)]; }, 1),
+    // fischietto di soccorso: 3 fischi acuti e pausa (segnale internazionale di richiesta d'aiuto)
+    whistle: () => wavUrl(t => { const x = t % 3.2, on = x < 0.45 || (x > 0.75 && x < 1.2) || (x > 1.5 && x < 1.95); return [3150 + 60 * Math.sin(t * 60), ph => (on ? Math.sin(ph) * 0.95 : 0)]; }, 3.2),
+    // metronomo RCP: 110 colpi al minuto
+    cpr: () => wavUrl(t => [1200, ph => (t < 0.045 ? sq(ph) : 0)], 60 / 110)
   }[k]());
   async function play(k) {
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}   // suona anche con l'iPhone in silenzioso (iOS 17+)
@@ -251,19 +255,395 @@ export function createTools(ctx) {
     shakeOn = on; return true;
   }
 
+
+  /* ---------- fischietto ---------- */
+  async function whistle() {
+    const stop = await play('whistle');
+    showOv('whistle', `<div class="sr-in"><b>${I('bell')}FISCHIETTO</b><span>3 fischi e una pausa: il segnale di richiesta d'aiuto. Si sente lontano, anche sotto le macerie.</span></div>
+      <button class="btn white big sr-stop" data-a="tool-close">${I('x')}Ferma</button>`, () => { stop(); keepAwake(false); });
+    keepAwake(true);
+  }
+
+  /* ---------- allarme «se lo lasci» e allarme movimento ---------- */
+  let dmsStop = null, dmsHoldT = null;
+  function deadman() {
+    showOv('dms', `<div class="dms-in"><p class="dms-t" id="dms-t">Appoggia il pollice e tienilo premuto</p>
+      <button class="dms-pad" id="dms-pad" aria-label="Tieni premuto">${I('shield')}<span id="dms-s">Tieni premuto</span></button>
+      <p class="dms-sub" id="dms-sub">Se il telefono ti viene strappato o lo lasci, parte la sirena e dopo 15 secondi l'SOS.</p></div>
+      <button class="btn ghost" data-a="tool-close" id="dms-close">${I('x')}Esci</button>`, () => { dmsStop?.(); dmsStop = null; clearInterval(cdTimer); keepAwake(false); });
+    keepAwake(true);
+    const pad = $('#dms-pad'); let armed = false;
+    pad.addEventListener('pointerdown', e => { e.preventDefault(); if (ov.classList.contains('fired')) return; armed = true; ov.classList.add('armed'); $('#dms-s').textContent = 'Armato'; $('#dms-t').textContent = 'Non lasciare il dito'; $('#dms-close').hidden = true; native.haptic('medium'); });
+    const lift = async () => {
+      if (!armed || ov.classList.contains('fired')) return;
+      armed = false; ov.classList.remove('armed'); ov.classList.add('fired');
+      dmsStop = await play('siren'); buzz([600, 200, 600, 200, 600]);
+      let left = 15;
+      $("#dms-t").innerHTML = `SOS tra <b class="dms-n" id="dms-n">${left}</b>`;
+      $('#dms-s').textContent = 'Tieni premuto 3 s per fermare';
+      $('#dms-sub').textContent = 'Se sei tu: tieni premuto il cerchio per 3 secondi.';
+      clearInterval(cdTimer);
+      cdTimer = setInterval(() => { left--; const n = $('#dms-n'); if (n) n.textContent = Math.max(0, left); if (left <= 0) { clearInterval(cdTimer); if (canSos()) sos(); $('#dms-t').textContent = canSos() ? 'SOS inviato' : 'Chiama il 112'; } }, 1000);
+    };
+    pad.addEventListener('pointerup', lift); pad.addEventListener('pointercancel', lift);
+    // per fermare: tenere premuto 3 secondi
+    pad.addEventListener('pointerdown', () => { if (!ov.classList.contains('fired')) return; clearTimeout(dmsHoldT); dmsHoldT = setTimeout(() => { closeOv(); toast('Allarme disattivato'); }, 3000); });
+    ['pointerup', 'pointercancel'].forEach(ev => pad.addEventListener(ev, () => clearTimeout(dmsHoldT)));
+  }
+  let motionArmed = null;
+  function motionAlarm() {
+    let left = 5;
+    showOv('dms motion', `<div class="dms-in"><p class="dms-t" id="mo-t">Appoggia il telefono: si arma tra <b id="mo-n">${left}</b> s</p>
+      <div class="dms-pad still" id="mo-pad">${I('lock')}<span id="mo-s">Allarme movimento</span></div>
+      <p class="dms-sub">Se qualcuno lo sposta (dal tavolo, dalla borsa) parte la sirena. Per fermarla tieni premuto il cerchio 3 secondi.</p></div>
+      <button class="btn ghost" data-a="tool-close">${I('x')}Disattiva</button>`, () => { if (motionArmed) window.removeEventListener('devicemotion', motionArmed); motionArmed = null; dmsStop?.(); dmsStop = null; clearInterval(cdTimer); keepAwake(false); });
+    keepAwake(true);
+    clearInterval(cdTimer);
+    cdTimer = setInterval(() => {
+      left--; const n = $('#mo-n'); if (n) n.textContent = left;
+      if (left > 0) return;
+      clearInterval(cdTimer); $('#mo-t').textContent = 'Armato'; ov.classList.add('armed');
+      let base = null;
+      motionArmed = async e => {
+        const a = e.accelerationIncludingGravity; if (!a) return;
+        const v = [a.x || 0, a.y || 0, a.z || 0];
+        if (!base) { base = v; return; }
+        const d = Math.hypot(v[0] - base[0], v[1] - base[1], v[2] - base[2]);
+        if (d > 2.2 && !ov.classList.contains('fired')) {
+          ov.classList.remove('armed'); ov.classList.add('fired'); $('#mo-t').textContent = 'Telefono spostato!'; $('#mo-s').textContent = 'Tieni premuto 3 s per fermare';
+          dmsStop = await play('siren'); buzz([600, 200, 600]);
+          const pad = $('#mo-pad'); let ht;
+          pad.addEventListener('pointerdown', () => { ht = setTimeout(() => { closeOv(); toast('Allarme disattivato'); }, 3000); });
+          ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => pad.addEventListener(ev, () => clearTimeout(ht)));
+        }
+      };
+      window.addEventListener('devicemotion', motionArmed);
+    }, 1000);
+  }
+  async function motionPermission() {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      try { return (await DeviceMotionEvent.requestPermission()) === 'granted'; } catch { return false; }
+    }
+    return true;
+  }
+
+  /* ---------- cartello a schermo intero (anche in altre lingue) ---------- */
+  const SIGNS = [
+    ['call112', { it: 'CHIAMATE IL 112', en: 'CALL 112 – EMERGENCY', es: 'LLAMEN AL 112', fr: 'APPELEZ LE 112', de: 'RUFEN SIE 112 AN' }],
+    ['help', { it: 'HO BISOGNO DI AIUTO', en: 'I NEED HELP', es: 'NECESITO AYUDA', fr: "J'AI BESOIN D'AIDE", de: 'ICH BRAUCHE HILFE' }],
+    ['amb', { it: "CHIAMATE UN'AMBULANZA", en: 'CALL AN AMBULANCE', es: 'LLAMEN A UNA AMBULANCIA', fr: 'APPELEZ UNE AMBULANCE', de: 'RUFEN SIE EINEN KRANKENWAGEN' }],
+    ['police', { it: 'CHIAMATE LA POLIZIA', en: 'CALL THE POLICE', es: 'LLAMEN A LA POLICÍA', fr: 'APPELEZ LA POLICE', de: 'RUFEN SIE DIE POLIZEI' }],
+    ['speak', { it: 'NON POSSO PARLARE, SCRIVIMI', en: "I CAN'T SPEAK, PLEASE WRITE", es: 'NO PUEDO HABLAR, ESCRÍBEME', fr: 'JE NE PEUX PAS PARLER, ÉCRIVEZ-MOI', de: 'ICH KANN NICHT SPRECHEN, BITTE SCHREIBEN' }],
+    ['deaf', { it: 'SONO SORDO/A', en: 'I AM DEAF', es: 'SOY SORDO/A', fr: 'JE SUIS SOURD(E)', de: 'ICH BIN GEHÖRLOS' }],
+    ['sick', { it: 'MI SENTO MALE', en: 'I FEEL SICK', es: 'ME SIENTO MAL', fr: 'JE ME SENS MAL', de: 'MIR GEHT ES SCHLECHT' }],
+    ['lost', { it: 'MI SONO PERSO/A', en: 'I AM LOST', es: 'ME HE PERDIDO', fr: 'JE SUIS PERDU(E)', de: 'ICH HABE MICH VERLAUFEN' }],
+    ['follow', { it: 'MI STANNO SEGUENDO, AIUTATEMI', en: 'SOMEONE IS FOLLOWING ME, HELP', es: 'ME ESTÁN SIGUIENDO, AYÚDENME', fr: 'ON ME SUIT, AIDEZ-MOI', de: 'ICH WERDE VERFOLGT, HELFEN SIE MIR' }]
+  ];
+  const LANGS = [['it', 'Italiano'], ['en', 'English'], ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch']];
+  function sheetSign() {
+    const lang = ls.get('signLang') || 'it', allerg = med().allergies;
+    const ALL = { it: 'ALLERGIA: ', en: 'ALLERGIC TO: ', es: 'ALÉRGICO/A A: ', fr: 'ALLERGIQUE À : ', de: 'ALLERGISCH GEGEN: ' };
+    openSheet(`<h2>Cartello</h2><p class="sub">Un messaggio enorme da mostrare a chi hai intorno: in un posto rumoroso, se non puoi parlare o all'estero.</p>
+      <div class="choice wrap" id="sg-lang">${LANGS.map(([k, n]) => `<button data-l="${k}" class="${k === lang ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="sign-list">${SIGNS.map(([k, t]) => `<button class="sign-opt" data-a="sign-show" data-t="${esc(t[lang])}">${esc(t[lang])}</button>`).join('')}
+      ${allerg ? `<button class="sign-opt" data-a="sign-show" data-t="${esc(ALL[lang] + allerg.toUpperCase())}">${esc(ALL[lang] + allerg.toUpperCase())}</button>` : ''}</div>
+      <label class="field"><span>Oppure scrivi tu</span><input id="sg-own" maxlength="80" placeholder="Es. MIA FIGLIA SI È PERSA"></label>
+      <button class="btn" data-a="sign-own">Mostra</button>`, 'sign');
+  }
+  function signShow(text) {
+    closeSheet();
+    showOv('sign', `<div class="sign-big" id="sign-big">${esc(text)}</div><div class="sign-acts"><button class="btn ghost sm" data-a="sign-color">Cambia colori</button><button class="btn ghost sm" data-a="tool-close">${I('x')}Chiudi</button></div>`, () => keepAwake(false));
+    keepAwake(true);
+    // il testo si adatta allo schermo
+    const el = $('#sign-big'); let fs = 120; el.style.fontSize = fs + 'px';
+    while ((el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth) && fs > 22) { fs -= 4; el.style.fontSize = fs + 'px'; }
+  }
+
+  /* ---------- messaggio rapido alla cerchia ---------- */
+  const QUICK = () => [`Sono arrivat${sx()} 🏠`, 'Sto bene 👍', 'Sto tornando, ti scrivo quando arrivo', 'Mi chiami? Non posso scrivere', 'Mi serve un passaggio', 'Sono in ritardo, tutto ok', 'Non mi sento al sicuro, tienimi d\'occhio'];
+  function sheetQuick() {
+    openSheet(`<h2>Messaggio rapido</h2><p class="sub">Un tocco e arriva in tutte le chat della tua cerchia.</p>
+      <div class="quick-list">${QUICK().map(q => `<button class="quick-opt" data-a="quick-pick" data-t="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+      <label class="field"><span>Messaggio</span><input id="qk-txt" maxlength="300" placeholder="Scrivi o scegli sopra"></label>
+      <label class="row toggle-row"><i class="ic-dot blue">${I('pin')}</i><div class="fl wrap"><b>Aggiungi la mia posizione</b><span>Link a Google Maps</span></div><input type="checkbox" class="switch" id="qk-pos" checked></label>
+      ${ctx.hasSms() ? `<label class="row toggle-row"><i class="ic-dot green">${I('sms')}</i><div class="fl wrap"><b>Anche ai contatti SMS</b><span>Chi non ha l'app lo riceve via SMS</span></div><input type="checkbox" class="switch" id="qk-sms"></label>` : ''}
+      <button class="btn" data-a="quick-send">${I('send')}Invia alla cerchia</button>`, 'quick');
+  }
+
+  /* ---------- primo soccorso (offline) ---------- */
+  const FA = [
+    ['cpr', 'heart', 'red', 'Non respira: RCP', 'Massaggio cardiaco con metronomo', [
+      'Controlla che la zona sia sicura per te.',
+      'Scuotila per le spalle e chiamala ad alta voce. Se non risponde e non respira normalmente, inizia subito.',
+      '<b>Chiama il 112</b> in vivavoce e fatti portare un <b>defibrillatore (DAE)</b> se c\'è.',
+      'Mani una sopra l\'altra al <b>centro del torace</b>, braccia tese: spingi giù di <b>5–6 cm</b>, <b>100–120 volte al minuto</b>. Usa il metronomo qui sotto.',
+      'Se sai farlo: 30 compressioni e 2 insufflazioni. Se no, solo compressioni, senza fermarti.',
+      'Quando arriva il DAE accendilo e segui la voce. Continua finché arrivano i soccorsi o la persona respira.'], 'cpr'],
+    ['choke', 'alert', 'amber', 'Soffocamento', 'Adulto che non riesce a respirare', [
+      'Se tossisce, incoraggiala a tossire: non dare colpi.',
+      'Se non riesce a tossire, parlare o respirare: falla piegare in avanti e dai <b>5 colpi decisi tra le scapole</b> con il palmo.',
+      'Poi <b>5 compressioni addominali</b> (manovra di Heimlich): da dietro, pugno sopra l\'ombelico, tira forte verso di te e verso l\'alto.',
+      'Alterna 5 colpi e 5 compressioni finché il boccone esce.',
+      'Se perde i sensi: <b>chiama il 112</b> e inizia l\'RCP.',
+      'Neonati e bambini piccoli: chiama il 112 e segui le istruzioni dell\'operatore.']],
+    ['bleed', 'alert', 'red', 'Emorragia', 'Ferita che sanguina molto', [
+      '<b>Premi forte e direttamente</b> sulla ferita con un panno pulito (o con la mano).',
+      'Se il panno si inzuppa non toglierlo: aggiungine un altro sopra e continua a premere.',
+      'Fai sdraiare la persona e, se è un arto, tienilo sollevato.',
+      'Se il sangue è tanto o non si ferma <b>chiama il 112</b>.',
+      'Il laccio emostatico solo su braccia o gambe, se il sangue non si ferma con la pressione e sai usarlo.']],
+    ['burn', 'spark', 'amber', 'Ustione', 'Raffreddare subito', [
+      'Metti la parte ustionata sotto <b>acqua corrente fresca per 20 minuti</b>.',
+      'Togli anelli, orologi e vestiti non attaccati alla pelle.',
+      'Copri con pellicola trasparente o un panno pulito.',
+      'Niente ghiaccio, burro, olio o creme.',
+      '<b>112</b> se è estesa, profonda, sul viso, mani o genitali, o se è un bambino.']],
+    ['faint', 'user', 'blue', 'Svenimento', 'Perde i sensi per poco', [
+      'Falla sdraiare e <b>solleva le gambe</b>.',
+      'Allenta vestiti stretti e fai entrare aria.',
+      'Se non si riprende entro un minuto <b>chiama il 112</b>.',
+      'Se respira ma non risponde mettila in <b>posizione laterale di sicurezza</b>.']],
+    ['seizure', 'live', 'violet', 'Crisi epilettica', 'Convulsioni', [
+      '<b>Non trattenerla</b> e non mettere niente in bocca.',
+      'Allontana gli oggetti pericolosi e proteggi la testa (giacca, cuscino).',
+      '<b>Cronometra</b> la crisi: usa il cronometro qui sotto.',
+      'Quando finisce mettila in posizione laterale di sicurezza e resta con lei.',
+      '<b>112</b> se dura più di 5 minuti, se è la prima volta, se si è ferita o non si riprende.'], 'timer'],
+    ['stroke', 'user', 'red', 'Ictus', 'Faccia, braccio, parola', [
+      '<b>Faccia</b>: chiedi di sorridere. Un lato non si muove?',
+      '<b>Braccio</b>: chiedi di alzare le braccia. Uno cade?',
+      '<b>Parola</b>: chiedi di ripetere una frase. Parla male o non capisce?',
+      'Anche un solo segno: <b>chiama subito il 112</b>. Ogni minuto conta.',
+      'Annota <b>l\'ora</b> in cui sono iniziati i sintomi: serve ai medici.'], 'clock'],
+    ['heart', 'heart', 'red', 'Infarto', 'Dolore al petto', [
+      'Segnali: dolore o peso al petto che può arrivare a braccio, mandibola o schiena, sudore freddo, nausea, fiato corto.',
+      '<b>Chiama subito il 112</b>. Non accompagnarla tu in auto.',
+      'Falla stare seduta e tranquilla, slaccia i vestiti stretti.',
+      'Se perde i sensi e non respira: <b>RCP</b>.']],
+    ['allergy', 'alert', 'amber', 'Reazione allergica grave', 'Gonfiore, fatica a respirare', [
+      'Segnali: gonfiore di labbra o lingua, fatica a respirare, orticaria diffusa, malessere improvviso.',
+      '<b>Chiama il 112</b>.',
+      'Se ha l\'<b>autoiniettore di adrenalina</b>, aiutala a usarlo sulla parte esterna della coscia.',
+      'Sdraiata con le gambe sollevate; seduta se respira male.']],
+    ['heat', 'spark', 'amber', 'Colpo di calore', 'Caldo, confusione', [
+      'Portala all\'ombra o al fresco.',
+      'Raffreddala: acqua fresca sulla pelle, panni bagnati, ventilazione.',
+      'Se è cosciente falle bere acqua a piccoli sorsi.',
+      '<b>112</b> se è confusa, non suda o perde i sensi.']],
+    ['pls', 'user', 'blue', 'Posizione laterale di sicurezza', 'Respira ma non risponde', [
+      'Inginocchiati al suo fianco, il braccio più vicino a te piegato ad angolo retto.',
+      'Porta l\'altro braccio sul petto, il dorso della mano contro la guancia vicina a te.',
+      'Piega il ginocchio lontano da te e tira la persona verso di te, sul fianco.',
+      'Inclina la testa all\'indietro per tenere libere le vie aeree. Controlla che continui a respirare.']]
+  ];
+  const sheetFA = () => openSheet(`<h2>Primo soccorso</h2><p class="sub">Indicazioni rapide, anche offline. Non sostituiscono un corso: in emergenza chiama il 112 e segui l'operatore.</p>
+    <div class="card">${FA.map(([k, ic, c, t, s]) => `<button class="row" data-a="fa" data-k="${k}"><i class="ic-dot ${c}">${I(ic)}</i><div class="fl"><b>${t}</b><span>${s}</span></div>${I('chev', 'chev')}</button>`).join('')}</div>`, 'fa');
+  function sheetFAItem(k) {
+    const f = FA.find(x => x[0] === k); if (!f) return;
+    const extra = f[6] === 'cpr' ? `<button class="btn red" data-a="cpr">${I('heart')}Avvia il metronomo RCP</button>`
+      : f[6] === 'timer' ? `<button class="btn" data-a="stopwatch">${I('clock')}Avvia il cronometro</button>`
+      : f[6] === 'clock' ? `<button class="btn ghost" data-a="note-time">${I('clock')}Annota l'ora adesso</button><p class="note" id="noted"></p>` : '';
+    openSheet(`<button class="back-link" data-a="fa-list">${I('back')}Primo soccorso</button><h2>${f[3]}</h2>
+      <a class="btn red sm call-now" href="tel:112">${I('phone')}Chiama il 112</a>
+      <ol class="steps-list">${f[5].map(x => `<li>${x}</li>`).join('')}</ol>${extra}`, 'fa-item');
+  }
+  // metronomo RCP a schermo intero
+  function cpr() {
+    closeSheet(); let n = 0, cyc = 0, t;
+    play('cpr').then(stop => {
+      showOv('cpr', `<div class="cpr-in"><p class="cpr-eye">RCP · 110 al minuto</p><div class="cpr-dot" id="cpr-dot"></div><b class="cpr-n" id="cpr-n">0</b><span class="cpr-s" id="cpr-s">Spingi a ogni battito · 5–6 cm</span></div>
+        <div class="cd-foot"><a class="btn white" href="tel:112">${I('phone')}Chiama il 112</a><button class="btn ghost" data-a="tool-close">${I('x')}Ferma</button></div>`, () => { stop(); clearInterval(t); keepAwake(false); });
+      keepAwake(true);
+      t = setInterval(() => {
+        n++; const d = $('#cpr-dot'); if (d) { d.classList.remove('go'); void d.offsetWidth; d.classList.add('go'); }
+        const c = $('#cpr-n'); if (c) c.textContent = ((n - 1) % 30) + 1;
+        if (n % 30 === 0) { cyc++; const s = $('#cpr-s'); if (s) s.textContent = `${cyc} cicli · se sai farlo: 2 insufflazioni, poi riprendi`; }
+      }, 60000 / 110);
+    });
+  }
+  function stopwatch() {
+    closeSheet(); const t0 = Date.now(); let t;
+    showOv('cpr sw', `<div class="cpr-in"><p class="cpr-eye">Cronometro crisi</p><b class="cpr-n" id="sw-n">0:00</b><span class="cpr-s" id="sw-s">Oltre 5 minuti: chiama il 112</span></div>
+      <div class="cd-foot"><a class="btn white" href="tel:112">${I('phone')}Chiama il 112</a><button class="btn ghost" data-a="tool-close">${I('x')}Stop</button></div>`, () => { clearInterval(t); keepAwake(false); });
+    keepAwake(true);
+    t = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000), e = $('#sw-n'); if (e) e.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); if (s === 300) { ov.classList.add('late'); buzz([400, 200, 400]); } }, 250);
+  }
+
+  /* ---------- guide alle emergenze ---------- */
+  const EM = [
+    ['follow', 'eye', 'violet', 'Ti senti seguit' + 'a/o', [
+      'Non andare a casa: non far sapere dove abiti.',
+      'Entra in un posto <b>affollato e illuminato</b> (bar, negozio, farmacia) e chiedi aiuto.',
+      'Cambia lato della strada per capire se ti segue davvero.',
+      'Chiama qualcuno e resta al telefono, o usa <b>Accompagnami</b> o la <b>Finta chiamata</b>.',
+      'Se continua a seguirti <b>chiama il 112</b> o tieni premuto l\'SOS.'], ['walk', 'fake']],
+    ['attack', 'alert', 'red', 'Aggressione o molestia', [
+      'La tua sicurezza viene prima delle cose: lascia borsa o telefono se serve.',
+      'Allontanati verso altre persone e <b>grida</b> forte: «AIUTO, CHIAMATE IL 112».',
+      'Usa la <b>Sirena</b> per attirare l\'attenzione e l\'<b>SOS</b> per avvisare la cerchia.',
+      'Appena sei al sicuro <b>chiama il 112</b>. Per violenza e stalking c\'è anche il <b>1522</b> (gratis, 24 ore su 24).',
+      'Annota subito i dettagli nel <b>Diario</b> (aspetto, ora, luogo): servono alla denuncia.',
+      'In caso di violenza sessuale vai al pronto soccorso prima di lavarti o cambiarti: si conservano le prove.'], ['siren', 'diary']],
+    ['quake', 'alert', 'amber', 'Terremoto', [
+      '<b>Durante</b>: riparati sotto un tavolo robusto o vicino a un muro portante, lontano da finestre e mobili alti.',
+      'Non usare l\'ascensore e non correre fuori durante la scossa.',
+      'All\'aperto allontanati da edifici, alberi, lampioni e linee elettriche.',
+      '<b>Dopo</b>: esci con calma dalle scale, chiudi gas e luce se puoi, raggiungi l\'area di attesa del tuo comune.',
+      'Se sei bloccat' + 'a/o: non urlare di continuo, usa il <b>Fischietto</b> o batti su un tubo.'], ['whistle']],
+    ['fire', 'spark', 'red', 'Incendio in casa', [
+      'Esci subito e <b>chiudi le porte</b> dietro di te. Chiama il <b>115</b> o il 112 da fuori.',
+      'Con il fumo stai <b>bassa/o</b>, vicino al pavimento, con un panno bagnato su naso e bocca.',
+      'Tocca la porta prima di aprirla: se è calda non aprire.',
+      'Non usare l\'ascensore.',
+      'Se sei bloccat' + 'a/o in una stanza: chiudi le fessure con panni bagnati e fatti vedere dalla finestra con la <b>Luce</b> o la <b>Sirena</b>.'], ['light', 'siren']],
+    ['gas', 'alert', 'amber', 'Fuga di gas', [
+      'Non accendere luci, interruttori, fiamme o accendini.',
+      'Apri porte e finestre e chiudi il rubinetto del gas al contatore.',
+      'Esci e <b>chiama il 112 o il 115 da fuori casa</b> (non usare il telefono dentro).']],
+    ['flood', 'live', 'blue', 'Alluvione', [
+      'Sali ai piani alti. Non scendere in cantine, garage o sottopassi.',
+      'Non attraversare strade allagate, né a piedi né in auto: bastano pochi centimetri d\'acqua che scorre per trascinarti.',
+      'Stacca la corrente solo se puoi farlo senza toccare l\'acqua.',
+      'Segui gli avvisi della Protezione civile e del tuo comune.']],
+    ['crash', 'alert', 'red', 'Incidente stradale', [
+      'Accendi le quattro frecce, indossa il giubbotto catarifrangente e metti il triangolo.',
+      '<b>Chiama il 112</b> e di\' dove sei (usa <b>Dove sono</b>).',
+      'Non spostare i feriti, a meno di un pericolo immediato (fuoco).',
+      'Non togliere il casco a chi va in moto.',
+      'Se qualcuno non respira: <b>RCP</b>.'], ['where', 'fa']]
+  ];
+  const TOOLNAME = { walk: 'Accompagnami', fake: 'Finta chiamata', siren: 'Sirena', diary: 'Diario', whistle: 'Fischietto', light: 'Luce', where: 'Dove sono', fa: 'Primo soccorso' };
+  const sheetEM = () => openSheet(`<h2>Cosa fare se…</h2><p class="sub">Guide brevi per le situazioni più comuni. Funzionano offline.</p>
+    <div class="card">${EM.map(([k, ic, c, t]) => `<button class="row" data-a="em" data-k="${k}"><i class="ic-dot ${c}">${I(ic)}</i><div class="fl"><b>${t}</b></div>${I('chev', 'chev')}</button>`).join('')}</div>`, 'em');
+  function sheetEMItem(k) {
+    const e = EM.find(x => x[0] === k); if (!e) return;
+    openSheet(`<button class="back-link" data-a="em-list">${I('back')}Cosa fare se…</button><h2>${e[3]}</h2>
+      <ol class="steps-list">${e[4].map(x => `<li>${x}</li>`).join('')}</ol>
+      ${(e[5] || []).length ? `<div class="em-tools">${e[5].map(a => `<button class="btn ghost sm" data-a="${a}">${TOOLNAME[a]}</button>`).join('')}</div>` : ''}
+      <a class="btn red" href="tel:112">${I('phone')}Chiama il 112</a>`, 'em-item');
+  }
+
+  /* ---------- prove: foto con data e posizione, registrazione audio, diario ---------- */
+  function photoProof() {
+    closeSheet();
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
+    inp.onchange = async () => {
+      const f = inp.files?.[0]; if (!f) return;
+      toast('Aggiungo data e posizione…');
+      const pos = await native.getPos().catch(() => null);
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(f); });
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
+      const fs = Math.max(14, Math.round(c.width / 38)), pad = fs * 0.7, d = new Date();
+      const lines = [d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) + '  ' + d.toLocaleTimeString('it-IT'),
+        pos ? `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}  ±${Math.max(5, Math.round(pos.acc || 0))} m` : 'Posizione non disponibile'];
+      const h = lines.length * fs * 1.35 + pad * 2;
+      g.fillStyle = 'rgba(0,0,0,.62)'; g.fillRect(0, c.height - h, c.width, h);
+      g.fillStyle = '#fff'; g.font = `600 ${fs}px -apple-system, Roboto, sans-serif`; g.textBaseline = 'top';
+      lines.forEach((l, i) => g.fillText(l, pad, c.height - h + pad + i * fs * 1.35));
+      g.fillStyle = '#FF4D5E'; g.font = `800 ${fs * 0.8}px -apple-system, Roboto, sans-serif`; g.textAlign = 'right'; g.fillText('VICINA', c.width - pad, c.height - h + pad);
+      const url = c.toDataURL('image/jpeg', 0.85);
+      lastProof = { url, text: 'Foto del ' + lines.join(' · ') + (pos ? '\n' + mapsLink(pos) : '') };
+      openSheet(`<h2>Foto con data e posizione</h2><p class="sub">Salvala subito: dal menu scegli «Salva immagine» o mandala a chi vuoi.</p>
+        <img class="proof-img" src="${url}" alt="Foto con data e posizione">
+        <button class="btn" data-a="proof-share">${I('share')}Salva o condividi</button>
+        <button class="btn ghost" data-a="proof-diary">${I('book')}Aggiungi una nota al diario</button>`, 'proof');
+    };
+    inp.click();
+  }
+  let lastProof = null, recSess = null, recT = null;
+  async function recordProof() {
+    closeSheet();
+    try { recSess = await native.startRecording(); } catch { return toast('Serve il permesso del microfono'); }
+    const t0 = Date.now();
+    showOv('rec', `<div class="cpr-in"><p class="cpr-eye">${I('mic')}Registrazione in corso</p><div class="rec-dot"></div><b class="cpr-n" id="rec-n">0:00</b><span class="cpr-s">Tieni l'app aperta. Lo schermo può restare acceso al minimo.</span></div>
+      <div class="cd-foot"><button class="btn white big" data-a="rec-stop">${I('check')}Ferma e salva</button><button class="btn ghost" data-a="rec-cancel">Annulla</button></div>`, () => { clearInterval(recT); keepAwake(false); try { recSess?.cancel(); } catch {} recSess = null; });
+    keepAwake(true);
+    recT = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000), e = $('#rec-n'); if (e) e.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }, 500);
+  }
+  async function recordStop() {
+    const r = recSess; recSess = null; clearInterval(recT);
+    const res = await r?.stop().catch(() => null); closeOv();
+    if (!res?.blob?.size) return toast('Registrazione vuota');
+    const d = new Date(), name = `vicina-audio-${d.toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${res.ext}`;
+    lastAudio = { blob: res.blob, name };
+    openSheet(`<h2>Registrazione salvata</h2><p class="sub">${Math.round(res.ms / 1000)} secondi · ${d.toLocaleString('it-IT')}. Salvala in File o mandala a chi vuoi.</p>
+      <audio controls src="${URL.createObjectURL(res.blob)}" class="proof-audio"></audio>
+      <button class="btn" data-a="audio-share">${I('share')}Salva o condividi</button>`, 'audio');
+  }
+  let lastAudio = null;
+  // diario degli episodi (utile per una denuncia: cosa, quando, dove)
+  const DK = () => 'diary:' + uid();
+  const diary = () => { try { return JSON.parse(ls.get(DK()) || '[]'); } catch { return []; } };
+  function sheetDiary() {
+    const l = diary().sort((a, b) => b.at - a.at);
+    openSheet(`<h2>Diario</h2><p class="sub">Annota episodi di molestie, stalking o minacce: data, luogo e cosa è successo. Resta solo sul telefono e puoi esportarlo per una denuncia.</p>
+      <button class="btn" data-a="diary-new">${I('plus')}Nuovo episodio</button>
+      ${l.length ? `<div class="card diary-list">${l.map(e => `<div class="row diary-row"><div class="fl wrap"><b>${new Date(e.at).toLocaleString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${e.place ? ' · ' + esc(e.place) : ''}</b><span>${esc(e.text)}</span></div><button class="iconbtn sm" data-a="diary-del" data-id="${e.id}" aria-label="Elimina">${I('trash')}</button></div>`).join('')}</div>
+      <button class="btn ghost" data-a="diary-export">${I('share')}Esporta tutto</button>` : '<p class="note">Ancora nessun episodio.</p>'}`, 'diary');
+  }
+  function sheetDiaryNew(pre = '') {
+    const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    openSheet(`<button class="back-link" data-a="diary">${I('back')}Diario</button><h2>Nuovo episodio</h2>
+      <label class="field"><span>Quando</span><input id="dy-at" type="datetime-local" value="${now}"></label>
+      <label class="field"><span>Dove</span><input id="dy-place" maxlength="80" placeholder="Es. fermata bus via Roma"></label>
+      <button class="btn ghost sm" data-a="diary-here">${I('pin')}Usa la mia posizione</button>
+      <label class="field"><span>Cosa è successo</span><textarea id="dy-text" rows="5" maxlength="2000" placeholder="Chi, cosa ha detto o fatto, testimoni, com'era vestito…">${esc(pre)}</textarea></label>
+      <button class="btn" data-a="diary-save">Salva</button>`, 'diary-new');
+  }
+
+  /* ---------- bussola ---------- */
+  let compassH = null;
+  async function compass() {
+    closeSheet();
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try { if ((await DeviceOrientationEvent.requestPermission()) !== 'granted') return toast('Serve il permesso «Movimento e orientamento»'); } catch { return; }
+    }
+    const pos = await native.getPos().catch(() => null);
+    showOv('compass', `<div class="cmp-in"><p class="cpr-eye">Bussola</p><div class="cmp-rose" id="cmp-rose"><span class="n">N</span><span class="e">E</span><span class="s">S</span><span class="w">O</span><i></i></div>
+      <b class="cpr-n" id="cmp-deg">–</b><span class="cpr-s" id="cmp-dir">Tieni il telefono in piano</span>
+      ${pos ? `<p class="cmp-ll">${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}</p>` : ''}</div>
+      <div class="cd-foot"><button class="btn ghost" data-a="tool-close">${I('x')}Chiudi</button></div>`, () => { if (compassH) { window.removeEventListener('deviceorientationabsolute', compassH); window.removeEventListener('deviceorientation', compassH); } compassH = null; });
+    const DIRS = ['Nord', 'Nord-est', 'Est', 'Sud-est', 'Sud', 'Sud-ovest', 'Ovest', 'Nord-ovest'];
+    compassH = e => {
+      let h = e.webkitCompassHeading != null ? e.webkitCompassHeading : (e.absolute || e.type === 'deviceorientationabsolute') && e.alpha != null ? 360 - e.alpha : null;
+      if (h == null) return; h = (h + 360) % 360;
+      const r = $('#cmp-rose'); if (r) r.style.transform = `rotate(${-h}deg)`;
+      const d = $('#cmp-deg'); if (d) d.textContent = Math.round(h) + '°';
+      const t = $('#cmp-dir'); if (t) t.textContent = 'Verso ' + DIRS[Math.round(h / 45) % 8];
+    };
+    window.addEventListener('deviceorientationabsolute', compassH); window.addEventListener('deviceorientation', compassH);
+  }
+
   /* ---------- foglio «Strumenti» ---------- */
   const TOOLS = [
-    ['walk', 'shield', 'red', 'Accompagnami', 'Timer: se non arrivi parte l\'SOS'],
-    ['siren', 'bell', 'amber', 'Sirena', 'Suono forte e lampeggio'],
-    ['light', 'spark', 'blue', 'Luce', 'Schermo bianco o SOS luminoso'],
-    ['fake', 'phone', 'green', 'Finta chiamata', 'Una scusa per andartene'],
-    ['where', 'pin', 'blue', 'Dove sono', 'Indirizzo e coordinate'],
-    ['med', 'heart', 'red', 'Scheda medica', 'Per i soccorritori'],
-    ['nums', 'book', 'violet', 'Numeri utili', '112, 1522, 118…'],
-    ['ai', 'spark', 'amber', 'Assistente', 'Chiedi cosa fare']
+    ['Adesso', [
+      ['siren', 'bell', 'red', 'Sirena', 'Suono forte e lampeggio'],
+      ['whistle', 'bell', 'amber', 'Fischietto', 'Segnale di soccorso'],
+      ['deadman', 'shield', 'red', 'Se lo lasci, suona', 'Allarme anti-scippo'],
+      ['motion', 'lock', 'violet', 'Allarme movimento', 'Se qualcuno lo sposta'],
+      ['light', 'spark', 'blue', 'Luce', 'Schermo bianco o SOS luminoso'],
+      ['fake', 'phone', 'green', 'Finta chiamata', 'Una scusa per andartene'],
+      ['sign', 'eye', 'amber', 'Cartello', 'Messaggio gigante, anche in inglese']]],
+    ['In giro', [
+      ['walk', 'shield', 'red', 'Accompagnami', 'Se non arrivi parte l\'SOS'],
+      ['quick', 'send', 'green', 'Messaggio rapido', '«Sono arrivata», «Sto bene»…'],
+      ['where', 'pin', 'blue', 'Dove sono', 'Indirizzo e coordinate'],
+      ['compass', 'pin', 'violet', 'Bussola', 'Orientarsi senza internet']]],
+    ['Prove', [
+      ['photo', 'camera', 'blue', 'Foto con data', 'Data, ora e posizione stampate'],
+      ['record', 'mic', 'red', 'Registra audio', 'Per avere una prova'],
+      ['diary', 'book', 'violet', 'Diario', 'Episodi da denunciare']]],
+    ['Salute e guide', [
+      ['fa', 'heart', 'red', 'Primo soccorso', 'RCP con metronomo e altro'],
+      ['em', 'alert', 'amber', 'Cosa fare se…', 'Terremoto, incendio, aggressione'],
+      ['med', 'heart', 'red', 'Scheda medica', 'Per i soccorritori'],
+      ['nums', 'phone', 'green', 'Numeri utili', '112, 1522, 118…'],
+      ['ai', 'spark', 'amber', 'Assistente', 'Chiedi cosa fare']]]
   ];
-  const sheetTools = () => openSheet(`<h2>Strumenti</h2><p class="sub">Tutto funziona anche senza internet.</p>
-    <div class="tools-grid">${TOOLS.map(([a, ic, c, t, s]) => `<button class="tool" data-a="${a}"><i class="ic-dot ${c}">${I(ic)}</i><b>${t}</b><span>${s}</span></button>`).join('')}</div>
+  const sheetTools = () => openSheet(`<h2>Strumenti</h2><p class="sub">${TOOLS.reduce((a, g) => a + g[1].length, 0)} strumenti, quasi tutti funzionano anche senza internet.</p>
+    ${TOOLS.map(([g, l]) => `<div class="label">${g}</div><div class="tools-grid">${l.map(([a, ic, c, t, s]) => `<button class="tool" data-a="${a}"><i class="ic-dot ${c}">${I(ic)}</i><b>${t}</b><span>${s}</span></button>`).join('')}</div>`).join('')}
     <label class="row toggle-row"><i class="ic-dot violet">${I('alert')}</i><div class="fl wrap"><b>Scuoti per SOS</b><span>Scuoti forte il telefono: dopo 5 secondi parte l'SOS (con l'app aperta)</span></div><input type="checkbox" class="switch" data-pref="shake" ${prefs.shake ? 'checked' : ''}></label>`, 'tools');
 
   /* ---------- azioni ---------- */
@@ -299,12 +679,62 @@ export function createTools(ctx) {
       case 'tool-close': closeOv(); return true;
       case 'cd-cancel': closeOv(); native.haptic('medium'); toast('Annullato. Bene così.'); return true;
       case 'cd-now': closeOv(); sos(); return true;
+      case 'whistle': closeSheet(); whistle(); return true;
+      case 'deadman': closeSheet(); deadman(); return true;
+      case 'motion': closeSheet(); if (await motionPermission()) motionAlarm(); else toast('Serve il permesso «Movimento»'); return true;
+      case 'sign': closeSheet(); sheetSign(); return true;
+      case 'sign-show': signShow(t.dataset.t); return true;
+      case 'sign-own': { const v = ($('#sg-own')?.value || '').trim(); if (v) signShow(v.toUpperCase()); else toast('Scrivi il messaggio'); return true; }
+      case 'sign-color': ov.classList.toggle('alt'); return true;
+      case 'quick': closeSheet(); sheetQuick(); return true;
+      case 'quick-pick': { const i = $('#qk-txt'); if (i) i.value = t.dataset.t; document.querySelectorAll('.quick-opt').forEach(x => x.classList.toggle('on', x === t)); return true; }
+      case 'quick-send': {
+        const txt = ($('#qk-txt')?.value || '').trim(); if (!txt) return toast('Scegli o scrivi un messaggio'), true;
+        const withPos = $('#qk-pos')?.checked, sms = $('#qk-sms')?.checked;
+        let full = txt;
+        if (withPos) { const p = await native.getPos(); if (p) full += '\n📍 ' + mapsLink(p); }
+        closeSheet();
+        const n = await ctx.quickSend(full, { sms });
+        toast(n ? `Inviato a ${n} ${n === 1 ? 'chat' : 'chat'}` : 'Nessuna chat a cui inviarlo');
+        return true;
+      }
+      case 'fa': closeSheet(); t.dataset.k ? sheetFAItem(t.dataset.k) : sheetFA(); return true;
+      case 'fa-list': sheetFA(); return true;
+      case 'cpr': cpr(); return true;
+      case 'stopwatch': stopwatch(); return true;
+      case 'note-time': { const e = $('#noted'); if (e) e.textContent = 'Sintomi iniziati alle ' + new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) + ': dillo al 112.'; native.haptic('light'); return true; }
+      case 'em': closeSheet(); t.dataset.k ? sheetEMItem(t.dataset.k) : sheetEM(); return true;
+      case 'em-list': sheetEM(); return true;
+      case 'photo': photoProof(); return true;
+      case 'proof-share': if (lastProof && !(await native.shareImages([lastProof.url], lastProof.text))) toast('Condivisione non disponibile'); return true;
+      case 'proof-diary': sheetDiaryNew(lastProof ? lastProof.text + '\n' : ''); return true;
+      case 'record': recordProof(); return true;
+      case 'rec-stop': recordStop(); return true;
+      case 'rec-cancel': closeOv(); toast('Registrazione annullata'); return true;
+      case 'audio-share': if (lastAudio && !(await native.shareBlob(lastAudio.blob, lastAudio.name, 'Registrazione Vicina'))) toast('Condivisione non disponibile'); return true;
+      case 'diary': closeSheet(); sheetDiary(); return true;
+      case 'diary-new': sheetDiaryNew(); return true;
+      case 'diary-here': { const p = await native.getPos(); const i = $('#dy-place'); if (p && i) i.value = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`; else toast('Posizione non disponibile'); return true; }
+      case 'diary-save': {
+        const text = ($('#dy-text')?.value || '').trim(); if (!text) return toast('Scrivi cosa è successo'), true;
+        const at = Date.parse($('#dy-at').value) || Date.now(), l = diary();
+        l.push({ id: Date.now().toString(36), at, place: ($('#dy-place').value || '').trim(), text });
+        ls.set(DK(), JSON.stringify(l)); toast('Episodio salvato'); sheetDiary(); return true;
+      }
+      case 'diary-del': { ls.set(DK(), JSON.stringify(diary().filter(e => e.id !== t.dataset.id))); sheetDiary(); toast('Episodio eliminato'); return true; }
+      case 'diary-export': {
+        const p = profile() || {};
+        const txt = `DIARIO EPISODI – ${p.name || ''} ${p.surname || ''}\nEsportato il ${new Date().toLocaleString('it-IT')}\n\n` + diary().sort((a, b) => a.at - b.at).map((e, i) => `${i + 1}. ${new Date(e.at).toLocaleString('it-IT')}${e.place ? ' – ' + e.place : ''}\n${e.text}`).join('\n\n');
+        await native.share({ title: 'Diario episodi', text: txt }); return true;
+      }
+      case 'compass': compass(); return true;
     }
     return false;
   }
   // scelta nei pulsanti «choice» dei fogli
   document.addEventListener('click', e => {
-    const b = e.target.closest('#wk-min button, #fk-when button, #md-blood button'); if (!b) return;
+    const b = e.target.closest('#wk-min button, #fk-when button, #md-blood button, #sg-lang button'); if (!b) return;
+    if (b.dataset.l) { ls.set('signLang', b.dataset.l); setTimeout(sheetSign, 0); return; }
     b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
   });
 

@@ -164,6 +164,17 @@ export const native = !isNative ? webNative : {
     } catch (e) { console.warn('share foto', e); return /cancel/i.test(e?.message || ''); }
   },
 
+  // Salva o condivide un file (registrazioni): foglio di condivisione → «Salva su File», WhatsApp…
+  async shareBlob(blob, name, text) {
+    try {
+      const data = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ko; r.readAsDataURL(blob); });
+      await Filesystem.writeFile({ path: name, data, directory: Directory.Cache });
+      const { uri } = await Filesystem.getUri({ path: name, directory: Directory.Cache });
+      await Share.share({ text, files: [uri], dialogTitle: text });
+      return true;
+    } catch (e) { console.warn('share file', e); return /cancel/i.test(e?.message || ''); }
+  },
+
   // Nasconde lo splash nativo appena parte l'intro animata (passaggio senza stacchi)
   hideSplash() { SplashScreen.hide({ fadeOutDuration: 120 }).catch(() => {}); },
 

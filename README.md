@@ -237,6 +237,21 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 - **Android**: invariato, aggiornamento con un tocco dentro l'app.
 - Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).
 
+## Chat: «sta scrivendo» con anteprima e spunte di lettura
+
+- Mentre l'altra persona scrive compare una nuvoletta con il testo che si forma lettera per lettera (e i tre puntini); in alto «sta scrivendo…» oppure «online».
+  Chi non vuole mostrare l'anteprima la spegne in Impostazioni → Chat (gli altri vedono solo i puntini).
+- Spunte sotto i tuoi messaggi: una = inviato, due verdi = letto. Sotto l'ultimo messaggio: «Letto alle 09:38» (nei gruppi «Letto da 2 su 3»).
+- **Una volta sola**: Supabase → SQL Editor → incolla `supabase/aggiornamento-chat.sql` → Run (crea la tabella delle letture).
+  Senza questo passaggio anteprima e «online» funzionano lo stesso, ma le spunte si vedono solo se l'altra persona ha la chat aperta.
+
+## Strumenti (19)
+
+Adesso: Sirena · Fischietto di soccorso · «Se lo lasci, suona» (anti-scippo) · Allarme movimento · Luce/SOS luminoso · Finta chiamata · Cartello gigante (IT, EN, ES, FR, DE).
+In giro: Accompagnami · Messaggio rapido alla cerchia (con posizione, anche via SMS) · Dove sono · Bussola.
+Prove: Foto con data, ora e posizione stampate · Registra audio · Diario episodi (esportabile per una denuncia).
+Salute e guide: Primo soccorso (RCP con metronomo 110/min, cronometro crisi, ictus con ora) · Cosa fare se… (seguita/o, aggressione, terremoto, incendio, gas, alluvione, incidente) · Scheda medica · Numeri utili · Assistente.
+
 ## Strumenti di sicurezza
 
 In Home: **Chiama 112 · Accompagnami · Sirena · Strumenti**. Tutto funziona sul telefono, anche offline.

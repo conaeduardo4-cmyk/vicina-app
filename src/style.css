@@ -1024,3 +1024,93 @@ nav button .i{width:19px;height:19px}
 .md-row b{font-size:22px;line-height:1.25}
 .tool-ov.medcard .btn.white{background:#000;color:#fff}
 @media (prefers-reduced-motion: reduce){.tool-ov.siren{animation-duration:1.2s}.cb.green{animation:none}}
+
+/* ===== v9 · chat dal vivo ===== */
+.msg .t{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.tick{display:inline-flex;width:17px;height:11px;opacity:.85}
+.tick svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tick.r{color:#7CFFB2;opacity:1}
+.tick.pop{animation:tickpop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes tickpop{0%{transform:scale(.4)}100%{transform:none}}
+.seen{align-self:flex-end;font-size:11px;color:var(--mute);margin:-4px 4px 0;animation:fade .3s}
+.seen.r{color:var(--green)}
+.msg.pop{animation:msgpop .38s cubic-bezier(.2,1.3,.4,1) both}
+.msg.in.pop{transform-origin:left bottom}.msg.pop:not(.in){transform-origin:right bottom}
+@keyframes msgpop{0%{opacity:0;transform:translateY(10px) scale(.92)}100%{opacity:1;transform:none}}
+/* chi sta scrivendo: anteprima del testo che compare lettera per lettera */
+.msg.typing{display:flex;flex-direction:column;gap:2px;min-width:58px;opacity:.92;border:1px dashed var(--line2);background:var(--s1);animation:msgpop .3s cubic-bezier(.2,1.3,.4,1) both;transition:opacity .18s,transform .18s}
+.msg.typing.out{opacity:0;transform:scale(.9)}
+.msg.typing .tp{display:none;color:var(--sub);font-style:italic}
+.msg.typing.has-t .tp{display:block}
+.msg.typing .tp-t{white-space:pre-wrap;word-break:break-word}
+.msg.typing .caret{display:inline-block;width:2px;height:1em;margin-left:2px;vertical-align:-2px;background:var(--green);animation:blink .9s steps(1) infinite}
+.msg.typing .dots{display:inline-flex;gap:4px;padding:3px 0}
+.msg.typing.has-t .dots{padding:2px 0 0}
+.msg.typing .dots i{width:6px;height:6px;border-radius:50%;background:var(--sub);animation:tdot 1.2s infinite ease-in-out}
+.msg.typing.has-t .dots i{width:4px;height:4px}
+.msg.typing .dots i:nth-child(2){animation-delay:.15s}.msg.typing .dots i:nth-child(3){animation-delay:.3s}
+@keyframes tdot{0%,60%,100%{transform:none;opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+#t-sub{transition:color .2s}
+#t-sub.live{color:var(--green)}
+
+/* ===== v9 · altri strumenti ===== */
+.back-link{display:inline-flex;align-items:center;gap:4px;color:var(--sub);font-size:13px;font-weight:600;margin:4px 0 6px}
+.back-link .i{width:15px;height:15px}
+.steps-list{margin:12px 0 14px;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:8px}
+.steps-list li{counter-increment:s;position:relative;padding:10px 12px 10px 42px;border-radius:14px;background:var(--s1);border:1px solid var(--line);font-size:14.5px;line-height:1.42}
+.steps-list li::before{content:counter(s);position:absolute;left:11px;top:10px;width:22px;height:22px;border-radius:50%;background:var(--s3);display:grid;place-items:center;font-size:12px;font-weight:800}
+.steps-list b{color:#fff}
+.call-now{margin:8px 0 0;width:auto!important}
+.em-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.em-tools .btn{flex:1}
+.quick-list,.sign-list{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.quick-opt,.sign-opt{text-align:left;padding:12px 14px;border-radius:14px;background:var(--s1);border:1px solid var(--line);color:var(--ink);font-size:14.5px;font-weight:600}
+.quick-opt.on{border-color:var(--green);background:var(--greenbg)}
+.sign-opt{font-weight:800;letter-spacing:.01em}
+#sg-lang{margin-top:12px}
+.proof-img{width:100%;border-radius:16px;margin:12px 0;border:1px solid var(--line)}
+.proof-audio{width:100%;margin:14px 0}
+.diary-list{margin:12px 0}
+.diary-row{align-items:flex-start}.diary-row .fl span{white-space:pre-wrap!important;overflow:visible!important}
+textarea{width:100%;resize:vertical;font:inherit;color:var(--ink);background:var(--s1);border:1px solid var(--line2);border-radius:14px;padding:12px 14px;min-height:110px}
+/* cartello gigante */
+.tool-ov.sign{background:#FFD60A;color:#000;padding:calc(var(--sat) + 16px) 16px calc(var(--sab) + 16px)}
+.tool-ov.sign.alt{background:#E8192C;color:#fff}
+.sign-big{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;line-height:1.02;letter-spacing:-.02em;overflow:hidden;word-break:break-word}
+.sign-acts{display:flex;gap:8px}
+.tool-ov.sign .btn.ghost{background:rgba(0,0,0,.1);color:inherit;border-color:rgba(0,0,0,.2)}
+/* fischietto */
+.tool-ov.whistle{background:radial-gradient(100% 60% at 50% 35%,#3A2A00,#000);justify-content:space-between}
+.tool-ov.whistle .sr-in span{max-width:300px;text-align:center;line-height:1.4;font-weight:600;color:#E9D9A8}
+.tool-ov.whistle .sr-in b{font-size:40px;color:var(--amber)}
+.tool-ov.whistle .sr-in b .i{width:40px;height:40px}
+/* allarme «se lo lasci» / movimento */
+.tool-ov.dms{background:radial-gradient(110% 70% at 50% 40%,#16161C,#000);justify-content:space-between}
+.dms-in{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
+.dms-t{margin:0;font-size:20px;font-weight:800;display:flex;align-items:center;gap:10px}
+.dms-n{font-size:44px;color:var(--red2);font-variant-numeric:tabular-nums}
+.dms-pad{width:220px;height:220px;border-radius:50%;background:var(--s2);border:2px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--ink);font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none;transition:background .2s,border-color .2s,transform .2s}
+.dms-pad .i{width:46px;height:46px}
+.dms-sub{margin:0;color:var(--sub);font-size:14px;line-height:1.45;max-width:300px}
+.tool-ov.armed .dms-pad{background:rgba(61,220,132,.16);border-color:var(--green);color:var(--green);box-shadow:0 0 0 14px rgba(61,220,132,.07)}
+.tool-ov.fired{animation:sirenbg .5s steps(1) infinite}
+.tool-ov.fired .dms-pad{background:#000;border-color:#fff;color:#fff}
+.tool-ov.fired .dms-sub,.tool-ov.fired .dms-t{color:inherit}
+/* metronomo RCP, cronometro, registrazione, bussola */
+.tool-ov.cpr,.tool-ov.rec,.tool-ov.compass{justify-content:space-between}
+.cpr-in,.cmp-in{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
+.cpr-eye{margin:0;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--red2)}
+.cpr-eye .i{width:16px;height:16px}
+.cpr-dot{width:150px;height:150px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(232,25,44,.5)}
+.cpr-dot.go{animation:cprbeat .5s ease-out}
+@keyframes cprbeat{0%{transform:scale(1.12);box-shadow:0 0 0 0 rgba(232,25,44,.6)}100%{transform:scale(.92);box-shadow:0 0 0 30px rgba(232,25,44,0)}}
+.cpr-n{font-size:64px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.cpr-s{color:var(--sub);font-size:15px;max-width:300px;line-height:1.4}
+.tool-ov.late .cpr-n{color:var(--red2)}
+.rec-dot{width:26px;height:26px;border-radius:50%;background:var(--red2);animation:blink 1s infinite}
+.cmp-rose{position:relative;width:230px;height:230px;border-radius:50%;border:2px solid var(--line2);background:radial-gradient(circle,var(--s2),var(--s1));transition:transform .15s linear}
+.cmp-rose span{position:absolute;font-weight:900;font-size:20px}
+.cmp-rose .n{top:10px;left:50%;transform:translateX(-50%);color:var(--red2)}.cmp-rose .s{bottom:10px;left:50%;transform:translateX(-50%)}
+.cmp-rose .e{right:14px;top:50%;transform:translateY(-50%)}.cmp-rose .w{left:14px;top:50%;transform:translateY(-50%)}
+.cmp-rose i{position:absolute;left:50%;top:22%;width:6px;height:56%;margin-left:-3px;border-radius:3px;background:linear-gradient(var(--red2) 50%,#fff 50%)}
+.cmp-in::before{content:'';width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:16px solid #fff;margin-bottom:-12px}
+.cmp-ll{margin:0;color:var(--sub);font-variant-numeric:tabular-nums}

@@ -36,7 +36,7 @@ export function boot(api, native) {
   };
   let unwatch = null, chatUn = {}, curSheet = null, linksLoaded = false;
   const seen = JSON.parse(ls.get('seenChats') || '{}');
-  const prefs = Object.assign({ live: true, voice: true }, (() => { try { return JSON.parse(ls.get('prefs') || '{}'); } catch { return {}; } })());
+  const prefs = Object.assign({ live: true, voice: true, typingPreview: true }, (() => { try { return JSON.parse(ls.get('prefs') || '{}'); } catch { return {}; } })());
   const savePrefs = () => ls.set('prefs', JSON.stringify(prefs));
   // versione dell'app (scritta da GitHub durante la compilazione) e stato degli aggiornamenti
   // (accessi scritti per esteso: Vite li sostituisce con i valori veri durante la compilazione)
@@ -120,6 +120,7 @@ export function boot(api, native) {
   let curScreen = 's-load';
   function show(id, how) {
     const prev = curScreen; curScreen = id;
+    if (prev === 's-thread' && id !== 's-thread') closeLive();
     $$('.screen').forEach(s => s.classList.toggle('on', s.id === id));
     $('#nav').hidden = !$('#' + id).classList.contains('tabbed') && id !== 's-active';
     $$('#nav button').forEach(b => b.classList.toggle('on', TABS[b.dataset.tab] === id || (id === 's-active' && b.dataset.tab === 'home')));
@@ -626,35 +627,125 @@ export function boot(api, native) {
         : `<div class="empty"><i class="ic-dot violet">${I('chat')}</i><b>Nessuna conversazione</b>Quando aggiungi qualcuno alla tua cerchia, la chat compare qui.<button class="btn" data-a="add">Aggiungi persona</button></div>`);
   }
   const nameIn = (cid, uid) => st.groups.find(g => g.id === cid)?.members.find(m => m.uid === uid)?.name || '';
-  function msgHtml(cid, m) {
-    const mine = m.from === st.uid, t = `<div class="t">${hhmm(m.at)}</div>`;
+  // spunte: una = inviato, due verdi = letto
+  const TICK1 = '<svg viewBox="0 0 16 12"><path d="M1.5 6.5l3.2 3.2L11 3"/></svg>', TICK2 = '<svg viewBox="0 0 20 12"><path d="M1.5 6.5l3.2 3.2L11 3"/><path d="M8 9.2l.5.5L15 3"/></svg>';
+  const readers = (cid, at) => Object.entries(cl.reads).filter(([u, t]) => u !== st.uid && t >= at).length;
+  const others = cid => { const g = st.groups.find(x => x.id === cid); return g ? Math.max(1, g.members.filter(m => m.uid !== st.uid).length) : 1; };
+  const isRead = (cid, m) => readers(cid, m.at) >= others(cid);
+  function msgHtml(cid, m, cls = '') {
+    const mine = m.from === st.uid;
+    const tick = mine && m.type === 'text' ? `<span class="tick ${isRead(cid, m) ? 'r' : ''}" data-at="${m.at}">${isRead(cid, m) ? TICK2 : TICK1}</span>` : '';
+    const t = `<div class="t">${hhmm(m.at)}${tick}</div>`;
     if (m.type === 'sos') {
       const sosLive = st.sosIn.find(s => s.id === m.sosId) || (st.sosMine?.id === m.sosId ? st.sosMine : null);
       const photos = sosLive?.photos || m.photos, audio = sosLive?.audio || m.audio;
-      return `<div class="msg sos ${mine ? 'mine' : ''}"><div class="sosh">${I('alert')}SOS ${mine ? 'inviato da te' : 'da ' + esc(m.fromName)}</div>Ho bisogno di aiuto e non riesco a scrivere. Ecco dove sono e cosa ho intorno. Chiamami o raggiungimi.${audio ? `<div class="voice-in sm">${I('mic')}<audio controls preload="none" data-p="${esc(audio)}"></audio></div>` : ''}${photoGrid(photos)}${m.lat != null ? `<button class="maplink" data-a="map-focus" data-id="${m.sosId}" data-lat="${m.lat}" data-lng="${m.lng}">${I('pin')}<div class="fl"><b>Vedi sulla mappa</b></div></button>` : `<p class="note">Posizione non disponibile</p>`}${t}</div>`;
+      return `<div class="msg sos ${mine ? 'mine' : ''} ${cls}"><div class="sosh">${I('alert')}SOS ${mine ? 'inviato da te' : 'da ' + esc(m.fromName)}</div>Ho bisogno di aiuto e non riesco a scrivere. Ecco dove sono e cosa ho intorno. Chiamami o raggiungimi.${audio ? `<div class="voice-in sm">${I('mic')}<audio controls preload="none" data-p="${esc(audio)}"></audio></div>` : ''}${photoGrid(photos)}${m.lat != null ? `<button class="maplink" data-a="map-focus" data-id="${m.sosId}" data-lat="${m.lat}" data-lng="${m.lng}">${I('pin')}<div class="fl"><b>Vedi sulla mappa</b></div></button>` : `<p class="note">Posizione non disponibile</p>`}${t}</div>`;
     }
-    if (m.type === 'safe') return `<div class="msg safe">${I('check')} <b>${mine ? 'Hai' : esc(m.fromName) + ' ha'}</b> chiuso l'SOS: ${mine ? 'sei' : 'è'} al sicuro. ${hhmm(m.at)}</div>`;
+    if (m.type === 'safe') return `<div class="msg safe ${cls}">${I('check')} <b>${mine ? 'Hai' : esc(m.fromName) + ' ha'}</b> chiuso l'SOS: ${mine ? 'sei' : 'è'} al sicuro. ${hhmm(m.at)}</div>`;
     const who = !mine && cid && st.groups.some(g => g.id === cid) ? `<span class="who">${esc(nameIn(cid, m.from) || 'Ex membro')}</span>` : '';
-    return `<div class="msg ${mine ? '' : 'in'}">${who}${esc(m.text)}${t}</div>`;
+    return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}${esc(m.text)}${t}</div>`;
+  }
+  /* chat dal vivo: chi scrive (con anteprima), chi è online, letture */
+  const cl = { h: null, id: null, typing: {}, reads: {}, online: [], sentAt: 0, readSent: 0, count: 0, tmr: null };
+  function closeLive() {
+    try { cl.h?.typing(''); cl.h?.close(); } catch {}
+    clearInterval(cl.tmr); Object.assign(cl, { h: null, id: null, typing: {}, online: [], count: 0 });
+  }
+  function openLive(id) {
+    closeLive();
+    cl.id = id;
+    try { cl.reads = JSON.parse(ls.get('reads:' + id) || '{}'); } catch { cl.reads = {}; }
+    api.getReads?.(id).then(r => { if (cl.id !== id) return; for (const u in r) cl.reads[u] = Math.max(cl.reads[u] || 0, r[u]); saveReads(); updTicks(); }).catch(() => {});
+    if (!api.chatLive) return;
+    cl.h = api.chatLive(id, { uid: st.uid, name: st.p?.name || '' }, {
+      typing: p => { if (cl.id !== id) return; if (p.text) cl.typing[p.uid] = { name: p.name, text: p.text.trim(), at: Date.now() }; else delete cl.typing[p.uid]; rTyping(); rTSub(); },
+      read: p => { if (cl.id !== id) return; cl.reads[p.uid] = Math.max(cl.reads[p.uid] || 0, p.at || Date.now()); saveReads(); updTicks(); },
+      presence: l => { if (cl.id !== id) return; cl.online = l; rTSub(); }
+    });
+    cl.tmr = setInterval(() => {   // chi ha smesso di scrivere da 6 s sparisce
+      let ch = false; for (const u in cl.typing) if (Date.now() - cl.typing[u].at > 6000) { delete cl.typing[u]; ch = true; }
+      if (ch) { rTyping(); rTSub(); }
+    }, 1500);
+  }
+  const saveReads = () => { if (cl.id) ls.set('reads:' + cl.id, JSON.stringify(cl.reads)); };
+  function updTicks() {
+    const box = $('#msgs'); if (!box) return;
+    box.querySelectorAll('.tick').forEach(e => { const r = isRead(cl.id, { at: Number(e.dataset.at) }); if (r !== e.classList.contains('r')) { e.classList.toggle('r', r); e.innerHTML = r ? TICK2 : TICK1; e.classList.add('pop'); } });
+    rSeen();
+  }
+  function rSeen() {   // «Letto alle 09:31» sotto il tuo ultimo messaggio
+    const box = $('#msgs'); if (!box) return; box.querySelector('.seen')?.remove();
+    const l = st.threads[cl.id] || [], last = l[l.length - 1];
+    if (!last || last.from !== st.uid || last.type !== 'text') return;
+    const g = st.groups.find(x => x.id === cl.id), n = readers(cl.id, last.at);
+    const txt = g ? (n ? `Letto da ${n} su ${others(cl.id)}` : 'Inviato') : (n ? `Letto alle ${hhmm(Math.max(...Object.entries(cl.reads).filter(([u]) => u !== st.uid).map(([, t]) => t)))}` : 'Inviato');
+    const e = document.createElement('div'); e.className = 'seen' + (n ? ' r' : ''); e.textContent = txt;
+    const ty = box.querySelector('#typing-b'); ty ? box.insertBefore(e, ty) : box.appendChild(e);
+  }
+  function rTyping() {
+    const box = $('#msgs'); if (!box) return;
+    const ws = Object.values(cl.typing);
+    let b = box.querySelector('#typing-b');
+    if (!ws.length) { if (b) { b.classList.add('out'); setTimeout(() => b.remove(), 180); } return; }
+    const w = ws[ws.length - 1], g = st.groups.some(x => x.id === cl.id);
+    const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+    if (!b || b.classList.contains('out')) { b?.remove(); b = document.createElement('div'); b.id = 'typing-b'; b.className = 'msg in typing'; b.innerHTML = `<span class="who"></span><span class="tp"><span class="tp-t"></span><i class="caret"></i></span><span class="dots"><i></i><i></i><i></i></span>`; box.appendChild(b); }
+    b.querySelector('.who').textContent = g || ws.length > 1 ? (ws.length > 1 ? ws.map(x => x.name).join(', ') : w.name) : '';
+    b.querySelector('.who').hidden = !(g || ws.length > 1);
+    b.querySelector('.tp-t').textContent = w.text;
+    b.classList.toggle('has-t', !!w.text);
+    if (near) box.scrollTop = 1e9;
+  }
+  function rTSub() {
+    const c = convs().find(x => x.id === cl.id), el = $('#t-sub'); if (!c || !el) return;
+    const ws = Object.values(cl.typing);
+    el.classList.toggle('live', !!ws.length || !!cl.online.length);
+    el.textContent = ws.length ? (st.groups.some(x => x.id === cl.id) ? ws.map(x => x.name).join(', ') + ' sta scrivendo…' : 'sta scrivendo…')
+      : cl.online.length ? (c.k === 'g' ? cl.online.length + ' online' : 'online')
+      : c.k === 'g' ? c.members.map(m => m.name.split(' ')[0]).join(', ') : c.sub;
   }
   function openThread(id) {
     const c = convs().find(x => x.id === id); if (!c) return;
     st.open = id; show('s-thread', 'in-push');
-    $('#t-name').textContent = c.name; $('#t-sub').textContent = c.k === 'g' ? c.members.map(m => m.name.split(' ')[0]).join(', ') : c.sub;
-    $('#t-av').innerHTML = AV(c.name, c.k, 'sm'); rThread();
+    $('#t-name').textContent = c.name;
+    $('#t-av').innerHTML = AV(c.name, c.k, 'sm');
+    openLive(id); rTSub(); rThread();
   }
   function rThread() {
     const id = st.open; if (!id) return;
-    const l = st.threads[id] || [], box = $('#msgs');
-    box.innerHTML = l.length ? l.map(m => msgHtml(id, m)).join('') : `<div class="empty"><b>Ancora nessun messaggio</b>Qui arriveranno anche gli SOS.</div>`;
+    const l = st.threads[id] || [], box = $('#msgs'), prevN = cl.id === id ? cl.count : l.length;
+    const fresh = l.length - prevN;
+    box.innerHTML = l.length ? l.map((m, i) => msgHtml(id, m, fresh > 0 && i >= l.length - fresh ? 'pop' : '')).join('') : `<div class="empty"><b>Ancora nessun messaggio</b>Qui arriveranno anche gli SOS.</div>`;
+    cl.count = l.length;
+    // se è arrivato un messaggio di chi stava scrivendo, il suo «sta scrivendo» sparisce
+    if (fresh > 0) l.slice(-fresh).forEach(m => delete cl.typing[m.from]);
+    rSeen(); rTyping(); rTSub();
     box.scrollTop = 1e9; hydrate(box);
-    if (l.length) { seen[id] = l[l.length - 1].at; ls.set('seenChats', JSON.stringify(seen)); rBadge(); }
+    if (l.length) {
+      seen[id] = l[l.length - 1].at; ls.set('seenChats', JSON.stringify(seen)); rBadge();
+      const lastIn = [...l].reverse().find(m => m.from !== st.uid);
+      if (lastIn && lastIn.at > cl.readSent && document.visibilityState === 'visible' && curScreen === 's-thread') {
+        cl.readSent = Date.now(); api.markRead?.(id); cl.h?.read(Date.now());
+      }
+    }
   }
   async function sendText() {
     const v = $('#txt').value.trim(); if (!v || !st.open) return; $('#txt').value = '';
+    cl.h?.typing(''); cl.sentAt = 0;
     try { await api.sendText(st.open, st.uid, v); } catch (e) { $('#txt').value = v; toast(errMsg(e)); }
   }
   $('#txt').onkeydown = e => { if (e.key === 'Enter') sendText(); };
+  // mentre scrivi: gli altri vedono «sta scrivendo» e (se vuoi) l'anteprima del testo
+  let typT = null;
+  $('#txt').addEventListener('input', () => {
+    if (!cl.h) return;
+    const v = $('#txt').value, send = () => { cl.sentAt = Date.now(); cl.h?.typing(prefs.typingPreview === false ? (v.trim() ? ' ' : '') : v); };
+    clearTimeout(typT);
+    if (!v.trim()) { cl.h.typing(''); cl.sentAt = 0; return; }
+    if (Date.now() - cl.sentAt > 220) send(); else typT = setTimeout(send, 220);
+  });
+  $('#txt').addEventListener('blur', () => { if (cl.h && !$('#txt').value.trim()) cl.h.typing(''); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && curScreen === 's-thread') rThread(); });
   function syncChats() {
     const ids = new Set(convs().map(c => c.id));
     for (const id of ids) if (!chatUn[id]) chatUn[id] = api.watchChat(id, msgs => {
@@ -744,6 +835,9 @@ export function boot(api, native) {
         ${toggleRow('shake', 'alert', 'violet', 'Scuoti per SOS', 'Scuoti forte il telefono: dopo 5 secondi parte l\'SOS (con l\'app aperta)')}
         ${toggleRow('quiet', 'eye', 'gray', 'SOS discreto', 'Niente vibrazioni e flash mentre l\'SOS parte')}
       </div>
+      <div class="label">Chat</div><div class="card">
+        ${toggleRow('typingPreview', 'chat', 'green', 'Anteprima mentre scrivi', 'Chi è in chat con te vede cosa stai scrivendo prima che lo invii')}
+      </div>
       <div class="label">Strumenti</div><div class="card">
         <button class="row" data-a="med"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Scheda medica</b><span>Gruppo sanguigno, allergie, farmaci</span></div>${I('chev', 'chev')}</button>
         <button class="row" data-a="tools"><i class="ic-dot blue">${I('shield')}</i><div class="fl"><b>Tutti gli strumenti</b><span>Accompagnami, sirena, finta chiamata…</span></div>${I('chev', 'chev')}</button>
@@ -770,6 +864,7 @@ export function boot(api, native) {
     prefs[k] = e.target.checked; savePrefs(); native.haptic('light');
     if (k === 'voice') toast(prefs.voice ? 'Messaggio vocale attivo' : 'Messaggio vocale disattivato');
     else if (k === 'quiet') toast(prefs.quiet ? 'SOS discreto attivo' : 'SOS discreto disattivato');
+    else if (k === 'typingPreview') toast(prefs.typingPreview ? 'Gli altri vedono l\'anteprima mentre scrivi' : 'Gli altri vedono solo «sta scrivendo…»');
     else tools.prefChanged(k, prefs[k], e.target);
   });
   const sheetPerms = () => openSheet(`<h2>Permessi</h2><p class="sub">Servono perché l'SOS parta subito, senza richieste.</p><div class="card" style="margin-top:14px">${permRows()}</div>
@@ -973,7 +1068,15 @@ export function boot(api, native) {
   tools = createTools({
     $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs, hhmm, mapsLink, wait,
     sos: () => { if (st.sosMine) { tab('home'); return toast('Il tuo SOS è già attivo'); } trigger(); },
-    canSos: () => !!st.uid && canSos(), male: () => G() === GG.m, uid: () => st.uid, profile: () => st.p
+    canSos: () => !!st.uid && canSos(), male: () => G() === GG.m, uid: () => st.uid, profile: () => st.p,
+    hasSms: () => smsOn().length > 0,
+    // messaggio rapido: in tutte le chat della cerchia (e via SMS se richiesto)
+    async quickSend(text, { sms } = {}) {
+      let n = 0;
+      for (const c of convs()) { try { await api.sendText(c.id, st.uid, text); n++; } catch (e) { console.warn('rapido', e); } }
+      if (sms && smsOn().length) { await smsDeliver(text, { auto: true }); n += smsOn().length; }
+      return n;
+    }
   });
   document.addEventListener('click', async e => {
     const t = e.target.closest('[data-a]'); if (!t) return;

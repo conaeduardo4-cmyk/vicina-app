@@ -130,6 +130,11 @@ export const webNative = {
     if (navigator.canShare?.({ files })) { try { await navigator.share({ files, text }); return true; } catch (e) { return e?.name !== 'AbortError' ? false : true; } }
     return false;
   },
+  async shareBlob(blob, name, text) {
+    const file = new File([blob], name, { type: blob.type });
+    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], text }); return true; } catch (e) { return e?.name === 'AbortError'; } }
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name }); document.body.appendChild(a); a.click(); a.remove(); return true;
+  },
   startRecording,
   snap
 };
