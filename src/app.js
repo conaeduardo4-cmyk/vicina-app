@@ -1,11 +1,5 @@
 // Vicina – interfaccia. Non importa nulla da npm: riceve "api" (server) e "native" (telefono) da main.js / demo.js.
 import { TERMS_VERSION, TERMS_DATE, TERMS_KEY, TERMS_SECTIONS } from './terms.js';
-import { createTools } from './tools.js';
-import { createExtra } from './tools-extra.js';
-import { createMore } from './tools-more.js';
-import { createMore2 } from './tools-more2.js';
-import { createDisguise } from './disguise.js';
-import { qrSvg, openScanner, inviteLink, parseInvite } from './qr.js';
 export function boot(api, native) {
   /* ================= utilità ================= */
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -18,8 +12,6 @@ export function boot(api, native) {
     ? `<div class="av ${cls}" style="background:linear-gradient(145deg,#9C8CFF,#5B4BD6)">${I('group')}</div>`
     : `<div class="av ${cls}" style="background:${col(n)}">${esc(initials(n))}</div>`;
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  let tools = null, extra = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
-  const dz = createDisguise({ native, api });
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   const hhmm = ms => ms ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
   const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'adesso' : m < 60 ? `${m} min fa` : `${Math.floor(m / 60)} h fa`; };
@@ -42,7 +34,7 @@ export function boot(api, native) {
   };
   let unwatch = null, chatUn = {}, curSheet = null, linksLoaded = false;
   const seen = JSON.parse(ls.get('seenChats') || '{}');
-  const prefs = Object.assign({ live: true, voice: true, typingPreview: true }, (() => { try { return JSON.parse(ls.get('prefs') || '{}'); } catch { return {}; } })());
+  const prefs = Object.assign({ live: true, voice: true }, (() => { try { return JSON.parse(ls.get('prefs') || '{}'); } catch { return {}; } })());
   const savePrefs = () => ls.set('prefs', JSON.stringify(prefs));
   // versione dell'app (scritta da GitHub durante la compilazione) e stato degli aggiornamenti
   // (accessi scritti per esteso: Vite li sostituisce con i valori veri durante la compilazione)
@@ -78,11 +70,9 @@ export function boot(api, native) {
   const mapsLink = p => `https://maps.google.com/?q=${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
   function smsText(pos, links) {
     const me = `${st.p?.name || ''} ${st.p?.surname || ''}`.trim() || 'Una persona';
-    const L = [prefs.disguise ? `Messaggio da ${me} (Vicina): ho bisogno di te, chiamami subito.` : `SOS da ${me}: ha bisogno di aiuto. Ti ha scelto come contatto di emergenza (app Vicina).`];
+    const L = [`SOS da ${me}: ha bisogno di aiuto. Ti ha scelto come contatto di emergenza (app Vicina).`];
     L.push(pos ? `Posizione alle ${hhmm(Date.now())} (±${Math.max(5, Math.round(pos.acc || 0))} m): ${mapsLink(pos)}` : 'Posizione non disponibile.');
     if (links?.length) L.push('Foto: ' + links.join(' '));
-    { const md = tools?.medicalLine(); if (md) L.push(md); }
-    { const bl = extra?.batteryLine(); if (bl) L.push(bl); }
     if (st.p?.phone) L.push('Chiama: ' + st.p.phone);
     L.push('Se non risponde chiama il 112.');
     return L.join('\n');
@@ -107,38 +97,26 @@ export function boot(api, native) {
     const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) { box.remove(); native.hideSplash(); return { done() {} }; }
     const base = 'intro/' + (window.innerHeight >= window.innerWidth ? 'intro-9x16' : 'intro-16x9');
-    // il video resta invisibile finché non mostra davvero dei fotogrammi: niente «player vuoto» su Android
-    let playing = false;
-    const fallback = () => {                       // il video non parte: resta l'animazione di riserva e poi si entra
-      if (playing || finished) return;
-      box.classList.add('fb-only'); native.hideSplash();
-      try { v.pause(); v.removeAttribute('src'); v.innerHTML = ''; v.load(); } catch {}
-      setTimeout(() => done(false), 1500);
-    };
     v.innerHTML = `<source src="${base}.mp4" type="video/mp4"><source src="${base}.webm" type="video/webm">`;
-    v.lastElementChild.addEventListener('error', fallback);
-    v.addEventListener('error', fallback);
-    const shown = () => { if (playing || finished) return; playing = true; box.classList.add('vid-on'); native.hideSplash(); };
-    v.addEventListener('playing', () => { if (v.currentTime > 0 || v.readyState >= 3) shown(); else setTimeout(shown, 120); }, { once: true });
-    v.addEventListener('timeupdate', () => { if (v.currentTime > 0.05) shown(); });
+    v.lastElementChild.addEventListener('error', () => done(true));
+    v.addEventListener('error', () => done(true));
+    v.addEventListener('playing', () => native.hideSplash(), { once: true });
     v.addEventListener('ended', () => done(false));
     box.addEventListener('click', () => done(true));
-    native.hideSplash();                            // lo splash nativo lascia subito il posto all'animazione di riserva
     v.load();
-    const pl = v.play(); if (pl && pl.catch) pl.catch(fallback);
-    setTimeout(() => { if (!playing) fallback(); }, 1600);   // non parte in fretta: animazione di riserva
-    setTimeout(() => done(false), 8000);                      // limite massimo
+    const pl = v.play(); if (pl && pl.catch) pl.catch(() => done(true));
+    setTimeout(() => { if (v.readyState < 2) done(true); }, 2500);   // non parte: si entra subito
+    setTimeout(() => done(false), 8000);                              // limite massimo
     return { done };
   })();
 
   /* ================= navigazione ================= */
-  const TABS = { home: 's-home', map: 's-map', tools: 's-tools', chat: 's-chat', circle: 's-circle', me: 's-me' };
+  const TABS = { home: 's-home', map: 's-map', chat: 's-chat', circle: 's-circle', me: 's-me' };
   // Transizioni: le schede scorrono di lato nell'ordine della barra, le schermate interne entrano da destra ed escono a sinistra.
-  const ORDER = ['s-home', 's-map', 's-tools', 's-chat', 's-circle', 's-me'];
+  const ORDER = ['s-home', 's-map', 's-chat', 's-circle', 's-me'];
   let curScreen = 's-load';
   function show(id, how) {
     const prev = curScreen; curScreen = id;
-    if (prev === 's-thread' && id !== 's-thread') closeLive();
     $$('.screen').forEach(s => s.classList.toggle('on', s.id === id));
     $('#nav').hidden = !$('#' + id).classList.contains('tabbed') && id !== 's-active';
     $$('#nav button').forEach(b => b.classList.toggle('on', TABS[b.dataset.tab] === id || (id === 's-active' && b.dataset.tab === 'home')));
@@ -152,7 +130,6 @@ export function boot(api, native) {
     st.tab = t; st.open = null;
     if (t === 'home' && st.sosMine) { rActive(); return show('s-active', how); }
     show(TABS[t], how); render();
-    if (t === 'tools') { const r = $('#tl-root'); if (!r.dataset.n || Number(r.dataset.n) !== tools.count()) r.dataset.n = tools.renderScreen(r); }
     if (t === 'map') openMapTab(); else closeMapTab();
     if (t === 'home') setTimeout(() => homeApi?.resize(), 80);
   }
@@ -230,13 +207,12 @@ export function boot(api, native) {
   function rHome() {
     if (!st.p) return;
     $('#h-name').textContent = 'Ciao, ' + st.p.name;
-    { const n0 = recipients().size + smsOn().length, e = $('#h-eye'); if (e) { e.textContent = n0 ? `Sei ${G().prot} · ${n0} ${n0 === 1 ? 'persona' : 'persone'}` : 'Aggiungi qualcuno alla cerchia'; e.classList.toggle('ok', !!n0); } }
     $('#h-av').innerHTML = AV(st.p.name + ' ' + st.p.surname);
     const n = recipients().size + smsOn().length;
     $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
     $('#sos-wrap').classList.toggle('off', !n);
     $('#sos-hint').textContent = n ? 'Tieni premuto' : 'Aggiungi qualcuno';
-    homeMap(); tools?.rWalk();
+    homeMap();
   }
 
   /* ================= SOS: pressione prolungata ================= */
@@ -299,13 +275,13 @@ export function boot(api, native) {
         try {
           res = await api.call('sendSos', { sosId, lat: pos?.lat ?? null, lng: pos?.lng ?? null, acc: pos?.acc ?? null, live: true });
           if (res.liveUntil) startLive(sosId, res.liveUntil);
-          stp(2, 'done'); if (!prefs.quiet) native.vibrate([80, 60, 80]);
+          stp(2, 'done'); native.vibrate([80, 60, 80]);
         } catch (e) { stp(2, 'fail'); srvErr = e; if (!sms.length) throw e; }
       }
       for (const [n, facing, file] of [[3, 'environment', 'back'], [4, 'user', 'front']]) {
         stp(n, 'run'); const img = await native.snap(facing);
         if (img) {
-          imgs.push(img); if (!prefs.quiet) $('#flash').classList.add('go');
+          imgs.push(img); $('#flash').classList.add('go');
           const path = `sos/${st.uid}/${sosId}/${file}.jpg`;
           try {
             await api.uploadPhoto(path, img);
@@ -317,7 +293,6 @@ export function boot(api, native) {
         } else stp(n, 'fail');
       }
       Object.assign(lastSms, { links, imgs });
-      if (res && prefs.autoAudio) autoAudio(sosId);
       if (sms.length) {
         if (autoSms) { if (links.length) { const r = await smsDeliver('Aggiornamento con le foto.\n' + smsText(pos, links)); stp(5, r === 'sent' ? 'done' : 'wait'); } else stp(5, 'done'); }
         else { stp(5, 'wait'); await wait(500); end(); await smsDeliver(smsText(pos, links), { auto: false }); }
@@ -331,29 +306,6 @@ export function boot(api, native) {
       end(); console.warn(e);
       dialog({ title: 'Invio non riuscito', text: errMsg(e) + ' Se sei in pericolo chiama subito il 112.', ok: 'Chiama 112', cancel: 'Chiudi' }).then(ok => ok && (location.href = 'tel:112'));
     }
-  }
-
-  // registra da solo 30 secondi di audio dopo l'SOS e lo allega come vocale (se attivato nelle impostazioni)
-  async function autoAudio(sosId) {
-    let rec; try { rec = await native.startRecording(); } catch { return; }
-    toast('Registro 30 secondi di audio per la tua cerchia');
-    await wait(30000);
-    const out = await rec.stop().catch(() => null);
-    if (!out?.blob?.size || voice.sentFor === sosId) return;
-    const path = `sos/${st.uid}/${sosId}/voice.${out.ext}`;
-    try { await api.uploadAudio(path, out.blob, out.mime); await api.call('attachSosAudio', { sosId, path }); voice.sentFor = sosId; if (st.sosMine) rActive(); toast('Audio inviato alla cerchia'); }
-    catch (e) { console.warn('audio automatico', e); }
-  }
-
-  // prova dell'SOS: stessa animazione, ma non parte niente
-  async function simulateSos() {
-    if (sending) return;
-    $('#st2').hidden = false; $('#st5').hidden = !smsOn().length; STEPS.forEach(n => stp(n, ''));
-    const ov = $('#ov-send'); ov.classList.add('on', 'demo'); $('#send-cancel').hidden = false; $('#send-cancel').onclick = () => { ov.classList.remove('on', 'demo'); };
-    const seq = [1, 2, 3, 4].concat(smsOn().length ? [5] : []);
-    for (const n of seq) { if (!ov.classList.contains('on')) return; stp(n, 'run'); await wait(700); stp(n, 'done'); await wait(250); }
-    await wait(900); ov.classList.remove('on', 'demo');
-    dialog({ title: 'Era solo una prova', text: 'Non è stato inviato niente a nessuno. Quando serve davvero tieni premuto il tasto SOS per 1,5 secondi, oppure usa il widget o la scorciatoia.', ok: 'Ho capito', cancel: 'Chiudi' });
   }
 
   /* ================= SOS attivo (mio) ================= */
@@ -660,7 +612,7 @@ export function boot(api, native) {
     const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n;
     const hb = $('#h-badge'); if (hb) { hb.hidden = !n; hb.textContent = n > 9 ? '9+' : n; }
   }
-  const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw">${esc(m.text)}</span>`;
+  const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : esc(m.text);
   function rChats() {
     const cs = convs().map(c => ({ ...c, last: (st.threads[c.id] || []).slice(-1)[0] })).sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
     const live = st.sosIn.filter(s => Date.now() - s.at < 12 * 36e5);
@@ -671,140 +623,39 @@ export function boot(api, native) {
         : `<div class="empty"><i class="ic-dot violet">${I('chat')}</i><b>Nessuna conversazione</b>Quando aggiungi qualcuno alla tua cerchia, la chat compare qui.<button class="btn" data-a="add">Aggiungi persona</button></div>`);
   }
   const nameIn = (cid, uid) => st.groups.find(g => g.id === cid)?.members.find(m => m.uid === uid)?.name || '';
-  // spunte: una = inviato, due verdi = letto
-  const TICK1 = '<svg viewBox="0 0 16 12"><path d="M1.5 6.5l3.2 3.2L11 3"/></svg>', TICK2 = '<svg viewBox="0 0 20 12"><path d="M1.5 6.5l3.2 3.2L11 3"/><path d="M8 9.2l.5.5L15 3"/></svg>';
-  const readers = (cid, at) => Object.entries(cl.reads).filter(([u, t]) => u !== st.uid && t >= at).length;
-  const others = cid => { const g = st.groups.find(x => x.id === cid); return g ? Math.max(1, g.members.filter(m => m.uid !== st.uid).length) : 1; };
-  const isRead = (cid, m) => readers(cid, m.at) >= others(cid);
-  function msgHtml(cid, m, cls = '') {
-    const mine = m.from === st.uid;
-    const tick = mine && m.type === 'text' ? `<span class="tick ${isRead(cid, m) ? 'r' : ''}" data-at="${m.at}">${isRead(cid, m) ? TICK2 : TICK1}</span>` : '';
-    const t = `<div class="t">${hhmm(m.at)}${tick}</div>`;
+  function msgHtml(cid, m) {
+    const mine = m.from === st.uid, t = `<div class="t">${hhmm(m.at)}</div>`;
     if (m.type === 'sos') {
       const sosLive = st.sosIn.find(s => s.id === m.sosId) || (st.sosMine?.id === m.sosId ? st.sosMine : null);
       const photos = sosLive?.photos || m.photos, audio = sosLive?.audio || m.audio;
-      return `<div class="msg sos ${mine ? 'mine' : ''} ${cls}"><div class="sosh">${I('alert')}SOS ${mine ? 'inviato da te' : 'da ' + esc(m.fromName)}</div>Ho bisogno di aiuto e non riesco a scrivere. Ecco dove sono e cosa ho intorno. Chiamami o raggiungimi.${audio ? `<div class="voice-in sm">${I('mic')}<audio controls preload="none" data-p="${esc(audio)}"></audio></div>` : ''}${photoGrid(photos)}${m.lat != null ? `<button class="maplink" data-a="map-focus" data-id="${m.sosId}" data-lat="${m.lat}" data-lng="${m.lng}">${I('pin')}<div class="fl"><b>Vedi sulla mappa</b></div></button>` : `<p class="note">Posizione non disponibile</p>`}${t}</div>`;
+      return `<div class="msg sos ${mine ? 'mine' : ''}"><div class="sosh">${I('alert')}SOS ${mine ? 'inviato da te' : 'da ' + esc(m.fromName)}</div>Ho bisogno di aiuto e non riesco a scrivere. Ecco dove sono e cosa ho intorno. Chiamami o raggiungimi.${audio ? `<div class="voice-in sm">${I('mic')}<audio controls preload="none" data-p="${esc(audio)}"></audio></div>` : ''}${photoGrid(photos)}${m.lat != null ? `<button class="maplink" data-a="map-focus" data-id="${m.sosId}" data-lat="${m.lat}" data-lng="${m.lng}">${I('pin')}<div class="fl"><b>Vedi sulla mappa</b></div></button>` : `<p class="note">Posizione non disponibile</p>`}${t}</div>`;
     }
-    if (m.type === 'safe') return `<div class="msg safe ${cls}">${I('check')} <b>${mine ? 'Hai' : esc(m.fromName) + ' ha'}</b> chiuso l'SOS: ${mine ? 'sei' : 'è'} al sicuro. ${hhmm(m.at)}</div>`;
+    if (m.type === 'safe') return `<div class="msg safe">${I('check')} <b>${mine ? 'Hai' : esc(m.fromName) + ' ha'}</b> chiuso l'SOS: ${mine ? 'sei' : 'è'} al sicuro. ${hhmm(m.at)}</div>`;
     const who = !mine && cid && st.groups.some(g => g.id === cid) ? `<span class="who">${esc(nameIn(cid, m.from) || 'Ex membro')}</span>` : '';
-    return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<span class="raw">${esc(m.text)}</span>${t}</div>`;
-  }
-  /* chat dal vivo: chi scrive (con anteprima), chi è online, letture */
-  const cl = { h: null, id: null, typing: {}, reads: {}, online: [], sentAt: 0, readSent: 0, count: 0, tmr: null };
-  function closeLive() {
-    try { cl.h?.typing(''); cl.h?.close(); } catch {}
-    clearInterval(cl.tmr); Object.assign(cl, { h: null, id: null, typing: {}, online: [], count: 0 });
-  }
-  function openLive(id) {
-    closeLive();
-    cl.id = id;
-    try { cl.reads = JSON.parse(ls.get('reads:' + id) || '{}'); } catch { cl.reads = {}; }
-    api.getReads?.(id).then(r => { if (cl.id !== id) return; for (const u in r) cl.reads[u] = Math.max(cl.reads[u] || 0, r[u]); saveReads(); updTicks(); }).catch(() => {});
-    if (!api.chatLive) return;
-    cl.h = api.chatLive(id, { uid: st.uid, name: st.p?.name || '' }, {
-      typing: p => { if (cl.id !== id) return; if (p.text) cl.typing[p.uid] = { name: p.name, text: p.text.trim(), at: Date.now() }; else delete cl.typing[p.uid]; rTyping(); rTSub(); },
-      read: p => { if (cl.id !== id) return; cl.reads[p.uid] = Math.max(cl.reads[p.uid] || 0, p.at || Date.now()); saveReads(); updTicks(); },
-      presence: l => { if (cl.id !== id) return; cl.online = l; rTSub(); }
-    });
-    cl.tmr = setInterval(() => {   // chi ha smesso di scrivere da 6 s sparisce
-      let ch = false; for (const u in cl.typing) if (Date.now() - cl.typing[u].at > 6000) { delete cl.typing[u]; ch = true; }
-      if (ch) { rTyping(); rTSub(); }
-    }, 1500);
-  }
-  const saveReads = () => { if (cl.id) ls.set('reads:' + cl.id, JSON.stringify(cl.reads)); };
-  function updTicks() {
-    const box = $('#msgs'); if (!box) return;
-    box.querySelectorAll('.tick').forEach(e => { const r = isRead(cl.id, { at: Number(e.dataset.at) }); if (r !== e.classList.contains('r')) { e.classList.toggle('r', r); e.innerHTML = r ? TICK2 : TICK1; e.classList.add('pop'); } });
-    rSeen();
-  }
-  function rSeen() {   // «Letto alle 09:31» sotto il tuo ultimo messaggio
-    const box = $('#msgs'); if (!box) return; box.querySelector('.seen')?.remove();
-    const l = st.threads[cl.id] || [], last = l[l.length - 1];
-    if (!last || last.from !== st.uid || last.type !== 'text') return;
-    const g = st.groups.find(x => x.id === cl.id), n = readers(cl.id, last.at);
-    const txt = g ? (n ? `Letto da ${n} su ${others(cl.id)}` : 'Inviato') : (n ? `Letto alle ${hhmm(Math.max(...Object.entries(cl.reads).filter(([u]) => u !== st.uid).map(([, t]) => t)))}` : 'Inviato');
-    const e = document.createElement('div'); e.className = 'seen' + (n ? ' r' : ''); e.textContent = txt;
-    const ty = box.querySelector('#typing-b'); ty ? box.insertBefore(e, ty) : box.appendChild(e);
-  }
-  function rTyping() {
-    const box = $('#msgs'); if (!box) return;
-    const ws = Object.values(cl.typing);
-    let b = box.querySelector('#typing-b');
-    if (!ws.length) { if (b) { b.classList.add('out'); setTimeout(() => b.remove(), 180); } return; }
-    const w = ws[ws.length - 1], g = st.groups.some(x => x.id === cl.id);
-    const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
-    if (!b || b.classList.contains('out')) { b?.remove(); b = document.createElement('div'); b.id = 'typing-b'; b.className = 'msg in typing'; b.innerHTML = `<span class="who"></span><span class="tp"><span class="tp-t raw"></span><i class="caret"></i></span><span class="dots"><i></i><i></i><i></i></span>`; box.appendChild(b); }
-    b.querySelector('.who').textContent = g || ws.length > 1 ? (ws.length > 1 ? ws.map(x => x.name).join(', ') : w.name) : '';
-    b.querySelector('.who').hidden = !(g || ws.length > 1);
-    b.querySelector('.tp-t').textContent = w.text;
-    b.classList.toggle('has-t', !!w.text);
-    if (near) box.scrollTop = 1e9;
-  }
-  function rTSub() {
-    const c = convs().find(x => x.id === cl.id), el = $('#t-sub'); if (!c || !el) return;
-    const ws = Object.values(cl.typing);
-    el.classList.toggle('live', !!ws.length || !!cl.online.length);
-    el.textContent = ws.length ? (st.groups.some(x => x.id === cl.id) ? ws.map(x => x.name).join(', ') + ' sta scrivendo…' : 'sta scrivendo…')
-      : cl.online.length ? (c.k === 'g' ? cl.online.length + ' online' : 'online')
-      : c.k === 'g' ? c.members.map(m => m.name.split(' ')[0]).join(', ') : c.sub;
+    return `<div class="msg ${mine ? '' : 'in'}">${who}${esc(m.text)}${t}</div>`;
   }
   function openThread(id) {
     const c = convs().find(x => x.id === id); if (!c) return;
     st.open = id; show('s-thread', 'in-push');
-    $('#t-name').textContent = c.name;
-    $('#t-av').innerHTML = AV(c.name, c.k, 'sm');
-    openLive(id); rTSub(); rThread();
+    $('#t-name').textContent = c.name; $('#t-sub').textContent = c.k === 'g' ? c.members.map(m => m.name.split(' ')[0]).join(', ') : c.sub;
+    $('#t-av').innerHTML = AV(c.name, c.k, 'sm'); rThread();
   }
   function rThread() {
     const id = st.open; if (!id) return;
-    const l = st.threads[id] || [], box = $('#msgs'), prevN = cl.id === id ? cl.count : l.length;
-    const fresh = l.length - prevN;
-    box.innerHTML = l.length ? l.map((m, i) => msgHtml(id, m, fresh > 0 && i >= l.length - fresh ? 'pop' : '')).join('') : `<div class="empty"><b>Ancora nessun messaggio</b>Qui arriveranno anche gli SOS.</div>`;
-    cl.count = l.length;
-    // se è arrivato un messaggio di chi stava scrivendo, il suo «sta scrivendo» sparisce
-    if (fresh > 0) l.slice(-fresh).forEach(m => delete cl.typing[m.from]);
-    rSeen(); rTyping(); rTSub();
+    const l = st.threads[id] || [], box = $('#msgs');
+    box.innerHTML = l.length ? l.map(m => msgHtml(id, m)).join('') : `<div class="empty"><b>Ancora nessun messaggio</b>Qui arriveranno anche gli SOS.</div>`;
     box.scrollTop = 1e9; hydrate(box);
-    if (l.length) {
-      seen[id] = l[l.length - 1].at; ls.set('seenChats', JSON.stringify(seen)); rBadge();
-      const lastIn = [...l].reverse().find(m => m.from !== st.uid);
-      if (lastIn && lastIn.at > cl.readSent && document.visibilityState === 'visible' && curScreen === 's-thread') {
-        cl.readSent = Date.now(); api.markRead?.(id); cl.h?.read(Date.now());
-      }
-    }
+    if (l.length) { seen[id] = l[l.length - 1].at; ls.set('seenChats', JSON.stringify(seen)); rBadge(); }
   }
   async function sendText() {
     const v = $('#txt').value.trim(); if (!v || !st.open) return; $('#txt').value = '';
-    cl.h?.typing(''); cl.sentAt = 0;
     try { await api.sendText(st.open, st.uid, v); } catch (e) { $('#txt').value = v; toast(errMsg(e)); }
   }
   $('#txt').onkeydown = e => { if (e.key === 'Enter') sendText(); };
-  // mentre scrivi: gli altri vedono «sta scrivendo» e (se vuoi) l'anteprima del testo
-  let typT = null;
-  $('#txt').addEventListener('input', () => {
-    if (!cl.h) return;
-    const v = $('#txt').value, send = () => { cl.sentAt = Date.now(); cl.h?.typing(prefs.typingPreview === false ? (v.trim() ? ' ' : '') : v); };
-    clearTimeout(typT);
-    if (!v.trim()) { cl.h.typing(''); cl.sentAt = 0; return; }
-    if (Date.now() - cl.sentAt > 220) send(); else typT = setTimeout(send, 220);
-  });
-  $('#txt').addEventListener('blur', () => { if (cl.h && !$('#txt').value.trim()) cl.h.typing(''); });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && curScreen === 's-thread') rThread(); });
-  // «Codice rosso» ricevuto da qualcuno della cerchia: avviso a tutto schermo con vibrazione
-  function redCodeCheck(cid, msgs) {
-    const m = [...msgs].reverse().find(x => x.from !== st.uid && x.type === 'text' && /^🔴 CODICE ROSSO/.test(x.text || '') && Date.now() - x.at < 15 * 60000);
-    if (!m || ls.get('rc:' + m.id)) return;
-    ls.set('rc:' + m.id, '1');
-    const who = m.fromName || convs().find(c => c.id === cid)?.name || 'Qualcuno';
-    native.vibrate([500, 200, 500, 200, 800]);
-    dialog({ title: `🔴 Codice rosso da ${who}`, text: 'Ti chiede di chiamarlo subito: non può parlare liberamente. Chiama e fai finta di niente, oppure se non risponde chiama il 112.', ok: 'Apri la chat', cancel: 'Chiudi' })
-      .then(ok => ok && (closeSheet(), openThread(cid)));
-  }
   function syncChats() {
     const ids = new Set(convs().map(c => c.id));
     for (const id of ids) if (!chatUn[id]) chatUn[id] = api.watchChat(id, msgs => {
       st.threads[id] = msgs; if (st.open === id) rThread(); rChats(); rBadge();
-      redCodeCheck(id, msgs);
     });
     for (const id in chatUn) if (!ids.has(id)) { chatUn[id](); delete chatUn[id]; delete st.threads[id]; }
   }
@@ -840,7 +691,7 @@ export function boot(api, native) {
     const smsRow = c => `<div class="row sms-row"><button class="sms-who" data-a="sms-edit" data-id="${c.id}">${AV(c.name)}<div class="fl"><b>${esc(c.name)}</b><span>${esc(c.phone)}</span></div></button><input type="checkbox" class="switch" data-sms="${c.id}" ${c.on ? 'checked' : ''} aria-label="Avvisa ${esc(c.name)} ad SOS"></div>`;
     const smsBlock = `<div class="label">Senza app · via SMS · ${sl.length}</div><div class="card">${sl.map(smsRow).join('')}<button class="row add" data-a="sms-add"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>Aggiungi contatto</b><span>Basta il numero: riceve posizione e foto via SMS</span></div></button></div>`;
     $('#p-list').innerHTML = status + how + body + smsBlock
-      + `<div class="circle-acts"><button class="btn" data-a="invite" data-k="friend">${I('qr')}Il mio QR</button><button class="btn ghost" data-a="qr-scan">${I('camera')}Scansiona QR</button></div>
+      + `<div class="circle-acts"><button class="btn" data-a="add">${I('plus')}Invita qualcuno</button><button class="btn ghost" data-a="code">${I('key')}Ho un codice</button></div>
         <p class="note">L'SOS arriva a tutte le persone qui sopra, ai gruppi attivi e ai contatti SMS con la spunta.</p>`;
   }
   // contatto senza app: aggiungi / modifica
@@ -869,9 +720,8 @@ export function boot(api, native) {
     if (c.on) smsPermCheck();
   });
   const addOptions = () => `
-    <button class="opt opt-qr" data-a="qr-scan"><i class="ic-dot red">${I('qr')}</i><div class="fl"><b>Scansiona un QR</b><span>Apri la fotocamera e inquadra il QR dell'altra persona</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="invite" data-k="partner"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Invita il partner</b><span>Genera un codice da condividere</span></div>${I('chev', 'chev')}</button>
-    <button class="opt" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('user')}</i><div class="fl"><b>Mostra il mio QR</b><span>Per farti aggiungere da ${G().amico}: QR o codice da condividere</span></div>${I('chev', 'chev')}</button>
+    <button class="opt" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('user')}</i><div class="fl"><b>Invita ${G().amico}</b><span>Genera un codice da condividere</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="newgroup"><i class="ic-dot blue">${I('group')}</i><div class="fl"><b>Crea un gruppo</b><span>Fino a 8 persone, approvi tu chi entra</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="sms-add"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>Contatto senza app</b><span>Riceve l'SOS via SMS, basta il numero</span></div>${I('chev', 'chev')}</button>
     <button class="opt" data-a="code"><i class="ic-dot gray">${I('key')}</i><div class="fl"><b>Ho ricevuto un codice</b><span>Collegati a una persona o a un gruppo</span></div>${I('chev', 'chev')}</button>`;
@@ -888,19 +738,6 @@ export function boot(api, native) {
       <div class="label">SOS</div><div class="card">
         <div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Sempre attiva dopo l'SOS, finché non tocchi «Sono al sicuro»</span></div></div>
         ${toggleRow('voice', 'mic', 'amber', 'Messaggio vocale', 'Dopo l\'SOS puoi registrarne uno (facoltativo)')}
-        ${toggleRow('shake', 'alert', 'violet', 'Scuoti per SOS', 'Scuoti forte il telefono: dopo 5 secondi parte l\'SOS (con l\'app aperta)')}
-        ${toggleRow('quiet', 'eye', 'gray', 'SOS discreto', 'Niente vibrazioni e flash mentre l\'SOS parte')}
-        ${toggleRow('autoAudio', 'mic', 'red', 'Registra audio dopo l\'SOS', 'Dopo le foto registra 30 secondi di quello che succede intorno e lo manda alla cerchia')}
-      </div>
-      <div class="label">Privacy</div><div class="card">
-        ${toggleRow('disguise', 'eye', 'blue', prefs.disguise ? 'Tema celeste' : 'Anonimizza l\'app', prefs.disguise ? 'Attivo: icona e colori celesti. Spegnilo per tornare al tema normale' : 'Icona celeste, colori blu e nessuna parola «SOS»: se qualcuno guarda il telefono non capisce a cosa serve')}
-      </div>
-      <div class="label">Chat</div><div class="card">
-        ${toggleRow('typingPreview', 'chat', 'green', 'Anteprima mentre scrivi', 'Chi è in chat con te vede cosa stai scrivendo prima che lo invii')}
-      </div>
-      <div class="label">Strumenti</div><div class="card">
-        <button class="row" data-a="med"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Scheda medica</b><span>Gruppo sanguigno, allergie, farmaci</span></div>${I('chev', 'chev')}</button>
-        <button class="row" data-a="tools"><i class="ic-dot blue">${I('shield')}</i><div class="fl"><b>Tutti gli strumenti</b><span>Accompagnami, sirena, finta chiamata…</span></div>${I('chev', 'chev')}</button>
       </div>
       <div class="label">Aiuto</div><div class="card">
         <button class="row" data-a="guide"><i class="ic-dot violet">${I('book')}</i><div class="fl"><b>Guida rapida</b><span>5 passi interattivi, 1 minuto</span></div>${I('chev', 'chev')}</button>
@@ -922,23 +759,17 @@ export function boot(api, native) {
   $('#m-body').addEventListener('change', e => {
     const k = e.target.dataset.pref; if (!k) return;
     prefs[k] = e.target.checked; savePrefs(); native.haptic('light');
-    if (k === 'voice') toast(prefs.voice ? 'Messaggio vocale attivo' : 'Messaggio vocale disattivato');
-    else if (k === 'autoAudio') toast(prefs.autoAudio ? 'Dopo l\'SOS registrerò 30 secondi di audio' : 'Audio automatico spento');
-    else if (k === 'quiet') toast(prefs.quiet ? 'SOS discreto attivo' : 'SOS discreto disattivato');
-    else if (k === 'disguise') setDisguise(prefs[k], e.target);
-    else if (k === 'typingPreview') toast(prefs.typingPreview ? 'Gli altri vedono l\'anteprima mentre scrivi' : 'Gli altri vedono solo «sta scrivendo…»');
-    else tools.prefChanged(k, prefs[k], e.target);
+    toast(prefs.voice ? 'Messaggio vocale attivo' : 'Messaggio vocale disattivato');
   });
   const sheetPerms = () => openSheet(`<h2>Permessi</h2><p class="sub">Servono perché l'SOS parta subito, senza richieste.</p><div class="card" style="margin-top:14px">${permRows()}</div>
     <button class="btn" data-a="perms">Attiva quelli mancanti</button>`, 'perms');
 
   /* ================= guida rapida interattiva ================= */
   const GUIDE = [
-    { t: 'Tieni premuto per 1,5 secondi', d: 'Provalo qui: è solo una prova, non parte nessun allarme. Puoi far partire l\'SOS anche dal widget sulla Home, dall\'icona o scuotendo il telefono.', demo: 'hold' },
-    { t: 'Cosa ricevono', d: 'La tua cerchia vede subito chi sei, dove sei (anche in tempo reale) e le due foto. Se vuoi, l\'app registra da sola 30 secondi di audio.', demo: 'recv' },
-    { t: 'Chi avvisi', d: 'Partner, amici e gruppi con l\'app. Ma puoi aggiungere anche chi non ce l\'ha: riceve tutto via SMS. Ci si collega con un codice di 6 caratteri, solo se siete d\'accordo entrambi.', demo: 'circle' },
-    { t: 'Gli strumenti', d: 'Oltre all\'SOS ci sono 40 strumenti: Accompagnami, Portami a casa, Luoghi sicuri, Sirena, Finta chiamata, Primo soccorso e molto altro. Quasi tutti funzionano anche senza internet.', demo: 'tools' },
-    { t: 'Se qualcuno guarda il telefono', d: 'Nelle impostazioni puoi anonimizzare l\'app: icona e colori celesti, nessuna scritta «SOS». Sembra un\'app qualsiasi, ma funziona tutto uguale.', demo: 'anon' },
+    { t: 'Tieni premuto per 1,5 secondi', d: 'Provalo qui: è solo una prova, non parte nessun allarme.', demo: 'hold' },
+    { t: 'Cosa ricevono', d: 'La tua cerchia vede subito chi sei, dove sei (anche in tempo reale) e le due foto.', demo: 'recv' },
+    { t: 'Posizione live e vocale', d: 'Dopo l\'SOS la tua posizione si aggiorna da sola finché non tocchi «Sono al sicuro». Se vuoi, registri un vocale che sente tutta la cerchia.', demo: 'opts' },
+    { t: 'La tua cerchia', d: 'Partner, amici e gruppi. Ci si collega con un codice di 6 caratteri, solo se siete d\'accordo entrambi.', demo: 'circle' },
     { t: 'Quando è finita', d: 'Tocca "Sono al sicuro": tutti ricevono la notizia e l\'SOS si chiude.', demo: 'safe' }
   ];
   let gi = 0;
@@ -952,8 +783,6 @@ export function boot(api, native) {
     if (k === 'recv') return `<div class="g-recv"><div class="g-alert"><div class="g-alert-h">${I('alert')}<b>Giulia ha bisogno di aiuto</b></div><div class="g-li"><span class="live-badge"><i class="dot"></i>LIVE</span>Via Roma 12 · aggiornata 5 s fa</div><div class="g-li">${I('mic')}Messaggio vocale · 0:08</div><div class="g-ph"><i></i><i></i></div></div></div>`;
     if (k === 'opts') return `<div class="card g-opts"><div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Fino a «Sono al sicuro»</span></div></div>${toggleRow('voice', 'mic', 'amber', 'Messaggio vocale', 'Facoltativo')}</div>`;
     if (k === 'circle') return `<div class="g-circle"><div class="code"><b>K7P2QX</b><span>Codice di esempio · vale 10 minuti</span></div><button class="btn" data-a="add">${I('plus')}Aggiungi qualcuno ora</button></div>`;
-    if (k === 'tools') return `<div class="g-tools"><span>${I('shield')}Accompagnami</span><span>${I('pin')}Portami a casa</span><span>${I('bell')}Sirena</span><span>${I('phone')}Finta chiamata</span><span>${I('heart')}Primo soccorso</span><span>${I('spark')}Torcia</span></div>`;
-    if (k === 'anon') return `<div class="g-anon"><div class="g-anon-ic">${I('eye')}</div><div class="g-anon-tiles"><i></i><i></i><i></i><i></i></div><p>Tocca «Anonimizza l'app» in Impostazioni</p></div>`;
     return `<div class="g-safe"><button class="btn green" id="g-safe-btn">${I('check')}Sono al sicuro</button><p class="sub" id="g-safe-t">Prova a toccarlo</p></div>`;
   }
   function guideGo(i) {
@@ -1003,8 +832,7 @@ export function boot(api, native) {
   let inviteTimer;
   async function sheetInvite(kind) {
     if (kind === 'partner' && partner()) return toast('Hai già un partner collegato');
-    openSheet(`<h2>${kind === 'partner' ? 'Invita il partner' : 'Invita ' + G().amico}</h2><p class="sub">Fai scansionare questo QR con Vicina (Cerchia → Scansiona QR) o con la fotocamera del telefono. Oppure condividi il codice.</p>
-      <div class="qr-box" id="inv-qr"><div class="qr-ph"></div></div>
+    openSheet(`<h2>${kind === 'partner' ? 'Invita il partner' : 'Invita ' + G().amico}</h2><p class="sub">Condividi questo codice. Quando la persona lo inserisce nella sua app, siete collegati.</p>
       <div class="code"><b id="inv-code">······</b><span id="inv-exp">Genero il codice…</span></div>
       <div class="row2"><button class="btn ghost" data-a="inv-copy">${I('copy')}Copia</button><button class="btn" data-a="inv-share">${I('share')}Condividi</button></div>
       <div class="or">oppure inserisci il suo</div>
@@ -1014,25 +842,10 @@ export function boot(api, native) {
       const r = await api.call('createInvite', { kind });
       if (curSheet !== 'invite') return;
       $('#inv-code').textContent = r.code; const exp = r.expiresAt || Date.now() + 6e5;
-      qrSvg(inviteLink(r.code)).then(svg => { const b = $('#inv-qr'); if (b && curSheet === 'invite') { b.innerHTML = svg; b.classList.add('ready'); } }).catch(e => console.warn('qr', e));
       const tick = () => { const s = Math.max(0, Math.round((exp - Date.now()) / 1000)); const e = $('#inv-exp'); if (!e) return clearInterval(inviteTimer);
         e.textContent = s ? `Valido ancora ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : 'Scaduto: chiudi e riapri per un nuovo codice'; if (!s) clearInterval(inviteTimer); };
       clearInterval(inviteTimer); tick(); inviteTimer = setInterval(tick, 1000);
     } catch (e) { $('#inv-exp') && ($('#inv-exp').textContent = errMsg(e)); }
-  }
-  /* ---------- collegarsi con un codice o un QR ---------- */
-  let justRedeemed = 0;
-  async function redeemCode(c) {
-    justRedeemed = Date.now();
-    try {
-      const r = await api.call('redeemInvite', { code: c }); closeSheet(); native.haptic('medium');
-      if (st.setup === 3 && $('#s-setup').classList.contains('on')) setup(3);
-      if (r.kind === 'group') toast(`Richiesta inviata a "${r.name}": attendi l'approvazione`);
-      else dialog({ title: `Collegat${st.p?.gender === 'm' ? 'o' : 'a'} con ${r.name}`, text: `Ora ${r.name} è nella tua cerchia e riceve i tuoi SOS (e tu i suoi). Le abbiamo mandato una conferma.`, ok: 'Perfetto', cancel: 'Chiudi' });
-    } catch (e) { justRedeemed = 0; toast(errMsg(e)); }
-  }
-  function scanQr() {
-    openScanner({ onCode: code => redeemCode(code), onManual: () => { sheetCode(); setTimeout(() => $('#code-in')?.focus(), 300); } });
   }
   const sheetCode = () => openSheet(`<h2>Inserisci un codice</h2><p class="sub">Funziona sia per le persone sia per i gruppi. Per i gruppi l'admin dovrà approvarti.</p>
     <label class="field"><input id="code-in" class="codein" maxlength="6" placeholder="ABC123" autocapitalize="characters" autocomplete="off"></label>
@@ -1058,7 +871,6 @@ export function boot(api, native) {
       ${g.admin ? `<button class="btn danger" data-a="delgroup" data-id="${id}">Elimina gruppo</button>` : `<button class="btn danger" data-a="leave" data-id="${id}">Esci dal gruppo</button>`}`, 'group:' + id);
   }
   $('#sheet').addEventListener('change', async e => {
-    if (e.target.dataset.pref) { const k = e.target.dataset.pref; prefs[k] = e.target.checked; savePrefs(); native.haptic('light'); tools.prefChanged(k, prefs[k], e.target); rMe(); return; }
     const id = e.target.dataset.mute; if (!id) return;
     try { await api.setMuted(st.uid, id, !e.target.checked); } catch (x) { toast(errMsg(x)); e.target.checked = !e.target.checked; }
   });
@@ -1145,76 +957,11 @@ export function boot(api, native) {
   }
   $('#ai-txt').onkeydown = e => { if (e.key === 'Enter') sendAI($('#ai-txt').value); };
 
-  // messaggio rapido: in tutte le chat della cerchia (e via SMS se richiesto)
-  async function quickSendAll(text, { sms } = {}) {
-    let n = 0;
-    for (const c of convs()) { try { await api.sendText(c.id, st.uid, text); n++; } catch (e) { console.warn('rapido', e); } }
-    if (sms && smsOn().length) { await smsDeliver(text, { auto: true }); n += smsOn().length; }
-    return n;
-  }
   /* ================= azioni (delegazione) ================= */
-  tools = createTools({
-    $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs, hhmm, mapsLink, wait,
-    sos: () => { if (st.sosMine) { tab('home'); toast('Il tuo SOS è già attivo'); return Promise.resolve(); } return trigger(); },
-    canSos: () => !!st.uid && canSos(), male: () => G() === GG.m, uid: () => st.uid, profile: () => st.p,
-    showTools: () => tab('tools'),
-    hasSms: () => smsOn().length > 0,
-    quickSend: (t, o) => quickSendAll(t, o)
-  });
-  extra = createExtra({
-    $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs, hhmm, mapsLink, uid: () => st.uid, profile: () => st.p,
-    smsList: () => smsList(),
-    quickSend: (t, o) => quickSendAll(t, o),
-    confirm: (title, text, ok) => dialog({ title, text, ok, cancel: 'No' }),
-    async status() { let perm = {}; try { perm = await native.permState(); } catch {} return { perm, circle: recipients().size + smsOn().length, sms: smsOn().length, phone: st.p?.phone || '' }; }
-  }, tools);
-  tools.setExtra(extra);
-  tools.setExtra(createMore({
-    $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid, profile: () => st.p,
-    smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o), simulate: () => simulateSos()
-  }, tools, extra));
-  tools.setExtra(createMore2({
-    $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid,
-    smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o)
-  }, tools, extra));
-
-  /* ================= link vicina:// (scorciatoie, widget, Comandi) ================= */
-  let pendingLink = null, pendingAdd = null, lastLink = { u: '', t: 0 };
-  native.vx?.onUrl?.(url => {
-    if (!/^vicina:/i.test(url || '')) return;
-    if (url === lastLink.u && Date.now() - lastLink.t < 4000) return;
-    lastLink = { u: url, t: Date.now() };
-    const addCode = /^vicina:\/\/add\//i.test(url) ? parseInvite(url) : null;
-    if (addCode) {
-      const go = () => dialog({ title: 'Collegarti con questa persona?', text: `Hai aperto un invito di Vicina (codice ${addCode}). Se confermi entrate nella stessa cerchia.`, ok: 'Collegami', cancel: 'No' }).then(ok => ok && redeemCode(addCode));
-      if (st.uid && st.p) go(); else pendingAdd = go;
-      return;
-    }
-    if (st.uid && st.p && curScreen !== 's-load' && !curScreen.startsWith('s-setup')) extra.handleUrl(url); else pendingLink = url;
-  });
-  const shortcutItems = () => prefs.disguise
-    ? [{ id: 'sos', title: 'Segnale', url: 'vicina://sos', icon: 'circle.fill' }, { id: 'siren', title: 'Suono', url: 'vicina://siren', icon: 'speaker.wave.2.fill' }, { id: 'walk', title: 'Percorso', url: 'vicina://walk', icon: 'map' }, { id: 'fake', title: 'Chiamata', url: 'vicina://fake', icon: 'phone' }]
-    : [{ id: 'sos', title: 'SOS', sub: '5 secondi per annullare', url: 'vicina://sos', icon: 'exclamationmark.triangle.fill' }, { id: 'siren', title: 'Sirena', url: 'vicina://siren', icon: 'speaker.wave.3.fill' }, { id: 'walk', title: 'Accompagnami', url: 'vicina://walk', icon: 'figure.walk' }, { id: 'fake', title: 'Finta chiamata', url: 'vicina://fake', icon: 'phone.fill' }];
-  native.vx?.setShortcuts?.(shortcutItems());
-
-  /* ================= modalità anonima ================= */
-  async function setDisguise(on, input) {
-    if (on) {
-      const ok = await dialog({ title: 'Anonimizzare Vicina?', text: `L'icona diventa una nuvoletta celeste, i colori diventano blu e spariscono le parole «SOS», «allarme» e simili, anche dalle notifiche. Tutte le funzioni restano uguali. ${native.platform === 'ios' ? 'iPhone ti mostrerà un avviso sul cambio di icona.' : 'Su Android l\'icona sulla schermata Home può sparire per un attimo: se serve, rimettila dall\'elenco delle app.'}`, ok: 'Anonimizza', cancel: 'Annulla' });
-      if (!ok) { prefs.disguise = false; savePrefs(); if (input) input.checked = false; return; }
-    }
-    prefs.disguise = !!on; savePrefs();
-    const r = await dz.apply(on, { fromUser: true });
-    native.vx?.setShortcuts?.(shortcutItems());
-    rMe();
-    if (r?.icon === false && native.vx?.native) setTimeout(() => dz.syncIcon(), 1500);   // iPhone: secondo tentativo per l'icona
-    toast(on ? (r?.icon === false ? 'Fatto. L\'icona si sistema da sola alla prossima apertura' : 'Fatto: Vicina ora è anonima') : (r?.icon === false ? 'Tema normale ripristinato. L\'icona torna normale alla prossima apertura' : 'Tema normale ripristinato'));
-  }
   document.addEventListener('click', async e => {
     const t = e.target.closest('[data-a]'); if (!t) return;
     const a = t.dataset.a, id = t.dataset.id;
     try {
-      if (await tools.handle(a, t)) return;
       switch (a) {
         case 'wel-start': ls.set('seen', '1'); authMode('up'); show('s-auth'); break;
         case 'wel-login': ls.set('seen', '1'); authMode('in'); show('s-auth'); break;
@@ -1298,10 +1045,13 @@ export function boot(api, native) {
         case 'grp-share': { const g = groups().find(x => x.id === id); if (g) await native.share({ title: 'Vicina', text: `Entra nel gruppo "${g.name}" su Vicina con il codice: ${g.code}` }); break; }
         case 'redeem': {
           const c = ($('#code-in').value || '').trim().toUpperCase(); if (!/^[A-Z0-9]{6}$/.test(c)) return toast('Il codice ha 6 caratteri');
-          await busy(t, () => redeemCode(c));
+          await busy(t, async () => {
+            const r = await api.call('redeemInvite', { code: c }); closeSheet(); native.haptic('medium');
+            toast(r.kind === 'group' ? `Richiesta inviata a "${r.name}": attendi l'approvazione` : `Ora sei collegat${st.p.gender === 'm' ? 'o' : 'a'} con ${r.name}`);
+            if (st.setup === 3 && $('#s-setup').classList.contains('on')) setup(3);
+          });
           break;
         }
-        case 'qr-scan': closeSheet(); scanQr(); break;
         case 'mkgroup': {
           const n = $('#g-name').value.trim(); if (!n) return toast('Dai un nome al gruppo');
           await busy(t, async () => {
@@ -1389,14 +1139,7 @@ export function boot(api, native) {
         const before = new Set(st.links.map(l => l.id)), first = !linksLoaded; linksLoaded = true;
         st.links = ls_.map(l => { const o = l.uids.find(x => x !== st.uid); return { id: l.id, kind: l.kind, other: o, otherName: l.names?.[o] || 'Contatto' }; });
         const added = first ? null : st.links.find(l => !before.has(l.id));
-        if (added) {
-          if (curSheet === 'invite') closeSheet();
-          if (Date.now() - justRedeemed > 20000 && !$('#s-setup').classList.contains('on')) {   // chi ha mostrato il QR riceve la conferma (chi ha scansionato l'ha già vista)
-            native.haptic('medium'); native.vibrate([80, 60, 80]);
-            dialog({ title: `${added.otherName} ora è nella tua cerchia`, text: `Ha scansionato il tuo QR (o inserito il tuo codice): adesso siete collegati e vi avvisate a vicenda in caso di SOS.`, ok: 'Va bene', cancel: 'Annulla collegamento' })
-              .then(ok => { if (!ok) api.call('removeLink', { linkId: added.id }).then(() => toast('Collegamento annullato')).catch(e => toast(errMsg(e))); });
-          } else toast('Collegamento riuscito con ' + added.otherName);
-        }
+        if (added && curSheet === 'invite') { closeSheet(); native.haptic('medium'); toast('Collegamento riuscito con ' + added.otherName); }
         syncChats(); render(); refreshSheet(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
       },
       groups: gs => {
@@ -1554,15 +1297,14 @@ export function boot(api, native) {
              <button class="btn red" data-a="upd-ipa-share">${I('share')}Apri con…</button>`
         : `<div class="upd-steps"><b>Su iPhone l’aggiornamento si completa a mano:</b><ol><li>Tocca «Scarica in File»: il file <b>.ipa</b> viene salvato nell'app File.</li><li>Aprilo con SideStore, AltStore o Sideloadly per installarlo.</li></ol></div>
              <button class="btn red" data-a="upd-ipa">${I('share')}Scarica in File</button>`}
-        ${(l.ios.release || l.release || l.ios.page) ? `<button class="btn ghost" data-a="upd-page" data-u="${esc(l.ios.release || l.release || l.ios.page)}">${I('book')}Apri la release ${esc(lastVersion())} su GitHub</button>` : ''}
         ${upd.busy ? '' : `<button class="btn link" data-a="upd-later">Più tardi</button>`}`;
     } else {
-      const page = (ios && (l.ios?.release || l.ios?.page)) || l.release || l.page || '';
+      const page = (ios && l.ios?.page) || l.page || '';
       h = `<h2>Nuova versione disponibile</h2><p class="sub">Vicina <b>${esc(lastVersion())}</b> è pronta. Tu hai la ${esc(c.version)}.</p>${notesHtml(l.notes)}
         <div class="upd-steps"><b>${ios ? 'Su iPhone l’aggiornamento si fa a mano:' : 'Come aggiornare:'}</b>
           <ol>${ios ? `<li>Apri la pagina di download qui sotto.</li><li>Scarica la nuova versione e installala con l'app che hai usato la prima volta (AltStore, SideStore o Sideloadly).</li><li>Si installa sopra quella vecchia: account e cerchia restano.</li>`
                     : `<li>Apri la pagina di download.</li><li>Scarica e installa la nuova versione.</li>`}</ol></div>
-        ${page ? `<button class="btn red" data-a="upd-page" data-u="${esc(page)}">Apri la release ${esc(lastVersion())}</button>` : ''}
+        ${page ? `<button class="btn red" data-a="upd-page" data-u="${esc(page)}">Apri la pagina di download</button>` : ''}
         <button class="btn link" data-a="upd-later">Più tardi</button>`;
     }
     openSheet(h, 'update');
@@ -1611,12 +1353,7 @@ export function boot(api, native) {
     if (!p) { draft = { gender: null }; return setup(1); }
     st.p = pick(p); startData();
     if (ls.get('permAsked')) registerPush();
-    setTimeout(() => { tools.restore(); extra.restore(); }, 600);
-    if (pendingLink) { const u = pendingLink; pendingLink = null; setTimeout(() => extra.handleUrl(u), 1200); }
-    if (pendingAdd) { const f = pendingAdd; pendingAdd = null; setTimeout(f, 1500); }
     if (!ls.get('setup:' + st.uid) && !ls.get('permAsked')) return setup(2);
     tab('home');
   }
-  // tema anonimo salvato: si applica subito, già dalla prima schermata
-  dz.apply(!!prefs.disguise);
 }

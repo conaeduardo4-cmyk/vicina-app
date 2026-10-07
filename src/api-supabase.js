@@ -133,24 +133,6 @@ export function createApi(env) {
     },
     async sendText(id, uid, text) { ok(await sb.from('messages').insert({ chat_id: id, type: 'text', from_uid: uid, text })); },
 
-    // «Sta scrivendo…» con anteprima del testo, chi è online e letture in tempo reale (canale broadcast, niente database)
-    chatLive(id, me, h) {
-      const ch = sb.channel('live-' + id, { config: { broadcast: { self: false }, presence: { key: me.uid } } });
-      ch.on('broadcast', { event: 'typing' }, ({ payload }) => payload?.uid !== me.uid && h.typing?.(payload))
-        .on('broadcast', { event: 'read' }, ({ payload }) => payload?.uid !== me.uid && h.read?.(payload))
-        .on('presence', { event: 'sync' }, () => { try { h.presence?.(Object.keys(ch.presenceState()).filter(k => k !== me.uid)); } catch {} })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_reads', filter: `chat_id=eq.${id}` }, ({ new: r }) => r?.uid && r.uid !== me.uid && h.read?.({ uid: r.uid, at: Date.parse(r.read_at) }))
-        .subscribe(async s => { if (s === 'SUBSCRIBED') { try { await ch.track({ at: Date.now() }); } catch {} } });
-      const send = (event, payload) => ch.send({ type: 'broadcast', event, payload: { uid: me.uid, name: me.name, ...payload } }).catch(() => {});
-      return { typing: text => send('typing', { text: String(text || '').slice(0, 160), at: Date.now() }), read: at => send('read', { at }), close: () => sb.removeChannel(ch) };
-    },
-    async setDiscreet(on) { try { await sb.rpc('set_discreet', { p_on: !!on }); } catch {} },
-    async markRead(id) { try { await sb.rpc('mark_read', { p_chat_id: id }); } catch {} },
-    async getReads(id) {
-      const { data, error } = await sb.from('chat_reads').select('uid, read_at').eq('chat_id', id);
-      return error ? {} : Object.fromEntries(data.map(r => [r.uid, Date.parse(r.read_at)]));
-    },
-
     // Assistente: timeout, un nuovo tentativo automatico sugli errori temporanei, messaggi d'errore chiari.
     async askAI(messages) {
       const once = async () => {

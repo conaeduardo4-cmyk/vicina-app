@@ -20,9 +20,7 @@ export async function createMap(el, { onPick, interactive = true, center = null 
   if (!style) throw Object.assign(new Error('Mappa non raggiungibile: controlla la connessione.'), { code: 'offline' });
   const map = new maplibregl.Map({
     container: el, style, center: center ? [center.lng, center.lat] : [12.5, 42.5], zoom: center ? 13.5 : 4.6,
-    attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false, cooperativeGestures: false, interactive,
-    // iPad e tablet: schermi grandi e densi → limitiamo la memoria grafica (evita chiusure del WebView)
-    pixelRatio: Math.min(window.devicePixelRatio || 1, 2), maxCanvasSize: [4096, 4096], fadeDuration: 0, maxTileCacheSize: 80
+    attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false, cooperativeGestures: false, interactive
   });
   if (interactive) map.touchZoomRotate.disableRotation();
   const ready = new Promise(res => (map.loaded() ? res() : map.once('load', res)));

@@ -67,27 +67,6 @@ export const smsUrl = (nums, body, apple) => apple
   : `sms:${nums.join(',')}?body=${encodeURIComponent(body)}`;
 const dataUrlToFile = (d, name) => { const [h, b] = d.split(','), bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new File([u], name, { type: (h.match(/:(.*?);/) || [])[1] || 'image/jpeg' }); };
 
-let webTorch = null;
-
-// version.json può arrivare come oggetto, come testo o (su iPhone, con GitHub) come base64: lo leggiamo in tutti i casi
-export function parseJsonLoose(d) {
-  if (d && typeof d === 'object') return d;
-  const s = String(d ?? '').trim(); if (!s) return null;
-  try { return JSON.parse(s); } catch {}
-  try { const b = atob(s.replace(/\s+/g, '')); try { return JSON.parse(decodeURIComponent(escape(b))); } catch { return JSON.parse(b); } } catch {}
-  return null;
-}
-// riserva: se version.json non si legge, ricostruiamo le informazioni dall'ultima release di GitHub
-export function releaseToVersion(r) {
-  if (!r || !r.tag_name) return null;
-  const v = String(r.tag_name).replace(/^v/, ''), code = Number((v.match(/(\d+)$/) || [])[1] || 0);
-  const a = name => (r.assets || []).find(x => name.test(x.name))?.browser_download_url || null;
-  const ipa = a(/\.ipa$/i), apk = a(/^Vicina\.apk$/i);
-  return { version: v, code, date: r.published_at, notes: r.body || '', page: r.html_url, release: r.html_url,
-    android: { apk, sha256: null }, ios: { ipa, version: v, code: ipa ? code : 0, notes: r.body || '', page: r.html_url, release: r.html_url } };
-}
-export const apiUrlFor = url => { const m = String(url).match(/github\.com\/([^/]+)\/([^/]+)\/releases/); return m ? `https://api.github.com/repos/${m[1]}/${m[2]}/releases/latest` : null; };
-
 export const webNative = {
   isNative: false, platform: 'web',
   async openMaps(lat, lng, name, nav) { window.open(mapsLinks(lat, lng, name, nav, 'web').web, '_blank', 'noopener'); },
@@ -95,12 +74,7 @@ export const webNative = {
   update: {
     autoInstall: false,
     async current() { return null; },
-    async latest(url) {
-      try { const r = await fetch(url, { cache: 'no-store' }); if (r.ok) { const j = parseJsonLoose(await r.text()); if (j) return j; } } catch {}
-      const api = apiUrlFor(url); if (!api) throw new Error('Aggiornamenti non raggiungibili');
-      const r = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } }); if (!r.ok) throw new Error('HTTP ' + r.status);
-      const j = releaseToVersion(await r.json()); if (!j) throw new Error('Release non valida'); return j;
-    },
+    async latest(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); },
     async canInstall() { return false; },
     async openInstallSettings() {},
     async install(url) { window.open(url, '_blank', 'noopener'); }
@@ -108,7 +82,7 @@ export const webNative = {
   async getPos() {
     if (!navigator.geolocation) return null;
     for (const o of [{ enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }, { enableHighAccuracy: false, timeout: 4000, maximumAge: 600000 }]) {
-      try { const p = await new Promise((ok, ko) => navigator.geolocation.getCurrentPosition(ok, ko, o)); return { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude ?? null }; } catch {}
+      try { const p = await new Promise((ok, ko) => navigator.geolocation.getCurrentPosition(ok, ko, o)); return { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }; } catch {}
     }
     return null;
   },
@@ -155,37 +129,6 @@ export const webNative = {
     const files = imgs.map((d, i) => dataUrlToFile(d, `sos-${i + 1}.jpg`));
     if (navigator.canShare?.({ files })) { try { await navigator.share({ files, text }); return true; } catch (e) { return e?.name !== 'AbortError' ? false : true; } }
     return false;
-  },
-  async shareBlob(blob, name, text) {
-    const file = new File([blob], name, { type: blob.type });
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], text }); return true; } catch (e) { return e?.name === 'AbortError'; } }
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name }); document.body.appendChild(a); a.click(); a.remove(); return true;
-  },
-  // integrazioni con il telefono: nel browser solo quello che il browser sa fare
-  vx: {
-    native: false,
-    async getIcon() { return { name: 'default', supported: false }; },
-    async setIcon() { throw new Error('Disponibile solo nell\'app installata'); },
-    async torch(on) {   // torcia: funziona su Chrome per Android
-      if (!on) { webTorch?.getTracks().forEach(t => t.stop()); webTorch = null; return; }
-      webTorch = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      const tr = webTorch.getVideoTracks()[0];
-      if (!tr.getCapabilities?.().torch) { webTorch.getTracks().forEach(t => t.stop()); webTorch = null; throw new Error('Torcia non disponibile'); }
-      await tr.applyConstraints({ advanced: [{ torch: true }] });
-    },
-    async battery() { try { const b = await navigator.getBattery(); return { level: Math.round(b.level * 100), charging: b.charging }; } catch { return { level: -1, charging: false }; } },
-    async speak(text, lang = 'it-IT') {
-      if (!window.speechSynthesis) return false;
-      speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = lang; u.rate = 0.95;
-      const v = speechSynthesis.getVoices().find(x => x.lang?.startsWith(lang.slice(0, 2))); if (v) u.voice = v;
-      speechSynthesis.speak(u); return true;
-    },
-    async stopSpeaking() { try { speechSynthesis.cancel(); } catch {} },
-    async openSettings() {},
-    async setShortcuts() {},
-    async updateWidget() {},
-    async channels() {},
-    onUrl(cb) { const h = () => { const m = location.hash.match(/vicina=([\w\/-]+)/); if (m) { cb('vicina://' + m[1]); history.replaceState(null, '', location.pathname); } }; window.addEventListener('hashchange', h); setTimeout(h, 1500); }
   },
   startRecording,
   snap

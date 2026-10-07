@@ -8,7 +8,7 @@ import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
+import { webNative, smsUrl, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
 
 // Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
 const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
@@ -16,8 +16,6 @@ const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
 const ApkUpdater = registerPlugin('ApkUpdater');
 // SMS automatici ai contatti senza app (plugin nativo, solo Android: iPhone non permette alle app di inviare SMS da sole)
 const SosSms = registerPlugin('SosSms');
-// Integrazioni con il telefono (scripts/android/VicinaNativePlugin.java, scripts/ios/VicinaNative.swift)
-const VN = registerPlugin('VicinaNative');
 
 const isNative = Capacitor.isNativePlatform();
 const norm = s => (s === 'prompt-with-rationale' ? 'prompt' : s || 'prompt');
@@ -30,7 +28,7 @@ export const native = !isNative ? webNative : {
 
   async getPos() {
     for (const o of [{ enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }, { enableHighAccuracy: false, timeout: 4000, maximumAge: 600000 }]) {
-      try { const p = await Geolocation.getCurrentPosition(o); return { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude ?? null }; } catch {}
+      try { const p = await Geolocation.getCurrentPosition(o); return { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }; } catch {}
     }
     return null;
   },
@@ -54,7 +52,7 @@ export const native = !isNative ? webNative : {
     const r = norm((await FirebaseMessaging.checkPermissions()).receive);
     if (r !== 'granted') return;
     if (Capacitor.getPlatform() === 'android') {
-      await this.vx.channels(!!globalThis.__vicinaDiscreet);
+      await FirebaseMessaging.createChannel({ id: 'sos', name: 'SOS', description: 'Allarmi SOS della tua cerchia', importance: 5, visibility: 1, vibration: true, lights: true, lightColor: '#FF3B4E' }).catch(() => {});
       await FirebaseMessaging.createChannel({ id: 'messages', name: 'Messaggi', description: 'Messaggi e richieste', importance: 3 }).catch(() => {});
     }
     const { token } = await FirebaseMessaging.getToken();
@@ -80,11 +78,11 @@ export const native = !isNative ? webNative : {
   },
 
   // Posizione live per l'SOS: prima il plugin in background, se non c'è la posizione normale (solo app aperta)
-  async watchLive(cb, o = {}) {
+  async watchLive(cb) {
     try {
       const id = await BackgroundGeolocation.addWatcher({
-        backgroundTitle: o.title || (globalThis.__vicinaDiscreet ? 'Vicina · posizione attiva' : 'SOS attivo · posizione live'),
-        backgroundMessage: o.message || (globalThis.__vicinaDiscreet ? 'Condivisione della posizione in corso.' : 'Vicina sta condividendo la tua posizione con la tua cerchia.'),
+        backgroundTitle: 'SOS attivo · posizione live',
+        backgroundMessage: 'Vicina sta condividendo la tua posizione con la tua cerchia.',
         requestPermissions: true, stale: false, distanceFilter: 10
       }, (loc, err) => { if (loc && !err) cb({ lat: loc.latitude, lng: loc.longitude, acc: loc.accuracy }); });
       return () => BackgroundGeolocation.removeWatcher({ id }).catch(() => {});
@@ -113,22 +111,10 @@ export const native = !isNative ? webNative : {
       try { const i = await ApkUpdater.info(); return { version: i.versionName, code: Number(i.versionCode) || 0, canInstall: i.canInstall !== false }; }
       catch { return null; }
     },
-    // richiesta nativa (niente CORS). Su iPhone GitHub manda il file come «application/octet-stream»
-    // e Capacitor lo restituisce in base64: parseJsonLoose lo decodifica. Se non va, si usa l'API di GitHub.
-    async latest(url) {
-      const get = async (u, accept) => CapacitorHttp.get({ url: u, connectTimeout: 12000, readTimeout: 12000, responseType: 'text', headers: { Accept: accept, 'User-Agent': 'Vicina-app' } });
-      try {
-        const r = await get(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), 'application/json, application/octet-stream, */*');
-        if (r.status === 200) { const j = parseJsonLoose(r.data); if (j && j.version) return j; }
-      } catch (e) { console.warn('version.json', e); }
-      const api = apiUrlFor(url); if (!api) throw new Error('Aggiornamenti non raggiungibili');
-      const r = await get(api, 'application/vnd.github+json');
+    async latest(url) {   // richiesta nativa: niente problemi di CORS con GitHub
+      const r = await CapacitorHttp.get({ url: url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), connectTimeout: 12000, readTimeout: 12000, headers: { Accept: 'application/json' } });
       if (r.status !== 200) throw new Error('HTTP ' + r.status);
-      const rel = parseJsonLoose(r.data);
-      // se nella release c'è version.json proviamo a leggerlo dall'indirizzo diretto, altrimenti ricostruiamo
-      const vj = (rel?.assets || []).find(x => x.name === 'version.json');
-      if (vj?.browser_download_url) { try { const r2 = await get(vj.browser_download_url, '*/*'); const j = parseJsonLoose(r2.data); if (j && j.version) return { release: rel.html_url, ...j }; } catch {} }
-      const j = releaseToVersion(rel); if (!j) throw new Error('Release non valida'); return j;
+      return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
     },
     async canInstall() { try { return (await ApkUpdater.info()).canInstall !== false; } catch { return true; } },
     openInstallSettings: () => ApkUpdater.openInstallSettings(),
@@ -176,43 +162,6 @@ export const native = !isNative ? webNative : {
       await Share.share({ text, files, dialogTitle: 'Invia le foto dell\'SOS' });
       return true;
     } catch (e) { console.warn('share foto', e); return /cancel/i.test(e?.message || ''); }
-  },
-
-  // Salva o condivide un file (registrazioni): foglio di condivisione → «Salva su File», WhatsApp…
-  async shareBlob(blob, name, text) {
-    try {
-      const data = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ko; r.readAsDataURL(blob); });
-      await Filesystem.writeFile({ path: name, data, directory: Directory.Cache });
-      const { uri } = await Filesystem.getUri({ path: name, directory: Directory.Cache });
-      await Share.share({ text, files: [uri], dialogTitle: text });
-      return true;
-    } catch (e) { console.warn('share file', e); return /cancel/i.test(e?.message || ''); }
-  },
-
-  // Integrazioni con il telefono: se il pezzo nativo manca (build vecchia) ogni funzione ricade sul browser
-  vx: {
-    native: true,
-    async getIcon() { try { return await VN.getIcon(); } catch { return { name: 'default', supported: false }; } },
-    setIcon: name => VN.setIcon({ name }),
-    async torch(on) { try { await VN.torch({ on }); } catch (e) { if (on) throw e; } },
-    async battery() { try { return await VN.battery(); } catch { return { level: -1, charging: false }; } },
-    async speak(text, lang = 'it-IT') { try { await VN.speak({ text, lang }); return true; } catch { return webNative.vx.speak(text, lang); } },
-    stopSpeaking: () => VN.stopSpeaking().catch(() => webNative.vx.stopSpeaking()),
-    openSettings: () => VN.openSettings().catch(() => {}),
-    setShortcuts: items => VN.setShortcuts({ items }).catch(() => {}),
-    updateWidget: discreet => VN.updateWidget({ discreet }).catch(() => {}),
-    // Android: il nome del canale delle notifiche urgenti si vede nelle impostazioni del telefono
-    async channels(discreet) {
-      if (Capacitor.getPlatform() !== 'android') return;
-      await FirebaseMessaging.createChannel({ id: 'sos', name: discreet ? 'Avvisi importanti' : 'SOS', description: discreet ? 'Avvisi importanti della tua cerchia' : 'Allarmi SOS della tua cerchia', importance: 5, visibility: 1, vibration: true, lights: true, lightColor: discreet ? '#4D9BFF' : '#FF3B4E' }).catch(() => {});
-    },
-    // link vicina://… da azioni rapide, widget, Comandi di iPhone
-    onUrl(cb) {
-      App.addListener('appUrlOpen', e => { cb(e.url); VN.pendingUrl().catch(() => {}); });
-      App.getLaunchUrl().then(r => r?.url && cb(r.url)).catch(() => {});
-      const pend = () => VN.pendingUrl().then(r => r?.url && cb(r.url)).catch(() => {});
-      pend(); App.addListener('resume', pend);
-    }
   },
 
   // Nasconde lo splash nativo appena parte l'intro animata (passaggio senza stacchi)
