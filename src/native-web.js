@@ -67,6 +67,7 @@ export const smsUrl = (nums, body, apple) => apple
   : `sms:${nums.join(',')}?body=${encodeURIComponent(body)}`;
 const dataUrlToFile = (d, name) => { const [h, b] = d.split(','), bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new File([u], name, { type: (h.match(/:(.*?);/) || [])[1] || 'image/jpeg' }); };
 
+let webTorch = null;
 export const webNative = {
   isNative: false, platform: 'web',
   async openMaps(lat, lng, name, nav) { window.open(mapsLinks(lat, lng, name, nav, 'web').web, '_blank', 'noopener'); },
@@ -134,6 +135,32 @@ export const webNative = {
     const file = new File([blob], name, { type: blob.type });
     if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], text }); return true; } catch (e) { return e?.name === 'AbortError'; } }
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name }); document.body.appendChild(a); a.click(); a.remove(); return true;
+  },
+  // integrazioni con il telefono: nel browser solo quello che il browser sa fare
+  vx: {
+    native: false,
+    async getIcon() { return { name: 'default', supported: false }; },
+    async setIcon() { throw new Error('Disponibile solo nell\'app installata'); },
+    async torch(on) {   // torcia: funziona su Chrome per Android
+      if (!on) { webTorch?.getTracks().forEach(t => t.stop()); webTorch = null; return; }
+      webTorch = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const tr = webTorch.getVideoTracks()[0];
+      if (!tr.getCapabilities?.().torch) { webTorch.getTracks().forEach(t => t.stop()); webTorch = null; throw new Error('Torcia non disponibile'); }
+      await tr.applyConstraints({ advanced: [{ torch: true }] });
+    },
+    async battery() { try { const b = await navigator.getBattery(); return { level: Math.round(b.level * 100), charging: b.charging }; } catch { return { level: -1, charging: false }; } },
+    async speak(text, lang = 'it-IT') {
+      if (!window.speechSynthesis) return false;
+      speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = lang; u.rate = 0.95;
+      const v = speechSynthesis.getVoices().find(x => x.lang?.startsWith(lang.slice(0, 2))); if (v) u.voice = v;
+      speechSynthesis.speak(u); return true;
+    },
+    async stopSpeaking() { try { speechSynthesis.cancel(); } catch {} },
+    async openSettings() {},
+    async setShortcuts() {},
+    async updateWidget() {},
+    async channels() {},
+    onUrl(cb) { const h = () => { const m = location.hash.match(/vicina=([\w-]+)/); if (m) { cb('vicina://' + m[1]); history.replaceState(null, '', location.pathname); } }; window.addEventListener('hashchange', h); setTimeout(h, 1500); }
   },
   startRecording,
   snap

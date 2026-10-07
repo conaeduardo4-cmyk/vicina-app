@@ -1,8 +1,10 @@
 // Prepara i progetti nativi dopo "npx cap add android / ios":
 // permessi, notifiche push (Firebase), tema scuro. Si può rilanciare senza danni (idempotente).
 import fs from 'fs';
+import { execSync } from 'child_process';
 
 const read = p => fs.readFileSync(p, 'utf8');
+const copyDir = (from, to) => { for (const e of fs.readdirSync(from, { withFileTypes: true })) { const a = from + '/' + e.name, b = to + '/' + e.name; if (e.isDirectory()) { fs.mkdirSync(b, { recursive: true }); copyDir(a, b); } else fs.copyFileSync(a, b); } };
 const log = m => console.log('  ✓ ' + m);
 
 /* ---------------- Android ---------------- */
@@ -55,7 +57,55 @@ if (fs.existsSync(man)) {
       fs.writeFileSync(mainAct, m);
     }
     log(m.includes('SosSmsPlugin') ? 'SMS automatici ai contatti senza app (plugin SosSms)' : 'ATTENZIONE: plugin SMS non registrato in MainActivity');
+    // integrazioni (icona anonima, torcia, batteria, voce, scorciatoie, widget)
+    for (const f of ['VicinaNativePlugin', 'VicinaWidget']) fs.writeFileSync(dir + '/' + f + '.java', read('scripts/android/' + f + '.java').replace('__PACKAGE__', pkg));
+    if (!m.includes('VicinaNativePlugin') && m.includes('registerPlugin(ApkUpdaterPlugin.class);')) {
+      m = m.replace('registerPlugin(ApkUpdaterPlugin.class);', 'registerPlugin(ApkUpdaterPlugin.class);\n        registerPlugin(VicinaNativePlugin.class);');
+      fs.writeFileSync(mainAct, m);
+    }
+    log(m.includes('VicinaNativePlugin') ? 'integrazioni Vicina (plugin VicinaNative + widget)' : 'ATTENZIONE: plugin VicinaNative non registrato');
   }
+  // risorse: icona celeste (modalità anonima) e widget
+  copyDir('scripts/android/res', 'android/app/src/main/res');
+  {
+    let x = read(man);
+    // icona alternativa: l'app si apre da due "alias" (normale / celeste), ne è attivo uno alla volta
+    if (!x.includes('.IconDefault')) {
+      const launcher = /\s*<intent-filter>\s*<action android:name="android\.intent\.action\.MAIN"\s*\/>\s*<category android:name="android\.intent\.category\.LAUNCHER"\s*\/>\s*<\/intent-filter>/;
+      if (launcher.test(x)) {
+        x = x.replace(launcher, '');
+        const alias = (name, icon, on) => `
+        <activity-alias android:name=".${name}" android:enabled="${on}" android:exported="true" android:icon="@mipmap/${icon}" android:roundIcon="@mipmap/${icon}_round" android:label="@string/app_name" android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>`;
+        x = x.replace(/(<activity[\s\S]*?android:name="\.MainActivity"[\s\S]*?<\/activity>)/, `$1${alias('IconDefault', 'ic_launcher', true)}${alias('IconBlue', 'ic_launcher_blue', false)}`);
+      }
+    }
+    // link vicina://sos (scorciatoie, widget, Comandi)
+    if (!x.includes('android:scheme="vicina"'))
+      x = x.replace(/(<activity[\s\S]*?android:name="\.MainActivity"[^>]*>)/, `$1
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="vicina" />
+            </intent-filter>`);
+    // widget nella schermata Home
+    if (!x.includes('.VicinaWidget'))
+      x = x.replace('</application>', `    <receiver android:name=".VicinaWidget" android:exported="false" android:label="Vicina">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/vicina_widget_info" />
+        </receiver>
+    </application>`);
+    fs.writeFileSync(man, x);
+    log(x.includes('.IconBlue') ? 'icona anonima, link vicina:// e widget' : 'ATTENZIONE: icona anonima non configurata (MainActivity senza LAUNCHER?)');
+  }
+
   const fp = 'android/app/src/main/res/xml/file_paths.xml';
   if (fs.existsSync(fp)) {
     let x = read(fp);
@@ -99,6 +149,40 @@ if (fs.existsSync(plist)) {
   // se UIBackgroundModes esisteva già senza "location", lo aggiunge
   s = s.replace(/(<key>UIBackgroundModes<\/key>\s*<array>)([\s\S]*?)(<\/array>)/, (m, a, b, c) => b.includes('<string>location</string>') ? m : a + b + '\t<string>location</string>\n\t' + c);
   fs.writeFileSync(plist, s); log('permessi, posizione in background e microfono');
+
+  // link vicina:// (azioni rapide, Comandi, «Tocca il retro»)
+  s = read(plist);
+  if (!s.includes('<string>vicina</string>')) {
+    const urlType = '<dict>\n\t\t\t<key>CFBundleURLName</key>\n\t\t\t<string>it.vicina.app</string>\n\t\t\t<key>CFBundleURLSchemes</key>\n\t\t\t<array>\n\t\t\t\t<string>vicina</string>\n\t\t\t</array>\n\t\t</dict>';
+    if (s.includes('<key>CFBundleURLTypes</key>')) s = s.replace(/(<key>CFBundleURLTypes<\/key>\s*<array>)/, `$1\n\t\t${urlType}`);
+    else s = s.replace(/<\/dict>\s*<\/plist>\s*$/, `\t<key>CFBundleURLTypes</key>\n\t<array>\n\t\t${urlType}\n\t</array>\n</dict>\n</plist>\n`);
+    fs.writeFileSync(plist, s);
+  }
+  log('link vicina://');
+
+  // icona celeste + plugin nativo (Swift) aggiunto al progetto con xcodeproj
+  const xc = 'ios/App/App/Assets.xcassets';
+  if (fs.existsSync(xc)) { fs.mkdirSync(xc + '/AppIconBlue.appiconset', { recursive: true }); copyDir('scripts/ios/AppIconBlue.appiconset', xc + '/AppIconBlue.appiconset'); }
+  fs.copyFileSync('scripts/ios/VicinaNative.swift', 'ios/App/App/VicinaNative.swift');
+  try { execSync('ruby scripts/ios-native.rb', { stdio: 'inherit' }); log('integrazioni Vicina (icona anonima, torcia, voce, azioni rapide)'); }
+  catch (e) { console.log('  ! integrazioni iOS non aggiunte (xcodeproj mancante?): l\'app funziona lo stesso, senza icona anonima e torcia'); }
+  {
+    const ad0 = 'ios/App/App/AppDelegate.swift';
+    let a = read(ad0);
+    if (!a.includes('performActionFor shortcutItem')) {
+      const m2 = `
+    // azioni rapide sull'icona (tieni premuta l'icona di Vicina)
+    func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
+        UserDefaults.standard.set(shortcutItem.type, forKey: "vicina_pending_url")
+        if let url = URL(string: shortcutItem.type) { _ = ApplicationDelegateProxy.shared.application(application, open: url, options: [:]) }
+        completionHandler(true)
+    }
+`;
+      const i = a.lastIndexOf('}');
+      a = a.slice(0, i) + m2 + a.slice(i);
+      fs.writeFileSync(ad0, a);
+    }
+  }
 
   const gsi = 'ios/App/App/GoogleService-Info.plist';
   const ad = 'ios/App/App/AppDelegate.swift';

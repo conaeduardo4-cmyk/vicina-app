@@ -1,6 +1,8 @@
 // Vicina – interfaccia. Non importa nulla da npm: riceve "api" (server) e "native" (telefono) da main.js / demo.js.
 import { TERMS_VERSION, TERMS_DATE, TERMS_KEY, TERMS_SECTIONS } from './terms.js';
 import { createTools } from './tools.js';
+import { createExtra } from './tools-extra.js';
+import { createDisguise } from './disguise.js';
 export function boot(api, native) {
   /* ================= utilità ================= */
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -13,7 +15,8 @@ export function boot(api, native) {
     ? `<div class="av ${cls}" style="background:linear-gradient(145deg,#9C8CFF,#5B4BD6)">${I('group')}</div>`
     : `<div class="av ${cls}" style="background:${col(n)}">${esc(initials(n))}</div>`;
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  let tools = null;   // strumenti (tools.js), creati più sotto
+  let tools = null, extra = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
+  const dz = createDisguise({ native, api });
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   const hhmm = ms => ms ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
   const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'adesso' : m < 60 ? `${m} min fa` : `${Math.floor(m / 60)} h fa`; };
@@ -72,10 +75,11 @@ export function boot(api, native) {
   const mapsLink = p => `https://maps.google.com/?q=${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
   function smsText(pos, links) {
     const me = `${st.p?.name || ''} ${st.p?.surname || ''}`.trim() || 'Una persona';
-    const L = [`SOS da ${me}: ha bisogno di aiuto. Ti ha scelto come contatto di emergenza (app Vicina).`];
+    const L = [prefs.disguise ? `Messaggio da ${me} (Vicina): ho bisogno di te, chiamami subito.` : `SOS da ${me}: ha bisogno di aiuto. Ti ha scelto come contatto di emergenza (app Vicina).`];
     L.push(pos ? `Posizione alle ${hhmm(Date.now())} (±${Math.max(5, Math.round(pos.acc || 0))} m): ${mapsLink(pos)}` : 'Posizione non disponibile.');
     if (links?.length) L.push('Foto: ' + links.join(' '));
     { const md = tools?.medicalLine(); if (md) L.push(md); }
+    { const bl = extra?.batteryLine(); if (bl) L.push(bl); }
     if (st.p?.phone) L.push('Chiama: ' + st.p.phone);
     L.push('Se non risponde chiama il 112.');
     return L.join('\n');
@@ -616,7 +620,7 @@ export function boot(api, native) {
     const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n;
     const hb = $('#h-badge'); if (hb) { hb.hidden = !n; hb.textContent = n > 9 ? '9+' : n; }
   }
-  const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : esc(m.text);
+  const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw">${esc(m.text)}</span>`;
   function rChats() {
     const cs = convs().map(c => ({ ...c, last: (st.threads[c.id] || []).slice(-1)[0] })).sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
     const live = st.sosIn.filter(s => Date.now() - s.at < 12 * 36e5);
@@ -643,7 +647,7 @@ export function boot(api, native) {
     }
     if (m.type === 'safe') return `<div class="msg safe ${cls}">${I('check')} <b>${mine ? 'Hai' : esc(m.fromName) + ' ha'}</b> chiuso l'SOS: ${mine ? 'sei' : 'è'} al sicuro. ${hhmm(m.at)}</div>`;
     const who = !mine && cid && st.groups.some(g => g.id === cid) ? `<span class="who">${esc(nameIn(cid, m.from) || 'Ex membro')}</span>` : '';
-    return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}${esc(m.text)}${t}</div>`;
+    return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<span class="raw">${esc(m.text)}</span>${t}</div>`;
   }
   /* chat dal vivo: chi scrive (con anteprima), chi è online, letture */
   const cl = { h: null, id: null, typing: {}, reads: {}, online: [], sentAt: 0, readSent: 0, count: 0, tmr: null };
@@ -689,7 +693,7 @@ export function boot(api, native) {
     if (!ws.length) { if (b) { b.classList.add('out'); setTimeout(() => b.remove(), 180); } return; }
     const w = ws[ws.length - 1], g = st.groups.some(x => x.id === cl.id);
     const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
-    if (!b || b.classList.contains('out')) { b?.remove(); b = document.createElement('div'); b.id = 'typing-b'; b.className = 'msg in typing'; b.innerHTML = `<span class="who"></span><span class="tp"><span class="tp-t"></span><i class="caret"></i></span><span class="dots"><i></i><i></i><i></i></span>`; box.appendChild(b); }
+    if (!b || b.classList.contains('out')) { b?.remove(); b = document.createElement('div'); b.id = 'typing-b'; b.className = 'msg in typing'; b.innerHTML = `<span class="who"></span><span class="tp"><span class="tp-t raw"></span><i class="caret"></i></span><span class="dots"><i></i><i></i><i></i></span>`; box.appendChild(b); }
     b.querySelector('.who').textContent = g || ws.length > 1 ? (ws.length > 1 ? ws.map(x => x.name).join(', ') : w.name) : '';
     b.querySelector('.who').hidden = !(g || ws.length > 1);
     b.querySelector('.tp-t').textContent = w.text;
@@ -835,6 +839,9 @@ export function boot(api, native) {
         ${toggleRow('shake', 'alert', 'violet', 'Scuoti per SOS', 'Scuoti forte il telefono: dopo 5 secondi parte l\'SOS (con l\'app aperta)')}
         ${toggleRow('quiet', 'eye', 'gray', 'SOS discreto', 'Niente vibrazioni e flash mentre l\'SOS parte')}
       </div>
+      <div class="label">Privacy</div><div class="card">
+        ${toggleRow('disguise', 'eye', 'blue', prefs.disguise ? 'Tema celeste' : 'Anonimizza l\'app', prefs.disguise ? 'Attivo: icona e colori celesti. Spegnilo per tornare al tema normale' : 'Icona celeste, colori blu e nessuna parola «SOS»: se qualcuno guarda il telefono non capisce a cosa serve')}
+      </div>
       <div class="label">Chat</div><div class="card">
         ${toggleRow('typingPreview', 'chat', 'green', 'Anteprima mentre scrivi', 'Chi è in chat con te vede cosa stai scrivendo prima che lo invii')}
       </div>
@@ -864,6 +871,7 @@ export function boot(api, native) {
     prefs[k] = e.target.checked; savePrefs(); native.haptic('light');
     if (k === 'voice') toast(prefs.voice ? 'Messaggio vocale attivo' : 'Messaggio vocale disattivato');
     else if (k === 'quiet') toast(prefs.quiet ? 'SOS discreto attivo' : 'SOS discreto disattivato');
+    else if (k === 'disguise') setDisguise(prefs[k], e.target);
     else if (k === 'typingPreview') toast(prefs.typingPreview ? 'Gli altri vedono l\'anteprima mentre scrivi' : 'Gli altri vedono solo «sta scrivendo…»');
     else tools.prefChanged(k, prefs[k], e.target);
   });
@@ -1064,20 +1072,55 @@ export function boot(api, native) {
   }
   $('#ai-txt').onkeydown = e => { if (e.key === 'Enter') sendAI($('#ai-txt').value); };
 
+  // messaggio rapido: in tutte le chat della cerchia (e via SMS se richiesto)
+  async function quickSendAll(text, { sms } = {}) {
+    let n = 0;
+    for (const c of convs()) { try { await api.sendText(c.id, st.uid, text); n++; } catch (e) { console.warn('rapido', e); } }
+    if (sms && smsOn().length) { await smsDeliver(text, { auto: true }); n += smsOn().length; }
+    return n;
+  }
   /* ================= azioni (delegazione) ================= */
   tools = createTools({
     $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs, hhmm, mapsLink, wait,
     sos: () => { if (st.sosMine) { tab('home'); return toast('Il tuo SOS è già attivo'); } trigger(); },
     canSos: () => !!st.uid && canSos(), male: () => G() === GG.m, uid: () => st.uid, profile: () => st.p,
     hasSms: () => smsOn().length > 0,
-    // messaggio rapido: in tutte le chat della cerchia (e via SMS se richiesto)
-    async quickSend(text, { sms } = {}) {
-      let n = 0;
-      for (const c of convs()) { try { await api.sendText(c.id, st.uid, text); n++; } catch (e) { console.warn('rapido', e); } }
-      if (sms && smsOn().length) { await smsDeliver(text, { auto: true }); n += smsOn().length; }
-      return n;
-    }
+    quickSend: (t, o) => quickSendAll(t, o)
   });
+  extra = createExtra({
+    $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs, hhmm, mapsLink, uid: () => st.uid, profile: () => st.p,
+    smsList: () => smsList(),
+    quickSend: (t, o) => quickSendAll(t, o),
+    confirm: (title, text, ok) => dialog({ title, text, ok, cancel: 'No' }),
+    async status() { let perm = {}; try { perm = await native.permState(); } catch {} return { perm, circle: recipients().size + smsOn().length, sms: smsOn().length, phone: st.p?.phone || '' }; }
+  }, tools);
+  tools.setExtra(extra);
+
+  /* ================= link vicina:// (scorciatoie, widget, Comandi) ================= */
+  let pendingLink = null, lastLink = { u: '', t: 0 };
+  native.vx?.onUrl?.(url => {
+    if (!/^vicina:/i.test(url || '')) return;
+    if (url === lastLink.u && Date.now() - lastLink.t < 4000) return;
+    lastLink = { u: url, t: Date.now() };
+    if (st.uid && st.p && curScreen !== 's-load' && !curScreen.startsWith('s-setup')) extra.handleUrl(url); else pendingLink = url;
+  });
+  const shortcutItems = () => prefs.disguise
+    ? [{ id: 'sos', title: 'Segnale', url: 'vicina://sos', icon: 'circle.fill' }, { id: 'siren', title: 'Suono', url: 'vicina://siren', icon: 'speaker.wave.2.fill' }, { id: 'walk', title: 'Percorso', url: 'vicina://walk', icon: 'map' }, { id: 'fake', title: 'Chiamata', url: 'vicina://fake', icon: 'phone' }]
+    : [{ id: 'sos', title: 'SOS', sub: '5 secondi per annullare', url: 'vicina://sos', icon: 'exclamationmark.triangle.fill' }, { id: 'siren', title: 'Sirena', url: 'vicina://siren', icon: 'speaker.wave.3.fill' }, { id: 'walk', title: 'Accompagnami', url: 'vicina://walk', icon: 'figure.walk' }, { id: 'fake', title: 'Finta chiamata', url: 'vicina://fake', icon: 'phone.fill' }];
+  native.vx?.setShortcuts?.(shortcutItems());
+
+  /* ================= modalità anonima ================= */
+  async function setDisguise(on, input) {
+    if (on) {
+      const ok = await dialog({ title: 'Anonimizzare Vicina?', text: `L'icona diventa una nuvoletta celeste, i colori diventano blu e spariscono le parole «SOS», «allarme» e simili, anche dalle notifiche. Tutte le funzioni restano uguali. ${native.platform === 'ios' ? 'iPhone ti mostrerà un avviso sul cambio di icona.' : 'Su Android l\'icona sulla schermata Home può sparire per un attimo: se serve, rimettila dall\'elenco delle app.'}`, ok: 'Anonimizza', cancel: 'Annulla' });
+      if (!ok) { prefs.disguise = false; savePrefs(); if (input) input.checked = false; return; }
+    }
+    prefs.disguise = !!on; savePrefs();
+    const r = await dz.apply(on, { fromUser: true });
+    native.vx?.setShortcuts?.(shortcutItems());
+    rMe();
+    toast(on ? (r?.icon === false ? 'Fatto. L\'icona cambierà con il prossimo aggiornamento dell\'app' : 'Fatto: Vicina ora è anonima') : 'Tema normale ripristinato');
+  }
   document.addEventListener('click', async e => {
     const t = e.target.closest('[data-a]'); if (!t) return;
     const a = t.dataset.a, id = t.dataset.id;
@@ -1474,8 +1517,11 @@ export function boot(api, native) {
     if (!p) { draft = { gender: null }; return setup(1); }
     st.p = pick(p); startData();
     if (ls.get('permAsked')) registerPush();
-    setTimeout(() => tools.restore(), 600);
+    setTimeout(() => { tools.restore(); extra.restore(); }, 600);
+    if (pendingLink) { const u = pendingLink; pendingLink = null; setTimeout(() => extra.handleUrl(u), 1200); }
     if (!ls.get('setup:' + st.uid) && !ls.get('permAsked')) return setup(2);
     tab('home');
   }
+  // tema anonimo salvato: si applica subito, già dalla prima schermata
+  dz.apply(!!prefs.disguise);
 }

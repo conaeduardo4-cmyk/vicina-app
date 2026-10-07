@@ -41,21 +41,24 @@ async function fcmToken(): Promise<string> {
   return cached.token;
 }
 
-type Push = { title: string; body: string; data?: Record<string, string>; sos?: boolean };
+// quiet: testo neutro per chi ha attivato la modalità anonima (nessun riferimento a SOS)
+type Push = { title: string; body: string; data?: Record<string, string>; sos?: boolean; quiet?: { title: string; body: string } };
 async function push(uids: string[], p: Push) {
   uids = [...new Set(uids.filter(Boolean))];
   if (!uids.length || !SA) return 0;
-  const { data: rows } = await SB.from('profiles').select('id, fcm_tokens').in('id', uids);
+  const first_ = await SB.from('profiles').select('id, fcm_tokens, discreet').in('id', uids);
+  // se la colonna «discreet» non è ancora stata creata (SQL non lanciato) si va avanti senza
+  const rows: any[] = (first_.error ? (await SB.from('profiles').select('id, fcm_tokens').in('id', uids)).data : first_.data) || [];
   const access = await fcmToken();
   let sent = 0;
   await Promise.all((rows || []).flatMap(row => (row.fcm_tokens || []).map(async (token: string) => {
     const message = {
       token,
-      notification: { title: p.title, body: p.body },
+      notification: row.discreet && p.quiet ? p.quiet : { title: p.title, body: p.body },
       data: p.data || {},
       android: {
         priority: 'HIGH', ttl: p.sos ? '3600s' : '86400s',
-        notification: { channel_id: p.sos ? 'sos' : 'messages', sound: 'default', ...(p.sos ? { visibility: 'PUBLIC', default_vibrate_timings: true, notification_priority: 'PRIORITY_MAX' } : {}) }
+        notification: { channel_id: p.sos ? 'sos' : 'messages', sound: 'default', ...(p.sos ? { visibility: row.discreet ? 'PRIVATE' : 'PUBLIC', default_vibrate_timings: true, notification_priority: 'PRIORITY_MAX' } : {}) }
       },
       apns: { headers: { 'apns-priority': '10', 'apns-push-type': 'alert' }, payload: { aps: { sound: 'default', ...(p.sos ? { 'interruption-level': 'time-sensitive' } : {}) } } }
     };
@@ -88,20 +91,20 @@ async function handle(ev: { event: string; id: string; [k: string]: unknown }) {
   switch (ev.event) {
     case 'sos': {
       const s = await one('sos', ev.id); if (!s) return;
-      return push(s.recipients, { title: `🆘 SOS da ${s.from_name}`, body: s.lat != null ? 'Ha bisogno di aiuto. Tocca per vedere posizione e foto.' : 'Ha bisogno di aiuto. Tocca per aprire.', data: { type: 'sos', sosId: s.id }, sos: true });
+      return push(s.recipients, { title: `🆘 SOS da ${s.from_name}`, body: s.lat != null ? 'Ha bisogno di aiuto. Tocca per vedere posizione e foto.' : 'Ha bisogno di aiuto. Tocca per aprire.', data: { type: 'sos', sosId: s.id }, sos: true, quiet: { title: `${first(s.from_name)} ti cerca`, body: 'Apri Vicina adesso.' } });
     }
     case 'ack': {
       const s = await one('sos', ev.id); if (!s) return;
       const n = s.acks?.[String(ev.uid)] || 'Qualcuno';
-      return push([s.from_uid], { title: `${first(n)} ha visto il tuo SOS`, body: 'Sta intervenendo. Resta dove sei se puoi.', data: { type: 'ack', sosId: s.id } });
+      return push([s.from_uid], { title: `${first(n)} ha visto il tuo SOS`, body: 'Sta intervenendo. Resta dove sei se puoi.', data: { type: 'ack', sosId: s.id }, quiet: { title: `${first(n)} ha risposto`, body: 'Apri Vicina.' } });
     }
     case 'voice': {
       const s = await one('sos', ev.id); if (!s) return;
-      return push(s.recipients, { title: `🎙 Messaggio vocale da ${first(s.from_name)}`, body: 'Tocca per ascoltarlo nell\'SOS.', data: { type: 'sos', sosId: s.id }, sos: true });
+      return push(s.recipients, { title: `🎙 Messaggio vocale da ${first(s.from_name)}`, body: 'Tocca per ascoltarlo nell\'SOS.', data: { type: 'sos', sosId: s.id }, sos: true, quiet: { title: `${first(s.from_name)} ti ha lasciato un vocale`, body: 'Apri Vicina.' } });
     }
     case 'safe': {
       const s = await one('sos', ev.id); if (!s) return;
-      return push(s.recipients, { title: `${first(s.from_name)} è al sicuro`, body: "Ha chiuso l'SOS. Tutto a posto.", data: { type: 'safe', sosId: s.id } });
+      return push(s.recipients, { title: `${first(s.from_name)} è al sicuro`, body: "Ha chiuso l'SOS. Tutto a posto.", data: { type: 'safe', sosId: s.id }, quiet: { title: `${first(s.from_name)} sta bene`, body: 'Tutto a posto.' } });
     }
     case 'msg': {
       const m = await one('messages', ev.id); if (!m) return;

@@ -237,6 +237,42 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 - **Android**: invariato, aggiornamento con un tocco dentro l'app.
 - Nuova dipendenza: `@capacitor/filesystem` (si installa da sola durante la compilazione).
 
+## Modalità anonima («Anonimizza l'app»)
+
+Impostazioni → Privacy → **Anonimizza l'app**. Quando è attiva:
+- l'icona diventa una nuvoletta celeste (iPhone mostra un avviso di sistema; su Android l'icona sulla Home può sparire un attimo: rimettila dall'elenco app);
+- tutta l'app diventa blu e spariscono «SOS», «allarme», «sirena», «aiuto»… (diventano «segnale», «avviso», «suono»…);
+- le notifiche che ricevi non nominano l'SOS («Giulia ti cerca · Apri Vicina»), il canale Android si chiama «Avvisi importanti»,
+  la notifica della posizione dice «Vicina · posizione attiva», gli SMS ai contatti iniziano con «ho bisogno di te, chiamami subito»;
+- le scorciatoie sull'icona si chiamano Segnale / Suono / Percorso / Chiamata.
+Togliendola torna tutto normale. Le funzioni restano identiche.
+
+**Una volta sola**: Supabase → SQL Editor → `supabase/aggiornamento-anonima.sql` → Run, e ripubblica la funzione `vicina`
+(`supabase/functions/vicina/index.ts`, la pubblica il workflow del server). Senza, le notifiche restano quelle normali.
+
+## Integrazioni con il telefono
+
+- **Scorciatoie sull'icona** (tieni premuta l'icona): SOS, Sirena, Accompagnami, Finta chiamata.
+- **Widget Android** «Vicina» per la schermata Home: un tocco = conto alla rovescia di 5 s e SOS.
+- **Link `vicina://sos`** (anche `siren`, `walk`, `fake`, `torch`, `home`, `where`): su iPhone con l'app Comandi → «Tocca il retro» o Siri.
+- **Torcia vera** (flash), **batteria** (anche negli SMS di SOS e avviso automatico sotto il 15%), **voce** che legge un testo, **apri impostazioni** dai permessi.
+- Mappe (Apple Mappe / Google Maps), WhatsApp, Telegram, SMS, Email, Calendario (.ics e Google Calendar), Uber, FreeNow, itTaxi, Salute (iPhone).
+
+Pezzi nativi (li aggiunge `scripts/patch-native.mjs` durante la compilazione):
+`scripts/android/VicinaNativePlugin.java`, `scripts/android/VicinaWidget.java`, `scripts/android/res/…` (icona celeste, widget),
+`scripts/ios/VicinaNative.swift`, `scripts/ios/AppIconBlue.appiconset/…`, `scripts/ios-native.rb` (usa la gemma xcodeproj già installata dal workflow).
+
+## Altri strumenti (39 in tutto)
+
+Home: tasti rapidi Portami a casa · Luoghi sicuri · Finta chiamata · Torcia · Parla per me · Dove sono · Sto bene.
+Nuovi: Portami a casa, Luoghi sicuri vicini (OpenStreetMap: polizia/carabinieri, pronto soccorso, farmacie, aperti 24 ore), Taxi e passaggi,
+Salgo in un'auto (targa + foto + Accompagnami), Appuntamento sicuro (cerchia, WhatsApp, calendario, check-in), Serata fuori (check-in periodici),
+Punto d'incontro, Torcia vera con SOS luminoso, Parla per me (5 lingue, legge anche la tua posizione al 112), Schermo nero (registra di nascosto),
+Schermata finta (note), Registra video, WhatsApp e altre app, Chiamate rapide, Scorciatoie e widget, Funzioni del telefono, App ufficiali
+(Where ARE U, YouPol, 1522, Commissariato online), Batteria, Controllo sicurezza, Prova la cerchia.
+
+`src/style-dz.css` è generato: dopo aver cambiato colori in `style.css` rilancia `python3 scripts/dev/gen-dz-css.py src/style.css > src/style-dz.css`.
+
 ## Chat: «sta scrivendo» con anteprima e spunte di lettura
 
 - Mentre l'altra persona scrive compare una nuvoletta con il testo che si forma lettera per lettera (e i tre puntini); in alto «sta scrivendo…» oppure «online».

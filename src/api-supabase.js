@@ -144,6 +144,7 @@ export function createApi(env) {
       const send = (event, payload) => ch.send({ type: 'broadcast', event, payload: { uid: me.uid, name: me.name, ...payload } }).catch(() => {});
       return { typing: text => send('typing', { text: String(text || '').slice(0, 160), at: Date.now() }), read: at => send('read', { at }), close: () => sb.removeChannel(ch) };
     },
+    async setDiscreet(on) { try { await sb.rpc('set_discreet', { p_on: !!on }); } catch {} },
     async markRead(id) { try { await sb.rpc('mark_read', { p_chat_id: id }); } catch {} },
     async getReads(id) {
       const { data, error } = await sb.from('chat_reads').select('uid, read_at').eq('chat_id', id);

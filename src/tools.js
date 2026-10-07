@@ -49,15 +49,16 @@ export function createTools(ctx) {
   const buzz = p => { try { native.vibrate(p); } catch {} };
 
   /* ---------- conto alla rovescia prima dell'SOS (Accompagnami scaduto, scuoti) ---------- */
-  let cdTimer = null;
-  async function countdown({ secs, title, text }) {
+  let cdTimer = null, cdCancel = null;
+  async function countdown({ secs, title, text, onCancel = null, okLabel = null }) {
+    cdCancel = onCancel;
     if (ovKind === 'cd') return;
     const ok = canSos();
     let left = secs;
     const stop = await play('beep');
     showOv('cd', `<div class="cd-wrap"><div class="cd-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45"/><circle class="cd-arc" id="cd-arc" cx="50" cy="50" r="45"/></svg><b id="cd-n">${left}</b></div>
       <h1>${esc(title)}</h1><p>${esc(ok ? text : 'Non hai nessuno da avvisare: se sei in pericolo chiama il 112.')}</p></div>
-      <div class="cd-foot"><button class="btn white big" data-a="cd-cancel">${I('check')}Sto bene, annulla</button>
+      <div class="cd-foot"><button class="btn white big" data-a="cd-cancel">${I('check')}${okLabel || 'Sto bene, annulla'}</button>
       ${ok ? `<button class="btn red" data-a="cd-now">${I('alert')}Invia l'SOS adesso</button>` : `<a class="btn red" href="tel:112">${I('phone')}Chiama 112</a>`}</div>`,
       () => { clearInterval(cdTimer); stop(); keepAwake(false); });
     keepAwake(true);
@@ -67,7 +68,7 @@ export function createTools(ctx) {
     cdTimer = setInterval(() => {
       left--; const n = $('#cd-n'); if (n) n.textContent = Math.max(0, left); arc();
       if (left % 5 === 0) buzz([250, 150, 250]);
-      if (left <= 0) { clearInterval(cdTimer); closeOv(); if (ok) sos(); }
+      if (left <= 0) { clearInterval(cdTimer); cdCancel = null; if (walk?.repeat) endWalk(); closeOv(); if (ok) sos(); }
     }, 1000);
   }
 
@@ -85,10 +86,10 @@ export function createTools(ctx) {
       <button class="btn red" data-a="walk-start">${I('shield')}Inizia</button>
       <p class="note">Tieni il telefono con te: Vicina resta attiva anche a schermo spento finché non tocchi «Sono arrivat${sx()}».</p>`, 'walk');
   }
-  async function startWalk(min, dest) {
-    walk = { until: Date.now() + min * 60000, dest, start: Date.now(), min };
+  async function startWalk(min, dest, { repeat = 0, endAt = 0, quiet = false } = {}) {
+    walk = { until: Date.now() + min * 60000, dest, start: Date.now(), min, repeat, endAt };
     saveWalk(); closeSheet(); runWalk(); native.haptic('medium');
-    toast(`Ok, ti seguo per ${min} minuti`);
+    if (!quiet) toast(repeat ? `Ok, ti chiedo come stai ogni ${repeat} minuti` : `Ok, ti seguo per ${min} minuti`);
   }
   async function runWalk() {
     clearInterval(walkTick);
@@ -107,9 +108,16 @@ export function createTools(ctx) {
     const left = walk.until - Date.now();
     bar.hidden = false;
     bar.classList.toggle('late', left < 120000);
-    bar.innerHTML = `<div class="wk-top"><i class="wk-dot"></i><b>Accompagnami${walk.dest ? ' · ' + esc(walk.dest) : ''}</b><span class="wk-t">${mmss(left)}</span></div>
+    bar.innerHTML = `<div class="wk-top"><i class="wk-dot"></i><b>${walk.repeat ? 'Serata fuori' : 'Accompagnami'}${walk.dest ? ' · ' + esc(walk.dest) : ''}</b><span class="wk-t">${walk.repeat ? 'check-in tra ' : ''}${mmss(left)}</span></div>
       <div class="wk-track"><i style="width:${Math.max(0, Math.min(100, 100 * (1 - left / (walk.until - walk.start))))}%"></i></div>
-      <div class="wk-acts"><button class="btn green sm" data-a="walk-ok">${I('check')}Sono arrivat${sx()}</button><button class="btn ghost sm" data-a="walk-more">+10 min</button></div>`;
+      <div class="wk-acts">${walk.repeat ? `<button class="btn green sm" data-a="walk-checkin">${I('check')}Sto bene</button><button class="btn ghost sm" data-a="walk-ok">Fine serata</button>` : `<button class="btn green sm" data-a="walk-ok">${I('check')}Sono arrivat${sx()}</button><button class="btn ghost sm" data-a="walk-more">+10 min</button>`}</div>`;
+    if (left <= 0 && walk.repeat) {
+      // Serata fuori: «Tutto bene?» con 60 secondi; se rispondi riparte il prossimo check-in
+      const w = walk; walk.until = Date.now() + 3600e3; saveWalk();
+      countdown({ secs: 60, title: 'Tutto bene?', text: `Check-in della serata${w.dest ? ' (' + w.dest + ')' : ''}. Se non rispondi entro 60 secondi avviso la tua cerchia.`,
+        okLabel: 'Sto bene', onCancel: () => { if (!walk) return; if (walk.endAt && Date.now() > walk.endAt) return endWalk('Serata finita: check-in spenti'); walk.until = Date.now() + walk.repeat * 60000; saveWalk(); rWalk(); } });
+      return;
+    }
     if (left <= 0) {
       const w = walk; endWalk();
       countdown({ secs: 30, title: 'Tutto bene?', text: `Il tempo di Accompagnami è finito${w.dest ? ' (' + w.dest + ')' : ''} e non hai confermato. Tra 30 secondi avviso chi ti protegge.` });
@@ -642,12 +650,15 @@ export function createTools(ctx) {
       ['nums', 'phone', 'green', 'Numeri utili', '112, 1522, 118…'],
       ['ai', 'spark', 'amber', 'Assistente', 'Chiedi cosa fare']]]
   ];
-  const sheetTools = () => openSheet(`<h2>Strumenti</h2><p class="sub">${TOOLS.reduce((a, g) => a + g[1].length, 0)} strumenti, quasi tutti funzionano anche senza internet.</p>
-    ${TOOLS.map(([g, l]) => `<div class="label">${g}</div><div class="tools-grid">${l.map(([a, ic, c, t, s]) => `<button class="tool" data-a="${a}"><i class="ic-dot ${c}">${I(ic)}</i><b>${t}</b><span>${s}</span></button>`).join('')}</div>`).join('')}
-    <label class="row toggle-row"><i class="ic-dot violet">${I('alert')}</i><div class="fl wrap"><b>Scuoti per SOS</b><span>Scuoti forte il telefono: dopo 5 secondi parte l'SOS (con l'app aperta)</span></div><input type="checkbox" class="switch" data-pref="shake" ${prefs.shake ? 'checked' : ''}></label>`, 'tools');
+  const allTools = () => { const l = TOOLS.map(([g, x]) => [g, [...x]]); (extra?.groups || []).forEach(([g, x, after]) => { const f = l.find(y => y[0] === g); if (f) f[1].push(...x); else l.splice(after ?? l.length, 0, [g, [...x]]); }); return l; };
+  const sheetTools = () => { const T = allTools(); openSheet(`<h2>Strumenti</h2><p class="sub">${T.reduce((a, g) => a + g[1].length, 0)} strumenti: molti funzionano anche senza internet.</p>
+    ${T.map(([g, l]) => `<div class="label">${g}</div><div class="tools-grid">${l.map(([a, ic, c, t, s]) => `<button class="tool" data-a="${a}"><i class="ic-dot ${c}">${I(ic)}</i><b>${t}</b><span>${s}</span></button>`).join('')}</div>`).join('')}
+    <label class="row toggle-row"><i class="ic-dot violet">${I('alert')}</i><div class="fl wrap"><b>Scuoti per SOS</b><span>Scuoti forte il telefono: dopo 5 secondi parte l'SOS (con l'app aperta)</span></div><input type="checkbox" class="switch" data-pref="shake" ${prefs.shake ? 'checked' : ''}></label>`, 'tools'); };
 
   /* ---------- azioni ---------- */
+  let extra = null;
   async function handle(a, t) {
+    if (extra && await extra.handle(a, t)) return true;
     switch (a) {
       case 'tools': sheetTools(); return true;
       case 'walk': closeSheet(); sheetWalk(); return true;
@@ -677,8 +688,9 @@ export function createTools(ctx) {
       case 'med-show': medShow(); return true;
       case 'nums': closeSheet(); sheetNums(); return true;
       case 'tool-close': closeOv(); return true;
-      case 'cd-cancel': closeOv(); native.haptic('medium'); toast('Annullato. Bene così.'); return true;
-      case 'cd-now': closeOv(); sos(); return true;
+      case 'cd-cancel': { const cb = cdCancel; cdCancel = null; closeOv(); native.haptic('medium'); if (cb) { cb(); toast('Bene così. Al prossimo check-in.'); } else toast('Annullato. Bene così.'); return true; }
+      case 'walk-checkin': if (walk) { walk.until = Date.now() + walk.repeat * 60000; saveWalk(); rWalk(); toast('Ok, prossimo check-in tra ' + walk.repeat + ' minuti'); } return true;
+      case 'cd-now': cdCancel = null; closeOv(); sos(); return true;
       case 'whistle': closeSheet(); whistle(); return true;
       case 'deadman': closeSheet(); deadman(); return true;
       case 'motion': closeSheet(); if (await motionPermission()) motionAlarm(); else toast('Serve il permesso «Movimento»'); return true;
@@ -755,5 +767,6 @@ export function createTools(ctx) {
     if (prefs.shake) shake(true, false);
   }
   const busy = () => !!ovKind;
-  return { handle, rWalk, restore, medicalLine, prefChanged, busy, sheetMed };
+  const h = { showOv, closeOv, play, keepAwake, buzz, countdown, startWalk, sheetWalk, siren, light, whistle, fakeRing, sheetWhere, sheetMed, med, diary, sheetDiaryNew, sheetQuick, mmss, ov, sx, get walk() { return walk; }, get ovKind() { return ovKind; } };
+  return { handle, rWalk, restore, medicalLine, prefChanged, busy, sheetMed, h, setExtra: x => { extra = x; } };
 }

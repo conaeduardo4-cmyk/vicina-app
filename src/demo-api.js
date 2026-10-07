@@ -151,6 +151,7 @@ export function createDemoApi() {
     },
     chatLive(id, me, hh) { liveH[id] = hh; setTimeout(() => hh.presence?.(['p']), 300); return { typing() {}, read() {}, close() { delete liveH[id]; } }; },
     async markRead() {},
+    async setDiscreet() {},
     async getReads() { return {}; },
     async askAI(messages) {
       await wait(1100);

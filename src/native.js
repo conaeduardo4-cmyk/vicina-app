@@ -16,6 +16,8 @@ const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
 const ApkUpdater = registerPlugin('ApkUpdater');
 // SMS automatici ai contatti senza app (plugin nativo, solo Android: iPhone non permette alle app di inviare SMS da sole)
 const SosSms = registerPlugin('SosSms');
+// Integrazioni con il telefono (scripts/android/VicinaNativePlugin.java, scripts/ios/VicinaNative.swift)
+const VN = registerPlugin('VicinaNative');
 
 const isNative = Capacitor.isNativePlatform();
 const norm = s => (s === 'prompt-with-rationale' ? 'prompt' : s || 'prompt');
@@ -52,7 +54,7 @@ export const native = !isNative ? webNative : {
     const r = norm((await FirebaseMessaging.checkPermissions()).receive);
     if (r !== 'granted') return;
     if (Capacitor.getPlatform() === 'android') {
-      await FirebaseMessaging.createChannel({ id: 'sos', name: 'SOS', description: 'Allarmi SOS della tua cerchia', importance: 5, visibility: 1, vibration: true, lights: true, lightColor: '#FF3B4E' }).catch(() => {});
+      await this.vx.channels(!!globalThis.__vicinaDiscreet);
       await FirebaseMessaging.createChannel({ id: 'messages', name: 'Messaggi', description: 'Messaggi e richieste', importance: 3 }).catch(() => {});
     }
     const { token } = await FirebaseMessaging.getToken();
@@ -81,8 +83,8 @@ export const native = !isNative ? webNative : {
   async watchLive(cb, o = {}) {
     try {
       const id = await BackgroundGeolocation.addWatcher({
-        backgroundTitle: o.title || 'SOS attivo · posizione live',
-        backgroundMessage: o.message || 'Vicina sta condividendo la tua posizione con la tua cerchia.',
+        backgroundTitle: o.title || (globalThis.__vicinaDiscreet ? 'Vicina · posizione attiva' : 'SOS attivo · posizione live'),
+        backgroundMessage: o.message || (globalThis.__vicinaDiscreet ? 'Condivisione della posizione in corso.' : 'Vicina sta condividendo la tua posizione con la tua cerchia.'),
         requestPermissions: true, stale: false, distanceFilter: 10
       }, (loc, err) => { if (loc && !err) cb({ lat: loc.latitude, lng: loc.longitude, acc: loc.accuracy }); });
       return () => BackgroundGeolocation.removeWatcher({ id }).catch(() => {});
@@ -173,6 +175,32 @@ export const native = !isNative ? webNative : {
       await Share.share({ text, files: [uri], dialogTitle: text });
       return true;
     } catch (e) { console.warn('share file', e); return /cancel/i.test(e?.message || ''); }
+  },
+
+  // Integrazioni con il telefono: se il pezzo nativo manca (build vecchia) ogni funzione ricade sul browser
+  vx: {
+    native: true,
+    async getIcon() { try { return await VN.getIcon(); } catch { return { name: 'default', supported: false }; } },
+    setIcon: name => VN.setIcon({ name }),
+    async torch(on) { try { await VN.torch({ on }); } catch (e) { if (on) throw e; } },
+    async battery() { try { return await VN.battery(); } catch { return { level: -1, charging: false }; } },
+    async speak(text, lang = 'it-IT') { try { await VN.speak({ text, lang }); return true; } catch { return webNative.vx.speak(text, lang); } },
+    stopSpeaking: () => VN.stopSpeaking().catch(() => webNative.vx.stopSpeaking()),
+    openSettings: () => VN.openSettings().catch(() => {}),
+    setShortcuts: items => VN.setShortcuts({ items }).catch(() => {}),
+    updateWidget: discreet => VN.updateWidget({ discreet }).catch(() => {}),
+    // Android: il nome del canale delle notifiche urgenti si vede nelle impostazioni del telefono
+    async channels(discreet) {
+      if (Capacitor.getPlatform() !== 'android') return;
+      await FirebaseMessaging.createChannel({ id: 'sos', name: discreet ? 'Avvisi importanti' : 'SOS', description: discreet ? 'Avvisi importanti della tua cerchia' : 'Allarmi SOS della tua cerchia', importance: 5, visibility: 1, vibration: true, lights: true, lightColor: discreet ? '#4D9BFF' : '#FF3B4E' }).catch(() => {});
+    },
+    // link vicina://… da azioni rapide, widget, Comandi di iPhone
+    onUrl(cb) {
+      App.addListener('appUrlOpen', e => { cb(e.url); VN.pendingUrl().catch(() => {}); });
+      App.getLaunchUrl().then(r => r?.url && cb(r.url)).catch(() => {});
+      const pend = () => VN.pendingUrl().then(r => r?.url && cb(r.url)).catch(() => {});
+      pend(); App.addListener('resume', pend);
+    }
   },
 
   // Nasconde lo splash nativo appena parte l'intro animata (passaggio senza stacchi)
