@@ -109,9 +109,7 @@ export function createMore(ctx, base, extra) {
     const p = await native.getPos().catch(() => null);
     if (!p) { $('#nr-list').innerHTML = '<p class="note">Posizione non disponibile.</p>'; return; }
     try {
-      const c = new AbortController(); setTimeout(() => c.abort(), 20000);
-      const body = 'data=' + encodeURIComponent(`[out:json][timeout:20];(${q(r).replace(/LAT/g, p.lat).replace(/LNG/g, p.lng)});out center tags 80;`);
-      const j = await (await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: c.signal })).json();
+      const j = await native.osm(`[out:json][timeout:25];(${q(r).replace(/LAT/g, p.lat).replace(/LNG/g, p.lng)});out center tags 80;`, { term: fb, p, r });
       const seen = new Set();
       const l = j.elements.map(e => ({ ...e.tags, lat: e.lat ?? e.center?.lat, lng: e.lon ?? e.center?.lon, id: e.id })).filter(e => e.lat != null && !seen.has(e.id) && seen.add(e.id))
         .map(e => ({ ...e, d: km(p, e) })).sort((a, b) => (k === 'er' ? (b.emergency === 'yes') - (a.emergency === 'yes') || a.d - b.d : a.d - b.d)).slice(0, 5);

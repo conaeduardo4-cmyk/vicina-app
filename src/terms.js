@@ -3,8 +3,8 @@
 // ⚠ Completa i campi tra [PARENTESI QUADRE] e fai controllare il testo da un avvocato prima della pubblicazione.
 export const TERMS_VERSION = 1;
 export const TERMS_DATE = '6 ottobre 2026';
-export const TERMS_OWNER = '[Eduardo Cona]';
-export const TERMS_CONTACT = '[conaeduardo4@gmail.com]';
+export const TERMS_OWNER = '[NOME E COGNOME O RAGIONE SOCIALE DEL TITOLARE]';
+export const TERMS_CONTACT = '[EMAIL DI CONTATTO]';
 export const PRIVACY_URL = '';   // es. 'https://tuosito.it/privacy' (informativa privacy completa)
 
 // Punti chiave mostrati prima di creare l'account e a ogni nuova versione dei termini

@@ -66,9 +66,8 @@ export function createMore2(ctx, base, extra) {
     if (!p) { $('#n2-list').innerHTML = '<p class="note">Posizione non disponibile.</p>'; return; }
     try {
       const [kk, vv] = tag.split('=');
-      const c = new AbortController(); setTimeout(() => c.abort(), 20000);
-      const q = `[out:json][timeout:20];(nwr(around:${r},${p.lat},${p.lng})[${kk}=${vv}];);out center tags 60;`;
-      const j = await (await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: c.signal })).json();
+      const q = `[out:json][timeout:25];(nwr(around:${r},${p.lat},${p.lng})[${kk}=${vv}];);out center tags 60;`;
+      const j = await native.osm(q, { term: fb, p, r });
       const l = j.elements.map(e => ({ ...e.tags, lat: e.lat ?? e.center?.lat, lng: e.lon ?? e.center?.lon })).filter(e => e.lat != null).map(e => ({ ...e, d: km(p, e) })).sort((a, b) => a.d - b.d).slice(0, 6);
       if (!l.length) throw 0;
       $('#n2-list').innerHTML = `<button class="near-best" data-a="x-url" data-u="${esc(dirUrl(l[0], 'walk'))}"><small>IL PIÙ VICINO · ${dist(l[0].d)}</small><b>${esc(l[0].name || title.replace(/ (più )?vicin[ie]$/, ''))}</b><span>${l[0].opening_hours ? esc(l[0].opening_hours.slice(0, 40)) + ' · ' : ''}${l[0].fee === 'yes' ? 'a pagamento · ' : ''}Tocca per andarci</span>${I('send')}</button>

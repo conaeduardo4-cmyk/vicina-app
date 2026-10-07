@@ -83,12 +83,13 @@ export function createExtra(ctx, base) {
     const p = await native.getPos().catch(() => null);
     if (!p) { $('#sf-list').innerHTML = `<p class="note">Posizione non disponibile.</p>`; return; }
     try {
-      if (!safeCache || Date.now() - safeCache.at > 600000 || km(safeCache.p, p) > 0.4) {
-        const q = `[out:json][timeout:20];(nwr(around:3000,${p.lat},${p.lng})[amenity~"^(police|hospital|clinic|pharmacy|fuel)$"];nwr(around:3000,${p.lat},${p.lng})[emergency=defibrillator];nwr(around:3000,${p.lat},${p.lng})[shop~"^(supermarket|convenience)$"][opening_hours="24/7"];);out center tags 200;`;
-        const c = new AbortController(); setTimeout(() => c.abort(), 20000);
-        const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + enc(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: c.signal });
-        const j = await r.json();
-        safeCache = { at: Date.now(), p, items: j.elements.map(e => ({ ...e.tags, lat: e.lat ?? e.center?.lat, lng: e.lon ?? e.center?.lon })).filter(e => e.lat != null) };
+      if (!safeCache || Date.now() - safeCache.at > 600000 || km(safeCache.p, p) > 0.4 || (safeCache.only && safeCache.only !== cat)) {
+        const q = `[out:json][timeout:25];(nwr(around:3000,${p.lat},${p.lng})[amenity~"^(police|hospital|clinic|pharmacy|fuel)$"];nwr(around:3000,${p.lat},${p.lng})[emergency=defibrillator];nwr(around:3000,${p.lat},${p.lng})[shop~"^(supermarket|convenience)$"][opening_hours="24/7"];);out center tags 200;`;
+        const term = { police: 'carabinieri', hospital: 'ospedale', pharmacy: 'farmacia', defib: 'defibrillatore' }[cat];
+        const j = await native.osm(q, { term, p, r: 3000 });
+        safeCache = { at: Date.now(), p, only: j.elements.length && !j.elements.some(e => e.type) ? cat : null, items: j.elements.map(e => ({ ...e.tags, lat: e.lat ?? e.center?.lat, lng: e.lon ?? e.center?.lon })).filter(e => e.lat != null) };
+        if (safeCache.only && cat === 'police') safeCache.items.forEach(e => { e.amenity = 'police'; });
+        if (safeCache.only && cat === 'defib') safeCache.items.forEach(e => { e.emergency = 'defibrillator'; });
       }
       rSafe(cat, p);
     } catch (e) {
