@@ -13,11 +13,14 @@ import android.content.pm.PackageManager;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
 import android.graphics.drawable.Icon;
+import android.hardware.biometrics.BiometricManager;
+import android.hardware.biometrics.BiometricPrompt;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
+import android.os.CancellationSignal;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import com.getcapacitor.JSArray;
@@ -32,6 +35,7 @@ import com.getcapacitor.annotation.PermissionCallback;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.json.JSONObject;
 
 @CapacitorPlugin(
@@ -172,6 +176,57 @@ public class VicinaNativePlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("state", getPermissionState(mediaAlias(call)).toString());
         call.resolve(r);
+    }
+
+    /* ---------- blocco dell'app: sblocco con il volto o impronta (BiometricPrompt di Android) ----------
+       Si usa quello che il telefono ha configurato: se c'è lo sblocco con il volto lo propone Android, altrimenti l'impronta. */
+    @PluginMethod
+    public void bioInfo(PluginCall call) {
+        JSObject r = new JSObject();
+        boolean ok = false;
+        PackageManager pm = getContext().getPackageManager();
+        boolean face = Build.VERSION.SDK_INT >= 29 && pm.hasSystemFeature(PackageManager.FEATURE_FACE);
+        boolean finger = pm.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT);
+        try {
+            if (Build.VERSION.SDK_INT >= 30) {
+                BiometricManager bm = getContext().getSystemService(BiometricManager.class);
+                ok = bm != null && bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS;
+            } else if (Build.VERSION.SDK_INT >= 29) {
+                BiometricManager bm = getContext().getSystemService(BiometricManager.class);
+                ok = bm != null && bm.canAuthenticate() == BiometricManager.BIOMETRIC_SUCCESS;
+            } else if (Build.VERSION.SDK_INT >= 28) {
+                ok = finger;
+            }
+        } catch (Exception e) { ok = false; }
+        r.put("available", ok);
+        r.put("type", face ? (finger ? "face-or-finger" : "face") : (finger ? "finger" : "biometric"));
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void bioAuth(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 28 || getActivity() == null) { JSObject r = new JSObject(); r.put("ok", false); r.put("reason", "non disponibile"); call.resolve(r); return; }
+        final String reason = call.getString("reason", "Sblocca Vicina");
+        final AtomicBoolean done = new AtomicBoolean(false);
+        getActivity().runOnUiThread(() -> {
+            try {
+                BiometricPrompt.Builder b = new BiometricPrompt.Builder(getActivity()).setTitle("Vicina").setSubtitle(reason);
+                if (Build.VERSION.SDK_INT >= 30) b.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK);
+                b.setNegativeButton("Usa il codice", getContext().getMainExecutor(), (d, w) -> {
+                    if (done.compareAndSet(false, true)) { JSObject r = new JSObject(); r.put("ok", false); r.put("reason", "code"); call.resolve(r); }
+                });
+                b.build().authenticate(new CancellationSignal(), getContext().getMainExecutor(), new BiometricPrompt.AuthenticationCallback() {
+                    @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult res) {
+                        if (done.compareAndSet(false, true)) { JSObject r = new JSObject(); r.put("ok", true); call.resolve(r); }
+                    }
+                    @Override public void onAuthenticationError(int code, CharSequence msg) {
+                        if (done.compareAndSet(false, true)) { JSObject r = new JSObject(); r.put("ok", false); r.put("reason", String.valueOf(msg)); call.resolve(r); }
+                    }
+                });
+            } catch (Exception e) {
+                if (done.compareAndSet(false, true)) { JSObject r = new JSObject(); r.put("ok", false); r.put("reason", String.valueOf(e.getMessage())); call.resolve(r); }
+            }
+        });
     }
 
     /* ---------- impostazioni dell'app (permessi) ---------- */

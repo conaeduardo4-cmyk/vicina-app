@@ -5,6 +5,7 @@ import { createExtra } from './tools-extra.js';
 import { createMore } from './tools-more.js';
 import { createMore2 } from './tools-more2.js';
 import { createMore3 } from './tools-more3.js';
+import { createLock } from './lock.js';
 import { createDisguise } from './disguise.js';
 import { qrSvg, openScanner, inviteLink, parseInvite } from './qr.js';
 export function boot(api, native) {
@@ -21,7 +22,7 @@ export function boot(api, native) {
     ? `<div class="av ${cls}" style="background:linear-gradient(145deg,#9C8CFF,#5B4BD6)">${I('group')}</div>`
     : `<div class="av ${cls}${avUrl(uid) ? ' ph' : ''}" style="background:${col(n)}">${esc(initials(n))}${avUrl(uid) ? `<img src="${esc(avUrl(uid))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  let tools = null, extra = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
+  let tools = null, extra = null, lock = null, lockAfter = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
   const dz = createDisguise({ native, api });
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   const hhmm = ms => ms ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -150,7 +151,7 @@ export function boot(api, native) {
       const on = !!(prefs.glass && glass.supported);
       document.body.classList.toggle('native-glass', on);
       if (!on) { if (glass.last !== 'off') { glass.last = 'off'; native.vx.setGlassBar?.({ on: false }); } glassObs?.disconnect(); glassObs = null; return; }
-      const nav = $('#nav'), busy = ['#scrim', '#ov-tool', '#ov-in', '#ov-send'].some(x => $(x)?.classList.contains('on'));
+      const nav = $('#nav'), busy = ['#scrim', '#ov-tool', '#ov-in', '#ov-send', '#lock'].some(x => $(x)?.classList.contains('on'));
       const visible = !!nav && !nav.hidden && !busy;
       const tab = $('#nav button.on')?.dataset.tab || st.tab || 'home';
       const num = el => (el && !el.hidden ? parseInt(el.textContent, 10) || 1 : 0);
@@ -563,6 +564,7 @@ export function boot(api, native) {
       : s.acc ? 'Precisione ± ' + Math.round(s.acc) + ' m' : 'Ultima posizione inviata';
   };
   function showIncoming(s) {
+    lock?.incoming(s.fromName);
     intro.done(true);
     const first = st.shownIn !== s.id; st.shownIn = s.id;
     const ov = $('#ov-in');
@@ -1029,6 +1031,7 @@ export function boot(api, native) {
         <button class="row" data-a="upd-open"><i class="ic-dot ${updNewer() ? 'red' : 'blue'}">${I('share')}</i><div class="fl"><b>Aggiornamenti</b><span>${updNewer() ? 'Nuova versione ' + esc(lastVersion()) + ' disponibile' : 'Versione ' + esc((upd.cur || BUILD).version) + ' · tocca per controllare'}</span></div>${updNewer() ? '<span class="tag red">Nuova</span>' : I('chev', 'chev')}</button>
       </div>
       <div class="label">Telefono</div><div class="card">
+        <button class="row" data-a="lock-sheet"><i class="ic-dot ${lock?.enabled() ? 'green' : 'gray'}">${I('lock')}</i><div class="fl"><b>Blocco dell'app</b><span>${esc(lock?.label() || 'Disattivato')}</span></div>${I('chev', 'chev')}</button>
         <button class="row" data-a="perm-sheet"><i class="ic-dot ${pc >= 3 ? 'green' : 'red'}">${I('lock')}</i><div class="fl"><b>Permessi</b><span>${pc} di 4 attivi</span></div>${I('chev', 'chev')}</button>
       </div>
       <div class="label">Account</div><div class="card">
@@ -1303,6 +1306,16 @@ export function boot(api, native) {
     $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid,
     smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o)
   }, tools, extra));
+  lock = createLock({
+    $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs,
+    dialog: o => dialog(o),
+    ready: () => !!(st.uid && st.p && !$('#s-setup').classList.contains('on')),
+    sos: () => { if (st.sosMine || sending) return; if (!canSos()) { toast('Nessuno nella cerchia: chiama il 112'); return; } trigger(); },
+    logout: () => api.signOut().catch(() => {}),
+    refresh: () => rMe(),
+    afterOffer: () => { const f = lockAfter; lockAfter = null; f?.(); },
+    onUnlock: () => { if (glass.supported) syncGlass(true); }
+  });
   tools.setExtra(createMore3({
     $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid, profile: () => st.p,
     smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o),
@@ -1345,6 +1358,7 @@ export function boot(api, native) {
     const t = e.target.closest('[data-a]'); if (!t) return;
     const a = t.dataset.a, id = t.dataset.id;
     try {
+      if (lock && await lock.handle(a, t)) return;
       if (await tools.handle(a, t)) return;
       switch (a) {
         case 'wel-start': ls.set('seen', '1'); authMode('up'); show('s-auth'); break;
@@ -1389,7 +1403,7 @@ export function boot(api, native) {
         }
         case 'setup-perms': await busy(t, async () => { await native.requestPerms(); await refreshPerms(); await registerPush(); }); ls.set('permAsked', '1'); setup(3); break;
         case 'setup-skip-perms': setup(3); break;
-        case 'setup-done': ls.set('setup:' + st.uid, '1'); if (!ls.get('guideSeen')) openGuide(); else tab('home'); break;
+        case 'setup-done': { ls.set('setup:' + st.uid, '1'); const go = () => { if (!ls.get('guideSeen')) openGuide(); else tab('home'); }; lockAfter = go; if (!lock.offerAfterSetup()) { lockAfter = null; go(); } break; }
         case 'tab': closeSheet(); tab(t.dataset.tab); break;
         case 'add': sheetAdd(); break;
         case 'sms-add': sheetSms(null); setTimeout(() => $('#sm-name')?.focus(), 300); break;
@@ -1792,6 +1806,7 @@ export function boot(api, native) {
     if (pendingAdd) { const f = pendingAdd; pendingAdd = null; setTimeout(f, 1500); }
     if (!ls.get('setup:' + st.uid) && !ls.get('permAsked')) return setup(2);
     tab('home');
+    if (lock?.enabled()) lock.show('start');   // blocco dell'app: codice o Face ID all'apertura
   }
   // tema anonimo salvato: si applica subito, già dalla prima schermata
   dz.apply(!!prefs.disguise);

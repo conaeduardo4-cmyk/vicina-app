@@ -3,6 +3,7 @@
 // Aggiunto al progetto da scripts/ios-native.rb (chiamato da scripts/patch-native.mjs).
 import UIKit
 import AVFoundation
+import LocalAuthentication
 import Capacitor
 
 class VicinaViewController: CAPBridgeViewController {
@@ -29,7 +30,9 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "mediaState", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestMedia", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "glassInfo", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setGlassBar", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "setGlassBar", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "bioInfo", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "bioAuth", returnType: CAPPluginReturnPromise)
     ]
     private let synth = AVSpeechSynthesizer()
 
@@ -249,6 +252,29 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
                 l.backgroundColor = self.glassTint
             }
             call.resolve(["active": true])
+        }
+    }
+
+    // ---------- blocco dell'app: Face ID / Touch ID ----------
+    @objc func bioInfo(_ call: CAPPluginCall) {
+        let ctx = LAContext()
+        var err: NSError?
+        let ok = ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err)
+        var type = ok ? "biometric" : "none"
+        switch ctx.biometryType {
+        case .faceID: type = "faceid"
+        case .touchID: type = "touchid"
+        default: break
+        }
+        call.resolve(["available": ok, "type": type])
+    }
+    @objc func bioAuth(_ call: CAPPluginCall) {
+        let ctx = LAContext()
+        ctx.localizedFallbackTitle = "Usa il codice"
+        ctx.localizedCancelTitle = "Annulla"
+        ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: call.getString("reason") ?? "Sblocca Vicina") { ok, err in
+            let code = (err as? LAError)?.code
+            DispatchQueue.main.async { call.resolve(["ok": ok, "reason": code == .userFallback ? "code" : (err?.localizedDescription ?? "")]) }
         }
     }
 

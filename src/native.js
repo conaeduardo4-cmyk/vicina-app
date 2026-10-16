@@ -255,6 +255,9 @@ export const native = !isNative ? webNative : {
     // Liquid Glass di iOS 26: barra delle schede nativa (UIGlassEffect). Su iOS < 26 o su Android: non supportato.
     async glassInfo() { if (Capacitor.getPlatform() !== 'ios') return { supported: false }; try { return await VN.glassInfo(); } catch { return { supported: false }; } },
     setGlassBar: o => VN.setGlassBar(o).catch(() => ({ active: false })),
+    // Face ID / Touch ID (iPhone), volto o impronta (Android): { available, type } e { ok }
+    async bioInfo() { try { return await VN.bioInfo(); } catch { return { available: false, type: 'none' }; } },
+    bioAuth: o => VN.bioAuth(o).catch(() => ({ ok: false })),
     onGlassTab: cb => { try { VN.addListener('glassTab', e => cb(e?.tab)); } catch {} },
     async torch(on) { try { await VN.torch({ on }); } catch (e) { if (on) throw e; } },
     async battery() { try { return await VN.battery(); } catch { return { level: -1, charging: false }; } },

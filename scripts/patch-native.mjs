@@ -12,7 +12,7 @@ const man = 'android/app/src/main/AndroidManifest.xml';
 if (fs.existsSync(man)) {
   console.log('Android');
   let s = read(man);
-  for (const p of ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_LOCATION', 'WAKE_LOCK', 'REQUEST_INSTALL_PACKAGES', 'SEND_SMS'])
+  for (const p of ['CAMERA', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS', 'VIBRATE', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_LOCATION', 'WAKE_LOCK', 'REQUEST_INSTALL_PACKAGES', 'SEND_SMS', 'USE_BIOMETRIC'])
     if (!s.includes(`android.permission.${p}"`)) s = s.replace('</manifest>', `    <uses-permission android:name="android.permission.${p}" />\n</manifest>`);
   for (const f of ['android.hardware.camera', 'android.hardware.location.gps', 'android.hardware.telephony'])
     if (!s.includes(`"${f}"`)) s = s.replace('</manifest>', `    <uses-feature android:name="${f}" android:required="false" />\n</manifest>`);
@@ -161,6 +161,7 @@ if (fs.existsSync(plist)) {
   const add = {
     NSCameraUsageDescription: '<string>Vicina scatta una foto di dove ti trovi quando invii un SOS, per mostrarla alle persone che avvisi.</string>',
     NSLocationWhenInUseUsageDescription: '<string>Vicina invia la tua posizione attuale alle persone che avvisi quando premi SOS.</string>',
+    NSFaceIDUsageDescription: '<string>Vicina usa Face ID per sbloccare l\'app al posto del codice. L\'SOS resta sempre usabile anche senza sblocco.</string>',
     NSMicrophoneUsageDescription: '<string>Vicina registra un messaggio vocale solo quando tieni premuto il microfono durante un SOS.</string>',
     NSLocationAlwaysAndWhenInUseUsageDescription: '<string>Durante un SOS Vicina aggiorna la tua posizione, anche a schermo spento, finché non tocchi «Sono al sicuro», così la tua cerchia può raggiungerti.</string>',
     UIBackgroundModes: '<array>\n\t\t<string>remote-notification</string>\n\t\t<string>location</string>\n\t</array>',

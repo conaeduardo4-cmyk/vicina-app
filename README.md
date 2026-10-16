@@ -424,3 +424,11 @@ Senza questi due passi i luoghi funzionano lo stesso, direttamente da OpenStreet
 **Liquid Glass** – su iPhone con **iOS 26 o successivo** compare in Impostazioni l'opzione **Liquid Glass**: la barra delle schede
 diventa quella nativa di iOS (`UIVisualEffectView` + `UIGlassEffect`, in `scripts/ios/VicinaNative.swift`), non un'imitazione in CSS.
 Serve compilare con **Xcode 26** (il workflow lo sceglie da solo se c'è sul server di GitHub); su iOS più vecchi o su Android l'opzione non appare.
+
+## Blocco dell'app (codice, Face ID, volto o impronta)
+Impostazioni → **Blocco dell'app**: codice personale da 4 a 6 cifre (salvato solo come impronta SHA-256 con sale, mai in chiaro)
+e, se il telefono lo permette, **Face ID / Touch ID** su iPhone o **sblocco con il volto / impronta** su Android (BiometricPrompt:
+Android propone da solo il volto se è configurato, altrimenti l'impronta). Si può scegliere quando bloccare (subito, 1, 5 o 15 minuti).
+Alla fine della configurazione guidata l'app propone di creare il codice. **SOS e 112 restano sempre usabili dalla schermata di blocco.**
+Codice dimenticato: si esce dall'account e si rientra con email e password. Permessi aggiunti da `scripts/patch-native.mjs`:
+`USE_BIOMETRIC` (Android) e `NSFaceIDUsageDescription` (iPhone).

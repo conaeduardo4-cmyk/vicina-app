@@ -283,6 +283,8 @@ export const webNative = {
     async setIcon() { throw new Error('Disponibile solo nell\'app installata'); },
     async glassInfo() { return { supported: false }; },
     async setGlassBar() { return { active: false }; },
+    async bioInfo() { return { available: false, type: 'none' }; },
+    async bioAuth() { return { ok: false }; },
     onGlassTab() {},
     async torch(on) {   // torcia: funziona su Chrome per Android
       if (!on) { webTorch?.getTracks().forEach(t => t.stop()); webTorch = null; return; }

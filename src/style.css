@@ -1548,3 +1548,28 @@ html.dz #s-home .sos-ring b{font-size:0!important}
 .pin-me{z-index:2}
 /* Liquid Glass nativo (iOS 26): la barra la disegna iOS, quella della pagina resta solo come spazio */
 body.native-glass #nav{visibility:hidden}
+
+/* ===== blocco dell'app (codice / Face ID) ===== */
+.lock{position:fixed;inset:0;z-index:2000;display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(var(--sat) + 40px) 24px calc(var(--sab) + 18px);background:radial-gradient(120% 70% at 50% 0%,#2a0b10 0%,#0B0B10 60%),#0B0B10;color:#fff;-webkit-user-select:none;user-select:none}
+.lock.on{display:flex;animation:fade .15s}
+.lk-top{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.lk-top.shake{animation:lkshake .35s}
+@keyframes lkshake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+.lk-logo{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(160deg,var(--red2),var(--red));margin-bottom:8px;box-shadow:0 10px 30px -10px var(--red)}
+.lk-logo .i{width:30px;height:30px;color:#fff}
+.lk-top h2{font-size:22px;letter-spacing:-.02em}
+.lk-top p{color:#AEB4C2;font-size:15px;min-height:20px}
+.lk-dots{font-size:22px;letter-spacing:12px;margin-top:10px;font-weight:400}
+.lk-in{margin-top:8px;padding:8px 14px;border-radius:99px;background:var(--redbg);color:var(--red2)!important;font-weight:700}
+.lk-pad{display:grid;grid-template-columns:repeat(3,74px);gap:14px 22px}
+.lk-pad button{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.09);font-size:28px;font-weight:500;color:#fff;display:grid;place-items:center}
+.lk-pad button:active{background:rgba(255,255,255,.25)}
+.lk-pad button[hidden]{visibility:hidden;display:grid}
+.lk-pad button .i{width:28px;height:28px}
+.lk-foot{display:flex;gap:12px;width:100%;max-width:340px}
+.lk-sos{position:relative;flex:1;height:58px;border-radius:18px;background:var(--red);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;touch-action:none}
+.lk-sos b{font-size:18px;font-weight:900;letter-spacing:.06em;position:relative;z-index:1}.lk-sos small{font-size:11px;opacity:.85;position:relative;z-index:1}
+.lk-sos i{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(255,255,255,.28)}
+.lk-112{width:96px;height:58px;border-radius:18px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;gap:6px;font-weight:800;color:#fff}
+.lk-forgot{color:#8E95A6;font-size:14px;margin-top:6px}
+body.is-locked #nav{visibility:hidden}
