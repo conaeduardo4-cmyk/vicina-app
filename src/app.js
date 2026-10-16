@@ -139,6 +139,38 @@ export function boot(api, native) {
   // Transizioni: le schede scorrono di lato nell'ordine della barra, le schermate interne entrano da destra ed escono a sinistra.
   const ORDER = ['s-home', 's-map', 's-tools', 's-chat', 's-circle', 's-me'];
   let curScreen = 's-load';
+  /* ---------- Liquid Glass nativo (iOS 26+) ----------
+     La barra delle schede viene disegnata da iOS con UIGlassEffect (VicinaNative.swift), sopra la pagina.
+     Si nasconde da sola quando si apre un foglio, uno strumento a schermo intero o una schermata senza barra. */
+  const glass = { supported: false, last: '' };
+  let glassT = null, glassObs = null;
+  function syncGlass(now) {
+    clearTimeout(glassT);
+    glassT = setTimeout(() => {
+      const on = !!(prefs.glass && glass.supported);
+      document.body.classList.toggle('native-glass', on);
+      if (!on) { if (glass.last !== 'off') { glass.last = 'off'; native.vx.setGlassBar?.({ on: false }); } glassObs?.disconnect(); glassObs = null; return; }
+      const nav = $('#nav'), busy = ['#scrim', '#ov-tool', '#ov-in', '#ov-send'].some(x => $(x)?.classList.contains('on'));
+      const visible = !!nav && !nav.hidden && !busy;
+      const tab = $('#nav button.on')?.dataset.tab || st.tab || 'home';
+      const num = el => (el && !el.hidden ? parseInt(el.textContent, 10) || 1 : 0);
+      const tint = (getComputedStyle(document.documentElement).getPropertyValue('--red') || '#E8192C').trim();
+      const o = { on: true, visible, tab, badges: { chat: num($('#badge')), map: num($('#map-badge')) }, tint };
+      const key = JSON.stringify(o); if (key === glass.last) return; glass.last = key;
+      native.vx.setGlassBar?.(o).then(r => { if (r && r.active === false) { glass.supported = false; glass.last = ''; document.body.classList.remove('native-glass'); } });
+      if (!glassObs) {   // la barra segue da sola schermate, fogli e badge
+        glassObs = new MutationObserver(() => syncGlass());
+        glassObs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class', 'hidden'], childList: false, characterData: true });
+      }
+    }, now ? 0 : 40);
+  }
+  native.vx?.glassInfo?.().then(r => {
+    glass.supported = !!r?.supported;
+    if (!glass.supported) return;
+    native.vx.onGlassTab(t => { if (t && TABS[t]) { native.haptic('light'); tab(t); } });
+    if (st.p) rMe();
+    syncGlass(true);
+  }).catch(() => {});
   function show(id, how) {
     const prev = curScreen; curScreen = id;
     if (prev === 's-thread' && id !== 's-thread') closeLive();
@@ -622,7 +654,7 @@ export function boot(api, native) {
       if (!safeOn()) return;
       mapApi.setSafe(items.map(x => ({ ...x, dist: me ? dist(km(me, x)) : '' })));
       if (fly) toast(items.length ? `${items.length} luoghi sicuri entro 3 km: tocca un'icona per le indicazioni` : 'Nessun luogo sicuro trovato entro 3 km');
-    } catch (e) { console.warn('luoghi sulla mappa', e); toast('Non riesco a caricare i luoghi sicuri: controlla la connessione'); }
+    } catch (e) { console.warn('luoghi sulla mappa', e); toast(extra.safeErr(e) + ' Riprova tra poco.'); }
     finally { safeBusy = false; }
   }
   // mini mappa nella Home (widget): stessa mappa, ferma, solo da guardare
@@ -693,7 +725,7 @@ export function boot(api, native) {
   /* ================= chat ================= */
   function rBadge() {
     const n = convs().reduce((a, c) => a + unread(c.id), 0) + st.sosIn.filter(s => !(s.acks || {})[st.uid]).length;
-    const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n;
+    const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n; if (glass.supported) syncGlass();
     const hb = $('#h-badge'); if (hb) { hb.hidden = !n; hb.textContent = n > 9 ? '9+' : n; }
   }
   const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw">${esc(m.text)}</span>`;
@@ -978,6 +1010,7 @@ export function boot(api, native) {
       </div>
       <div class="label">Chat</div><div class="card">
         ${toggleRow('typingPreview', 'chat', 'green', 'Anteprima mentre scrivi', 'Chi è in chat con te vede cosa stai scrivendo prima che lo invii')}
+        ${glass.supported ? toggleRow('glass', 'spark', 'blue', 'Liquid Glass', 'La barra in basso usa il vetro nativo di iOS 26 (solo su iPhone con iOS 26 o successivo)') : ''}
       </div>
       <div class="label">Strumenti</div><div class="card">
         <button class="row" data-a="med"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Scheda medica</b><span>Gruppo sanguigno, allergie, farmaci</span></div>${I('chev', 'chev')}</button>
@@ -1008,6 +1041,7 @@ export function boot(api, native) {
     else if (k === 'quiet') toast(prefs.quiet ? 'SOS discreto attivo' : 'SOS discreto disattivato');
     else if (k === 'disguise') setDisguise(prefs[k], e.target);
     else if (k === 'typingPreview') toast(prefs.typingPreview ? 'Gli altri vedono l\'anteprima mentre scrivi' : 'Gli altri vedono solo «sta scrivendo…»');
+    else if (k === 'glass') { syncGlass(true); toast(prefs.glass ? 'Liquid Glass attivo' : 'Liquid Glass disattivato'); }
     else tools.prefChanged(k, prefs[k], e.target);
   });
   const sheetPerms = () => openSheet(`<h2>Permessi</h2><p class="sub">Servono perché l'SOS parta subito, senza richieste.</p><div class="card" style="margin-top:14px">${permRows()}</div>
@@ -1248,6 +1282,7 @@ export function boot(api, native) {
     smsList: () => smsList(),
     quickSend: (t, o) => quickSendAll(t, o),
     confirm: (title, text, ok) => dialog({ title, text, ok, cancel: 'No' }),
+    places: api.places ? (lat, lng) => api.places(lat, lng) : null,
     showSafeOnMap: () => { prefs.mapSafe = true; savePrefs(); safeFly = true; tab('map'); if (mapApi) { safeFly = false; mapSafe(true); } },
     async status() { let perm = {}; try { perm = await native.permState(); } catch {} return { perm, circle: recipients().size + smsOn().length, sms: smsOn().length, phone: st.p?.phone || '' }; }
   }, tools);

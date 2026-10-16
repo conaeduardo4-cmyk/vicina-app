@@ -42,6 +42,8 @@ jobs:
             supabase secrets set --project-ref "$REF" VICINA_PUSH_SECRET="$PUSH_SECRET"
             echo "::warning::FCM_SERVICE_ACCOUNT assente: le notifiche push non verranno inviate."
           fi
+      - name: Edge Function "luoghi" (luoghi sicuri dal server, con cache)
+        run: supabase functions deploy luoghi --project-ref "$REF" --no-verify-jwt
       - name: Edge Function "assistente" (IA gratuita con riserve)
         run: |
           supabase functions deploy assistente --project-ref "$REF" --no-verify-jwt

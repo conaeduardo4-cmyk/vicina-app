@@ -201,6 +201,15 @@ export function createApi(env) {
       const { error } = await sb.storage.from('sos').upload(p.replace(/^sos\//, ''), blob, { contentType: mime, upsert: false });
       if (error && !dup(error)) throw rerr(error);   // già caricato da un tentativo precedente: va bene così
     },
+    // ---------- luoghi sicuri dal server (Edge Function «luoghi»: Overpass + Photon + cache per zona) ----------
+    async places(lat, lng) {
+      await sb.auth.getSession();
+      const call = sb.functions.invoke('luoghi', { body: { lat, lng } });
+      const tmo = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 26000));
+      const { data, error } = await Promise.race([call, tmo]);
+      if (error || !data || !Array.isArray(data.elements)) throw new Error(data?.error || error?.message || 'luoghi non disponibili');
+      return data;
+    },
     // ---------- foto profilo ----------
     async setAvatar(uid, dataUrl) {
       const blob = await (await fetch(dataUrl)).blob(), tok = token();

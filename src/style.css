@@ -1546,3 +1546,5 @@ html.dz #s-home .sos-ring b{font-size:0!important}
 .pin-safe.hospital svg path{fill:#fff;stroke:none}
 .maplibregl-marker:has(.pin-ring),.pin-sos{z-index:3}
 .pin-me{z-index:2}
+/* Liquid Glass nativo (iOS 26): la barra la disegna iOS, quella della pagina resta solo come spazio */
+body.native-glass #nav{visibility:hidden}

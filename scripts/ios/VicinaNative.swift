@@ -27,7 +27,9 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "updateWidget", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pendingUrl", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "mediaState", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "requestMedia", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "requestMedia", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "glassInfo", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setGlassBar", returnType: CAPPluginReturnPromise)
     ]
     private let synth = AVSpeechSynthesizer()
 
@@ -111,6 +113,137 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func stopSpeaking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { self.synth.stopSpeaking(at: .immediate); call.resolve() }
+    }
+
+    // ---------- Liquid Glass (iOS 26): barra delle schede nativa ----------
+    // Non è una copia fatta in CSS: è una vera UIVisualEffectView con UIGlassEffect di iOS 26, sopra il WebView.
+    // Disponibile solo se l'app è compilata con l'SDK di iOS 26 (Xcode 26) e il telefono ha iOS 26 o successivo.
+    private var glassBar: UIView?
+    private var glassButtons: [String: UIButton] = [:]
+    private var glassBadges: [String: UILabel] = [:]
+    private var glassTint = UIColor(red: 0.91, green: 0.10, blue: 0.17, alpha: 1)
+    private let glassTabs: [(String, String, String)] = [
+        ("home", "Home", "house.fill"), ("map", "Mappa", "map.fill"), ("tools", "Strumenti", "square.grid.2x2.fill"),
+        ("chat", "Avvisi", "bell.fill"), ("circle", "Cerchia", "person.2.fill"), ("me", "Tu", "person.crop.circle.fill")
+    ]
+
+    private func glassAvailable() -> Bool {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) { return true }
+        #endif
+        return false
+    }
+
+    @objc func glassInfo(_ call: CAPPluginCall) {
+        call.resolve(["supported": glassAvailable(), "ios": UIDevice.current.systemVersion])
+    }
+
+    private func color(_ hex: String?) -> UIColor? {
+        guard var h = hex?.trimmingCharacters(in: .whitespaces), !h.isEmpty else { return nil }
+        if h.hasPrefix("#") { h.removeFirst() }
+        guard h.count == 6, let v = UInt32(h, radix: 16) else { return nil }
+        return UIColor(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
+    }
+
+    private func makeGlassBar(in host: UIView) -> UIView? {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            let glass = UIGlassEffect()
+            glass.isInteractive = true
+            let bar = UIVisualEffectView(effect: glass)
+            bar.translatesAutoresizingMaskIntoConstraints = false
+            bar.layer.cornerRadius = 31
+            bar.layer.cornerCurve = .continuous
+            bar.clipsToBounds = true
+            bar.overrideUserInterfaceStyle = .dark
+            let stack = UIStackView()
+            stack.axis = .horizontal
+            stack.distribution = .fillEqually
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            bar.contentView.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.leadingAnchor.constraint(equalTo: bar.contentView.leadingAnchor, constant: 6),
+                stack.trailingAnchor.constraint(equalTo: bar.contentView.trailingAnchor, constant: -6),
+                stack.topAnchor.constraint(equalTo: bar.contentView.topAnchor),
+                stack.bottomAnchor.constraint(equalTo: bar.contentView.bottomAnchor)
+            ])
+            for (id, title, symbol) in glassTabs {
+                var cfg = UIButton.Configuration.plain()
+                cfg.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold))
+                cfg.imagePlacement = .top
+                cfg.imagePadding = 3
+                var t = AttributedString(title)
+                t.font = UIFont.systemFont(ofSize: 10, weight: .semibold)
+                cfg.attributedTitle = t
+                cfg.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
+                let b = UIButton(configuration: cfg)
+                b.tintColor = UIColor.secondaryLabel
+                b.accessibilityLabel = title
+                b.addAction(UIAction { [weak self] _ in
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    self?.notifyListeners("glassTab", data: ["tab": id])
+                }, for: .touchUpInside)
+                let badge = UILabel()
+                badge.translatesAutoresizingMaskIntoConstraints = false
+                badge.backgroundColor = glassTint
+                badge.textColor = .white
+                badge.font = UIFont.systemFont(ofSize: 10, weight: .bold)
+                badge.textAlignment = .center
+                badge.layer.cornerRadius = 8
+                badge.clipsToBounds = true
+                badge.isHidden = true
+                b.addSubview(badge)
+                NSLayoutConstraint.activate([
+                    badge.centerXAnchor.constraint(equalTo: b.centerXAnchor, constant: 13),
+                    badge.topAnchor.constraint(equalTo: b.topAnchor, constant: 3),
+                    badge.heightAnchor.constraint(equalToConstant: 16),
+                    badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 16)
+                ])
+                stack.addArrangedSubview(b)
+                glassButtons[id] = b
+                glassBadges[id] = badge
+            }
+            host.addSubview(bar)
+            NSLayoutConstraint.activate([
+                bar.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 14),
+                bar.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -14),
+                bar.bottomAnchor.constraint(equalTo: host.safeAreaLayoutGuide.bottomAnchor, constant: -4),
+                bar.heightAnchor.constraint(equalToConstant: 62)
+            ])
+            return bar
+        }
+        #endif
+        return nil
+    }
+
+    // { on, visible, tab, badges: { chat: 3, map: 1 }, tint: "#E8192C" }
+    @objc func setGlassBar(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        let visible = call.getBool("visible") ?? true
+        let tab = call.getString("tab") ?? "home"
+        let badges = call.getObject("badges") ?? [:]
+        let tint = color(call.getString("tint"))
+        DispatchQueue.main.async {
+            guard self.glassAvailable(), let host = self.bridge?.viewController?.view else { call.resolve(["active": false]); return }
+            if !on {
+                self.glassBar?.removeFromSuperview(); self.glassBar = nil; self.glassButtons = [:]; self.glassBadges = [:]
+                call.resolve(["active": false]); return
+            }
+            if let t = tint { self.glassTint = t }
+            if self.glassBar == nil { self.glassBar = self.makeGlassBar(in: host) }
+            guard let bar = self.glassBar else { call.resolve(["active": false]); return }
+            host.bringSubviewToFront(bar)
+            UIView.animate(withDuration: 0.18) { bar.alpha = visible ? 1 : 0 }
+            bar.isUserInteractionEnabled = visible
+            for (id, b) in self.glassButtons { b.tintColor = id == tab ? self.glassTint : UIColor.secondaryLabel }
+            for (id, l) in self.glassBadges {
+                let n = (badges[id] as? NSNumber)?.intValue ?? (badges[id] as? Int) ?? 0
+                l.isHidden = n <= 0
+                l.text = n > 9 ? " 9+ " : " \(n) "
+                l.backgroundColor = self.glassTint
+            }
+            call.resolve(["active": true])
+        }
     }
 
     // ---------- microfono e fotocamera: richiesta di sistema ----------

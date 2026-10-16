@@ -87,7 +87,9 @@ export function createExtra(ctx, base) {
     if (safeLoading) return safeLoading;
     const q = `[out:json][timeout:12];(nwr(around:3000,${p.lat},${p.lng})[amenity~"^(police|hospital|clinic|pharmacy|fuel)$"];nwr(around:3000,${p.lat},${p.lng})[emergency=defibrillator];nwr(around:3000,${p.lat},${p.lng})[shop~"^(supermarket|convenience)$"][opening_hours="24/7"];);out center tags 250;`;
     const term = { police: 'carabinieri', hospital: 'ospedale', pharmacy: 'farmacia', defib: 'defibrillatore', open: 'farmacia' }[cat];
-    safeLoading = native.osm(q, { term, p, r: 3000 }).then(j => {
+    // prima il server di Vicina (più affidabile, con cache); se non c'è o non risponde, direttamente da OpenStreetMap
+    const viaServer = ctx.places ? ctx.places(p.lat, p.lng).catch(e => { console.warn('luoghi dal server', e); return null; }) : Promise.resolve(null);
+    safeLoading = viaServer.then(j => j || native.osm(q, { term, p, r: 3000, safe: true, cat })).then(j => {
       const only = j.elements.length && !j.elements.some(e => e.type) ? cat : null;
       const items = j.elements.map(e => ({ ...e.tags, id: (e.type || 'n') + (e.id || ''), lat: e.lat ?? e.center?.lat, lng: e.lon ?? e.center?.lon })).filter(e => e.lat != null);
       if (only === 'police') items.forEach(e => { e.amenity = 'police'; });
@@ -111,6 +113,8 @@ export function createExtra(ctx, base) {
     }));
   }
   let safeMapCb = null, safeHere = null;
+  const safeErr = e => (typeof navigator !== 'undefined' && navigator.onLine === false) || e?.message === 'offline' ? 'Sei offline: i luoghi si caricano appena torna la connessione.' : 'I server delle mappe non rispondono in questo momento.';
+
   async function sheetSafe(cat = 'police') {
     openSheet(`<h2>Luoghi sicuri vicini</h2><p class="sub">Posti dove entrare e chiedere aiuto, con la strada a piedi.</p>
       <div class="tabs" id="sf-tabs">${CATS.map(([k, t]) => `<button data-a="safe-cat" data-k="${k}" class="${k === cat ? 'on' : ''}">${t}</button>`).join('')}</div>
@@ -126,7 +130,7 @@ export function createExtra(ctx, base) {
     try { await loadSafe(p, cat, shownOld); if ($('#sf-list') && $('#sf-tabs .on')?.dataset.k === cat) rSafe(cat, p); }
     catch (e) {
       console.warn('overpass', e);
-      if (!shownOld && $('#sf-list')) $('#sf-list').innerHTML = `<p class="note">Non riesco a caricare i luoghi (serve internet). Cercali direttamente nelle mappe:</p>${fallbackSafe(p)}`;
+      if (!shownOld && $('#sf-list')) $('#sf-list').innerHTML = `<p class="note">${safeErr(e)} Intanto cercali nelle mappe:</p>${fallbackSafe(p)}<button class="btn ghost sm" data-a="safe-retry" data-k="${cat}">Riprova</button>`;
       else if ($('#sf-upd')) $('#sf-upd').textContent = 'Non riesco ad aggiornare: ti mostro gli ultimi luoghi trovati.';
     }
   }
@@ -452,6 +456,7 @@ export function createExtra(ctx, base) {
       case 'safe-places': closeSheet(); sheetSafe(); return true;
       case 'safe-cat': { document.querySelectorAll('#sf-tabs button').forEach(b => b.classList.toggle('on', b === t)); const k = t.dataset.k; if (safeCache && safeHere && (!safeCache.only || safeCache.only === k)) rSafe(k, safeHere); else sheetSafe(k); return true; }
       case 'safe-map': closeSheet(); ctx.showSafeOnMap?.(); return true;
+      case 'safe-retry': sheetSafe(t.dataset.k || 'police'); return true;
       case 'taxi': closeSheet(); sheetTaxi(); return true;
       case 'ride-ask': { const p = await pos(); const n = await ctx.quickSend(`🚗 Mi serve un passaggio, qualcuno può venirmi a prendere?${p ? '\nSono qui: ' + mapsLink(p) : ''}`); toast(n ? 'Richiesta inviata alla cerchia' : 'Nessuna chat a cui inviarla'); return true; }
       case 'car': closeSheet(); sheetCar(); return true;
@@ -578,5 +583,5 @@ export function createExtra(ctx, base) {
     document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && batteryWatch());
   }
   const nav = { dirUrl, searchUrl, open, wa, store, km, dist, sendBar, outbox, geocode };
-  return { nav, safeForMap, onSafeUpdate: cb => { safeMapCb = cb; }, handle, groups, handleUrl, restore, batteryLine: () => (lastBattery && lastBattery.level >= 0 ? `Batteria: ${lastBattery.level}%` : ''), readBattery };
+  return { nav, safeErr, safeForMap, onSafeUpdate: cb => { safeMapCb = cb; }, handle, groups, handleUrl, restore, batteryLine: () => (lastBattery && lastBattery.level >= 0 ? `Batteria: ${lastBattery.level}%` : ''), readBattery };
 }

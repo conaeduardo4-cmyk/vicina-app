@@ -408,3 +408,19 @@ operazioni **INSERT**, **SELECT** e **DELETE** con la definizione `bucket_id = '
   Ora usa il numero della release, cerca l'IPA anche nelle release precedenti se l'ultima è solo Android e **scarica da sola** il file
   in File › Sul mio iPhone › Vicina › Aggiornamenti, poi propone «Apri con…» (SideStore / AltStore). Il workflow scrive anche
   `ios.version` e `ios.code`. Le versioni già installate fino alla 1.0.31 vanno aggiornate a mano una volta sola.
+
+## Luoghi sicuri dal server e Liquid Glass (iOS 26)
+**Luoghi sicuri** – da aprile 2026 i server Overpass di OpenStreetMap rifiutano (errore 406) le richieste senza un'identificazione chiara
+e sono spesso sovraccarichi: l'app diceva «serve internet» anche con la connessione. Ora:
+1. l'app chiede prima alla nuova Edge Function **`luoghi`** (Overpass in POST con User-Agent/Referer di Vicina, più server insieme,
+   riserva su Photon di komoot, risultati salvati 7 giorni per zona di ~2 km nella tabella `places_cache`);
+2. se la funzione non c'è o non risponde, va direttamente su OpenStreetMap (POST + identificazione) e, se serve, su Photon e Nominatim;
+3. il messaggio d'errore distingue «sei offline» da «i server delle mappe non rispondono», con il pulsante **Riprova**.
+
+**Una volta sola**: Supabase → SQL Editor → `supabase/aggiornamento-luoghi.sql` → Run; poi Edge Functions → Deploy a new function →
+Via Editor → nome **`luoghi`** → incolla `supabase/functions/luoghi/index.ts` → Deploy → **disattiva "Verify JWT"** (controlla lei l'utente).
+Senza questi due passi i luoghi funzionano lo stesso, direttamente da OpenStreetMap.
+
+**Liquid Glass** – su iPhone con **iOS 26 o successivo** compare in Impostazioni l'opzione **Liquid Glass**: la barra delle schede
+diventa quella nativa di iOS (`UIVisualEffectView` + `UIGlassEffect`, in `scripts/ios/VicinaNative.swift`), non un'imitazione in CSS.
+Serve compilare con **Xcode 26** (il workflow lo sceglie da solo se c'è sul server di GitHub); su iOS più vecchi o su Android l'opzione non appare.

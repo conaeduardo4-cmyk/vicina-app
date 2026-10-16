@@ -138,14 +138,31 @@ export const OVERPASS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter'
 ];
-export async function osmQuery(get, q, opt = {}) {
-  // tutti i server insieme: vince il primo che risponde bene (prima si provava uno alla volta, anche 1 minuto di attesa)
-  const ask = u => get(u + '?data=' + encodeURIComponent(q), 'application/json').then(t => {
+// Da aprile 2026 Overpass rifiuta (406) le richieste senza un'identificazione chiara e preferisce il POST:
+// ora la query va nel corpo (POST) con User-Agent/Referer di Vicina (sul telefono), più server insieme,
+// e se nessuno risponde si usa Photon (ricerca OpenStreetMap di komoot), poi Nominatim.
+export const OSM_UA = 'Vicina-app/1.0 (app SOS gratuita; +https://vicina.netlify.app)';
+export const OSM_REF = 'https://vicina.netlify.app/';
+const PHOTON_TAGS = [['polizia', 'amenity:police'], ['carabinieri', 'amenity:police'], ['ospedale', 'amenity:hospital'], ['farmacia', 'amenity:pharmacy'], ['defibrillatore', 'emergency:defibrillator']];
+const PHOTON_ONE = { police: [['carabinieri', 'amenity:police'], ['polizia', 'amenity:police']], hospital: [['ospedale', 'amenity:hospital']], pharmacy: [['farmacia', 'amenity:pharmacy']], defib: [['defibrillatore', 'emergency:defibrillator']] };
+export async function photonPlaces(get, p, r = 3000, tags = PHOTON_TAGS) {
+  const all = await Promise.allSettled(tags.map(async ([q, tag]) => parseJsonLoose(await get(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${p.lat}&lon=${p.lng}&limit=25&lang=it&osm_tag=${encodeURIComponent(tag)}`, 'application/json'))?.features || []));
+  if (all.every(x => x.status === 'rejected')) throw new Error('Photon non risponde');
+  const seen = new Set(), out = [];
+  for (const x of all) if (x.status === 'fulfilled') for (const f of x.value) {
+    const pr = f.properties || {}, [lo, la] = f.geometry?.coordinates || []; const id = (pr.osm_type || 'N') + pr.osm_id;
+    if (la == null || seen.has(id)) continue; seen.add(id);
+    if (Math.hypot((la - p.lat) * 111, (lo - p.lng) * 111 * Math.cos(p.lat * Math.PI / 180)) > r / 1000 + 0.5) continue;
+    out.push({ type: { N: 'node', W: 'way', R: 'relation' }[pr.osm_type] || 'node', id: pr.osm_id, lat: la, lon: lo, tags: { name: pr.name, [pr.osm_key]: pr.osm_value, 'addr:street': pr.street, 'addr:housenumber': pr.housenumber } });
+  }
+  return { elements: out };
+}
+export async function osmQuery(get, q, opt = {}, post = null) {
+  const ask = u => (post ? post(u, q) : get(u + '?data=' + encodeURIComponent(q), 'application/json')).then(t => {
     const j = parseJsonLoose(t);
     if (j && Array.isArray(j.elements) && (j.elements.length || !j.remark)) return j;
     throw new Error(j?.remark || 'risposta non valida');
   });
-  // riserva: Nominatim (ricerca per nome, una sola categoria). Parte se Overpass fallisce o non risponde entro 6 secondi
   const nomi = async () => {
     const d = Math.min(0.2, (opt.r || 3000) / 111000), { lat, lng } = opt.p;
     const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=15&bounded=1&accept-language=it&viewbox=${lng - d * 1.4},${lat + d},${lng + d * 1.4},${lat - d}&q=${encodeURIComponent(opt.term)}`;
@@ -153,15 +170,21 @@ export async function osmQuery(get, q, opt = {}) {
     if (!Array.isArray(a) || !a.length) throw new Error('niente');
     return { elements: a.map(x => ({ id: x.osm_id, lat: Number(x.lat), lon: Number(x.lon), tags: { name: x.name || String(x.display_name || '').split(',')[0], [x.category]: x.type, 'addr:street': x.address?.road } })) };
   };
+  // riserva quando Overpass non risponde: Photon (tutti i tipi di luoghi sicuri, o quello richiesto), poi Nominatim
+  const backup = async () => {
+    if (opt.p && (opt.safe || PHOTON_ONE[opt.cat])) { try { const j = await photonPlaces(get, opt.p, opt.r || 3000, opt.safe ? PHOTON_TAGS : PHOTON_ONE[opt.cat]); if (j.elements.length) return j; } catch (e) { console.warn('photon', e); } }
+    if (opt.term && opt.p) return nomi();
+    throw new Error('niente');
+  };
   const tries = OVERPASS.map(ask);
   const full = firstOk(tries.map(p => p.then(j => (j.elements.length ? j : null))));
   const racers = [full];
   let over = false; full.then(() => { over = true; }, () => {});
-  if (opt.term && opt.p) racers.push(Promise.race([new Promise(r => setTimeout(r, 6000)), full.catch(() => null)]).then(() => (over ? null : nomi())));
+  if (opt.p) racers.push(Promise.race([new Promise(r => setTimeout(r, 7000)), full.catch(() => null)]).then(() => (over ? null : backup())));
   try { const j = await firstOk(racers); over = true; return j; } catch {}
   // nessun server con risultati: se almeno uno ha risposto «niente intorno» è una risposta valida
   if ((await Promise.allSettled(tries)).some(x => x.status === 'fulfilled')) return { elements: [] };
-  throw new Error('Luoghi non raggiungibili');
+  throw new Error(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'server');
 }
 const webGet = async (url, accept) => {
   const c = new AbortController(), t = setTimeout(() => c.abort(), 12000);
@@ -169,8 +192,15 @@ const webGet = async (url, accept) => {
   finally { clearTimeout(t); }
 };
 
+const webPost = async (url, q) => {
+  const body = 'data=' + encodeURIComponent(q);
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 15000);
+  try { const r = await fetch(url, { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, signal: c.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.text(); }
+  finally { clearTimeout(t); }
+};
+
 export const webNative = {
-  osm: (q, opt) => osmQuery(webGet, q, opt),
+  osm: (q, opt) => osmQuery(webGet, q, opt, webPost),
   isNative: false, platform: 'web',
   async openMaps(lat, lng, name, nav) { window.open(mapsLinks(lat, lng, name, nav, 'web').web, '_blank', 'noopener'); },
   async openUrl(url) { window.open(url, '_blank', 'noopener'); },
@@ -251,6 +281,9 @@ export const webNative = {
     native: false,
     async getIcon() { return { name: 'default', supported: false }; },
     async setIcon() { throw new Error('Disponibile solo nell\'app installata'); },
+    async glassInfo() { return { supported: false }; },
+    async setGlassBar() { return { active: false }; },
+    onGlassTab() {},
     async torch(on) {   // torcia: funziona su Chrome per Android
       if (!on) { webTorch?.getTracks().forEach(t => t.stop()); webTorch = null; return; }
       webTorch = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });

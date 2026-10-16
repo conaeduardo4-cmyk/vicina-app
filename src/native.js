@@ -8,7 +8,7 @@ import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, osmQuery, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState, fastPos, saveMediaState, startRecording, releasesUrlFor, ipaFromReleases } from './native-web.js';
+import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, osmQuery, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState, fastPos, saveMediaState, startRecording, releasesUrlFor, ipaFromReleases, OSM_UA, OSM_REF } from './native-web.js';
 
 // Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
 const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
@@ -131,10 +131,15 @@ export const native = !isNative ? webNative : {
   // Aggiornamenti: su Android scarica e installa l'APK dentro l'app; su iOS solo avviso + istruzioni
   // luoghi vicini: richiesta nativa (niente CORS, con un User-Agent riconoscibile come chiedono i server OSM)
   osm: (q, opt) => osmQuery(async (url, accept) => {
-    const r = await CapacitorHttp.get({ url, connectTimeout: 8000, readTimeout: 14000, responseType: 'text', headers: { Accept: accept, 'User-Agent': 'Vicina-app/1.0 (app SOS)' } });
+    const r = await CapacitorHttp.get({ url, connectTimeout: 8000, readTimeout: 15000, responseType: 'text', headers: { Accept: accept, 'User-Agent': OSM_UA, Referer: OSM_REF } });
     if (r.status < 200 || r.status >= 300) throw new Error('HTTP ' + r.status);
     return r.data;
-  }, opt),
+  }, opt, async (url, q) => {
+    // corpo «data=…» codificato da Capacitor (form-urlencoded)
+    const r = await CapacitorHttp.post({ url, data: { data: q }, connectTimeout: 8000, readTimeout: 20000, responseType: 'text', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json', 'User-Agent': OSM_UA, Referer: OSM_REF } });
+    if (r.status < 200 || r.status >= 300) throw new Error('HTTP ' + r.status);
+    return r.data;
+  }),
   update: {
     autoInstall: Capacitor.getPlatform() === 'android',
     async current() {
@@ -247,6 +252,10 @@ export const native = !isNative ? webNative : {
     native: true,
     async getIcon() { try { return await VN.getIcon(); } catch { return { name: 'default', supported: false }; } },
     setIcon: name => VN.setIcon({ name }),
+    // Liquid Glass di iOS 26: barra delle schede nativa (UIGlassEffect). Su iOS < 26 o su Android: non supportato.
+    async glassInfo() { if (Capacitor.getPlatform() !== 'ios') return { supported: false }; try { return await VN.glassInfo(); } catch { return { supported: false }; } },
+    setGlassBar: o => VN.setGlassBar(o).catch(() => ({ active: false })),
+    onGlassTab: cb => { try { VN.addListener('glassTab', e => cb(e?.tab)); } catch {} },
     async torch(on) { try { await VN.torch({ on }); } catch (e) { if (on) throw e; } },
     async battery() { try { return await VN.battery(); } catch { return { level: -1, charging: false }; } },
     async speak(text, lang = 'it-IT') { try { await VN.speak({ text, lang }); return true; } catch { return webNative.vx.speak(text, lang); } },
