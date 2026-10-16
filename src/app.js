@@ -4,6 +4,7 @@ import { createTools } from './tools.js';
 import { createExtra } from './tools-extra.js';
 import { createMore } from './tools-more.js';
 import { createMore2 } from './tools-more2.js';
+import { createMore3 } from './tools-more3.js';
 import { createDisguise } from './disguise.js';
 import { qrSvg, openScanner, inviteLink, parseInvite } from './qr.js';
 export function boot(api, native) {
@@ -54,7 +55,7 @@ export function boot(api, native) {
   const upd = { cur: null, last: null, checking: false, busy: false, pct: 0, err: '', done: false };
   // su iPhone conta la versione dell'IPA (può essere più vecchia dell'APK se l'ultima build era solo Android)
   const isIOS = () => native.platform === 'ios';
-  const lastCode = () => isIOS() ? Number(upd.last?.ios?.ipa ? upd.last.ios.code || 0 : 0) : Number(upd.last?.code || 0);
+  const lastCode = () => isIOS() ? Number(upd.last?.ios?.ipa ? upd.last.ios.code || upd.last.code || 0 : 0) : Number(upd.last?.code || 0);
   const lastVersion = () => (isIOS() && upd.last?.ios?.version) || upd.last?.version || '';
   const updNewer = () => !!(upd.last && upd.cur && lastCode() > Number(upd.cur.code || 0));
   const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -288,14 +289,17 @@ export function boot(api, native) {
     }
     await native.composeSms(nums, text); return 'compose';
   }
-  async function trigger() {
+  // silent: SOS «di nascosto» (codice anti-costrizione): nessuna schermata, vibrazione o flash, si resta dove si è
+  let silentSos = false;
+  async function trigger(opt = {}) {
     if (sending) return;
+    const silent = !!opt.silent; if (silent) silentSos = true;
     sending = true; let cancelled = false;
     const appN = recipients().size, sms = smsOn(), autoSms = !!native.sms?.auto && sms.length && (await native.sms.state()) === 'granted';
     const cancel = $('#send-cancel'); cancel.hidden = false; cancel.onclick = () => { cancelled = true; };
     $('#st2').hidden = !appN; $('#st5').hidden = !sms.length;
     $('#st5-sub').textContent = autoSms ? `A ${sms.length} ${sms.length === 1 ? 'contatto' : 'contatti'} senza app` : 'Si apre Messaggi: premi Invia';
-    STEPS.forEach(n => stp(n, '')); $('#ov-send').classList.add('on');
+    STEPS.forEach(n => stp(n, '')); if (!silent) $('#ov-send').classList.add('on');
     const sosId = rid(), end = () => { sending = false; $('#ov-send').classList.remove('on'); };
     let res = null, srvErr = null; const imgs = [], links = [];
     try {
@@ -309,13 +313,13 @@ export function boot(api, native) {
         try {
           res = await api.call('sendSos', { sosId, lat: pos?.lat ?? null, lng: pos?.lng ?? null, acc: pos?.acc ?? null, live: true });
           if (res.liveUntil) startLive(sosId, res.liveUntil);
-          stp(2, 'done'); if (!prefs.quiet) native.vibrate([80, 60, 80]);
+          stp(2, 'done'); if (!prefs.quiet && !silent) native.vibrate([80, 60, 80]);
         } catch (e) { stp(2, 'fail'); srvErr = e; if (!sms.length) throw e; }
       }
       for (const [n, facing, file] of [[3, 'environment', 'back'], [4, 'user', 'front']]) {
         stp(n, 'run'); const img = await native.snap(facing);
         if (img) {
-          imgs.push(img); if (!prefs.quiet) $('#flash').classList.add('go');
+          imgs.push(img); if (!prefs.quiet && !silent) $('#flash').classList.add('go');
           const path = `sos/${st.uid}/${sosId}/${file}.jpg`;
           try {
             await api.uploadPhoto(path, img);
@@ -330,15 +334,17 @@ export function boot(api, native) {
       if (res && prefs.autoAudio) autoAudio(sosId);
       if (sms.length) {
         if (autoSms) { if (links.length) { const r = await smsDeliver('Aggiornamento con le foto.\n' + smsText(pos, links)); stp(5, r === 'sent' ? 'done' : 'wait'); } else stp(5, 'done'); }
-        else { stp(5, 'wait'); await wait(500); end(); await smsDeliver(smsText(pos, links), { auto: false }); }
+        else if (!silent) { stp(5, 'wait'); await wait(500); end(); await smsDeliver(smsText(pos, links), { auto: false }); }
       }
       await wait(400); end();
+      if (silent) return;
       const tot = (res?.recipients || 0) + sms.length;
       if (srvErr) toast('Allarme in app non riuscito: avvisati solo i contatti SMS');
       else toast(autoSms || !sms.length ? `SOS inviato a ${tot} ${tot === 1 ? 'persona' : 'persone'}` : 'Premi Invia in Messaggi per avvisare i contatti');
       tab('home');
     } catch (e) {
       end(); console.warn(e);
+      if (silent) return;
       dialog({ title: 'Invio non riuscito', text: errMsg(e) + ' Se sei in pericolo chiama subito il 112.', ok: 'Chiama 112', cancel: 'Chiudi' }).then(ok => ok && (location.href = 'tel:112'));
     }
   }
@@ -590,7 +596,7 @@ export function boot(api, native) {
     rMap();
     refreshMyPos();
     clearInterval(mapTimer); mapTimer = setInterval(() => { if (curScreen !== 's-map') return clearInterval(mapTimer); rMapList(); refreshMyPos(); }, 10000);
-    if (mapApi) { setTimeout(() => mapApi.resize(), 60); return; }
+    if (mapApi) { setTimeout(() => mapApi.resize(), 60); mapSafe(); return; }
     if (mapLoading || mapFailed) return;
     const msg = $('#map-msg'); msg.hidden = false; msg.innerHTML = '<span class="typing"><i></i><i></i><i></i></span> Carico la mappa…';
     mapLoading = import('./map.js').then(m => m.createMap($('#map'), { onPick: id => { const c = document.querySelector(`.map-card[data-id="${id}"]`); c?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); c?.classList.add('hl'); setTimeout(() => c?.classList.remove('hl'), 1200); } }))
@@ -601,20 +607,22 @@ export function boot(api, native) {
   function closeMapTab() { clearInterval(mapTimer); }
   // luoghi sicuri come punti sulla mappa (si accendono col pulsante con lo scudo o da «Luoghi sicuri»)
   let safeBusy = false, safeFly = false;
+  // acceso di serie: si spegne col pulsante con lo scudo
+  const safeOn = () => prefs.mapSafe !== false;
   async function mapSafe(fly) {
-    const b = $('#map-safe-btn'); if (b) { b.classList.toggle('on', !!prefs.mapSafe); b.setAttribute('aria-pressed', !!prefs.mapSafe); }
+    const b = $('#map-safe-btn'); if (b) { b.classList.toggle('on', safeOn()); b.setAttribute('aria-pressed', safeOn()); }
     if (!mapApi) return;
-    if (!prefs.mapSafe) { mapApi.setSafe([]); return; }
+    if (!safeOn()) { mapApi.setSafe([]); return; }
     if (safeBusy) return; safeBusy = true;
     try {
-      const me = st.myPos || await refreshMyPos(true);
-      if (!me) { toast('Posizione non disponibile: attiva il GPS per vedere i luoghi sicuri'); return; }
-      if (fly) mapApi.zoomTo(me.lat, me.lng, 14.6);
-      const items = await extra.safeForMap(me);
-      if (!prefs.mapSafe) return;
-      mapApi.setSafe(items.map(x => ({ ...x, dist: dist(km(me, x)) })));
-      if (fly) toast(items.length ? `${items.length} luoghi sicuri entro 3 km: tocca un punto per le indicazioni` : 'Nessun luogo sicuro trovato entro 3 km');
-    } catch (e) { console.warn('luoghi sulla mappa', e); if (fly) toast('Non riesco a caricare i luoghi sicuri (serve internet)'); }
+      // la mia posizione; se il GPS non risponde, il centro della mappa (così i luoghi compaiono comunque)
+      const me = st.myPos || await refreshMyPos(true), at = me || mapApi.getCenter();
+      if (fly) { if (me) mapApi.zoomTo(me.lat, me.lng, 14.6); toast('Cerco i luoghi sicuri intorno…'); }
+      const items = await extra.safeForMap(at);
+      if (!safeOn()) return;
+      mapApi.setSafe(items.map(x => ({ ...x, dist: me ? dist(km(me, x)) : '' })));
+      if (fly) toast(items.length ? `${items.length} luoghi sicuri entro 3 km: tocca un'icona per le indicazioni` : 'Nessun luogo sicuro trovato entro 3 km');
+    } catch (e) { console.warn('luoghi sulla mappa', e); toast('Non riesco a caricare i luoghi sicuri: controlla la connessione'); }
     finally { safeBusy = false; }
   }
   // mini mappa nella Home (widget): stessa mappa, ferma, solo da guardare
@@ -1244,7 +1252,7 @@ export function boot(api, native) {
     async status() { let perm = {}; try { perm = await native.permState(); } catch {} return { perm, circle: recipients().size + smsOn().length, sms: smsOn().length, phone: st.p?.phone || '' }; }
   }, tools);
   tools.setExtra(extra);
-  extra.onSafeUpdate(() => { if (prefs.mapSafe) mapSafe(); });
+  extra.onSafeUpdate(() => { if (safeOn()) mapSafe(); });
   tools.setExtra(createMore({
     $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid, profile: () => st.p,
     smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o), simulate: () => simulateSos()
@@ -1252,6 +1260,11 @@ export function boot(api, native) {
   tools.setExtra(createMore2({
     $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid,
     smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o)
+  }, tools, extra));
+  tools.setExtra(createMore3({
+    $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid, profile: () => st.p,
+    smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o),
+    sos: () => { if (st.sosMine) return Promise.resolve(); if (!canSos()) { toast('Aggiungi qualcuno alla cerchia: in pericolo chiama il 112'); return Promise.resolve(); } return trigger({ silent: true }); }
   }, tools, extra));
 
   /* ================= link vicina:// (scorciatoie, widget, Comandi) ================= */
@@ -1413,13 +1426,13 @@ export function boot(api, native) {
         case 'upd-perm': upd.cur.canInstall = false; await native.update.openInstallSettings().catch(() => {}); break;
         case 'upd-later': if (upd.last) ls.set('updSnooze:' + upd.last.code, String(Date.now())); closeSheet(); break;
         case 'upd-page': native.openUrl(t.dataset.u); break;
-        case 'upd-ipa': await saveIpa(); break;
+        case 'upd-ipa': await saveIpa(false); break;
         case 'upd-ipa-share': if (upd.saved?.uri) await native.update.shareFile(upd.saved.uri, 'Vicina ' + lastVersion()).catch(() => {}); break;
         case 'map-focus': { if ($('#ov-in').classList.contains('on')) { st.dismissed.add(st.shownIn); closeIncoming(); } closeSheet(); tab('map'); mapFocus(id, +t.dataset.lat, +t.dataset.lng); break; }
         case 'map-nav': case 'map-open': { const p = mapPeople().find(x => x.id === id) || (() => { const x = st.sosIn.find(y => y.id === id); return x && { lat: x.lat, lng: x.lng, name: x.fromName }; })(); if (p && p.lat != null) native.openMaps(p.lat, p.lng, p.name, a === 'map-nav'); else toast('Posizione non disponibile'); break; }
         case 'map-me': { const me = await refreshMyPos(true); if (me && mapApi) mapApi.center(me.lat, me.lng); else if (!me) toast('Posizione non disponibile: attiva il GPS'); break; }
         case 'map-all': if (mapApi) mapApi.showAll(mapPeople(), st.myPos); break;
-        case 'map-safe': prefs.mapSafe = !prefs.mapSafe; savePrefs(); native.haptic('light'); if (!prefs.mapSafe) toast('Luoghi sicuri nascosti'); await mapSafe(prefs.mapSafe); break;
+        case 'map-safe': prefs.mapSafe = !safeOn(); savePrefs(); native.haptic('light'); if (!safeOn()) toast('Luoghi sicuri nascosti'); await mapSafe(safeOn()); break;
         case 'map-retry': mapFailed = false; openMapTab(); break;
         case 'voice-send': await voiceSend(); break;
         case 'voice-cancel': voiceCancel(); break;
@@ -1515,8 +1528,8 @@ export function boot(api, native) {
       sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); if (st.sosIn.some(s => !(s.from in st.av))) loadAvatars(true); checkIncoming(); rChats(); rBadge(); rMap(); if (st.open) rThread(); },
       sosMine: list => {
         const was = !!st.sosMine; st.sosMine = list.filter(s => Date.now() - s.at < 12 * 36e5).sort((a, b) => b.at - a.at)[0] || null;
-        if (st.sosMine) { intro.done(true); if (live.sosId !== st.sosMine.id) startLive(st.sosMine.id, st.sosMine.liveUntil || st.sosMine.at + 12 * 36e5); rActive(); if (!sending && ['s-home', 's-active'].some(s => $('#' + s).classList.contains('on'))) show('s-active'); }
-        else { if (live.sosId) stopLive(false); if (was && $('#s-active').classList.contains('on')) tab('home'); }
+        if (st.sosMine) { intro.done(true); if (live.sosId !== st.sosMine.id) startLive(st.sosMine.id, st.sosMine.liveUntil || st.sosMine.at + 12 * 36e5); rActive(); if (!sending && !silentSos && ['s-home', 's-active'].some(s => $('#' + s).classList.contains('on'))) show('s-active'); }
+        else { silentSos = false; if (live.sosId) stopLive(false); if (was && $('#s-active').classList.contains('on')) tab('home'); }
         rMap();
       }
     });
@@ -1623,7 +1636,16 @@ export function boot(api, native) {
     upd.checking = true; upd.err = ''; if (manual) rUpdSheet(true);
     try {
       upd.last = await native.update.latest(UPDATE_URL);
+      // iPhone: se l'ultima release non ha l'IPA (build solo Android) prendo la più recente che ce l'ha
+      if (isIOS() && !upd.last?.ios?.ipa && native.update.latestIpa) { const i = await native.update.latestIpa(UPDATE_URL).catch(() => null); if (i) upd.last = { ...upd.last, ios: { ...(upd.last?.ios || {}), ...i } }; }
+      if (isIOS() && upd.last?.ios?.ipa && !upd.last.ios.version) upd.last.ios.version = upd.last.version;
       ls.set('updChecked', String(Date.now()));
+      // iPhone: il file della nuova versione si scarica da solo nell'app File (se non c'è già)
+      if (isIOS() && updNewer() && native.update.saveIpa) {
+        const name = `Vicina-${lastVersion()}.ipa`;
+        if (!upd.saved || upd.savedCode !== lastCode()) { upd.saved = await native.update.savedIpa?.(name).catch(() => null) || null; upd.savedCode = upd.saved ? lastCode() : 0; }
+        if (!upd.saved && !upd.busy && !st.sosMine) autoIpa = saveIpa(true);
+      }
       const quiet = st.sosMine || sending || $('#ov-in').classList.contains('on') || $('#scrim').classList.contains('on') || !st.p;
       const snoozed = Date.now() - Number(ls.get('updSnooze:' + upd.last?.code) || 0) < 24 * 36e5;
       if (updNewer() && !manual && !quiet && !snoozed) rUpdSheet(true);
@@ -1659,7 +1681,7 @@ export function boot(api, native) {
         : upd.saved ? `<div class="upd-perm ok">${I('check')}<div><b>Salvato in File</b><span>File › Sul mio iPhone › Vicina › Aggiornamenti › ${esc(name)}</span></div></div>
              <div class="upd-steps"><b>Ora installalo tu:</b><ol><li>Tocca «Apri con…» qui sotto e scegli <b>SideStore</b> o <b>AltStore</b> (oppure trasferisci il file su computer e usa <b>Sideloadly</b>).</li><li>Si installa sopra la versione attuale: account, cerchia e chat restano.</li></ol></div>
              <button class="btn red" data-a="upd-ipa-share">${I('share')}Apri con…</button>`
-        : `<div class="upd-steps"><b>Su iPhone l’aggiornamento si completa a mano:</b><ol><li>Tocca «Scarica in File»: il file <b>.ipa</b> viene salvato nell'app File.</li><li>Aprilo con SideStore, AltStore o Sideloadly per installarlo.</li></ol></div>
+        : `<div class="upd-steps"><b>Su iPhone l’aggiornamento si completa a mano:</b><ol><li>Tocca «Scarica in File»: il file <b>.ipa</b> viene salvato nell'app File (di solito lo fa già da sola appena trova la nuova versione).</li><li>Aprilo con SideStore, AltStore o Sideloadly per installarlo.</li></ol></div>
              <button class="btn red" data-a="upd-ipa">${I('share')}Scarica in File</button>`}
         ${(l.ios.release || l.release || l.ios.page) ? `<button class="btn ghost" data-a="upd-page" data-u="${esc(l.ios.release || l.release || l.ios.page)}">${I('book')}Apri la release ${esc(lastVersion())} su GitHub</button>` : ''}
         ${upd.busy ? '' : `<button class="btn link" data-a="upd-later">Più tardi</button>`}`;
@@ -1674,14 +1696,19 @@ export function boot(api, native) {
     }
     openSheet(h, 'update');
   }
-  async function saveIpa() {
+  let autoIpa = null;
+  async function saveIpa(auto) {
     const ipa = upd.last?.ios?.ipa; if (!ipa || upd.busy) return;
-    upd.busy = true; upd.pct = 0; upd.saved = null; rUpdSheet(true);
+    upd.busy = true; upd.pct = 0; upd.saved = null; if (!auto || curSheet === 'update') rUpdSheet(true);
     try {
       upd.saved = await native.update.saveIpa(ipa, `Vicina-${lastVersion()}.ipa`, p => { upd.pct = Math.max(0, Math.min(100, Math.round(p))); const b = $('.upd-bar i'); if (b) b.style.width = upd.pct + '%'; const t = $('.upd-bar + .note'); if (t) t.textContent = `Scarico il file… ${upd.pct}%`; });
+      upd.savedCode = lastCode();
       native.haptic('light');
-    } catch (e) { console.warn('ipa', e); toast('Download non riuscito: ' + (e?.message || 'riprova')); }
-    upd.busy = false; rUpdSheet(true);
+      if (auto) toast(`Vicina ${lastVersion()} scaricata in File › Vicina › Aggiornamenti`);
+    } catch (e) { console.warn('ipa', e); if (!auto) toast('Download non riuscito: ' + (e?.message || 'riprova')); }
+    upd.busy = false;
+    if (!auto || curSheet === 'update') rUpdSheet(true);
+    else if (upd.saved && !st.sosMine && !$('#ov-in').classList.contains('on') && !$('#scrim').classList.contains('on') && Date.now() - Number(ls.get('updSnooze:' + lastCode()) || 0) > 24 * 36e5) rUpdSheet(true);
   }
   async function installUpdate(btn) {
     const a = upd.last?.android; if (!a?.apk || upd.busy) return;

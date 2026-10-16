@@ -115,6 +115,17 @@ export function releaseToVersion(r) {
   return { version: v, code, date: r.published_at, notes: r.body || '', page: r.html_url, release: r.html_url,
     android: { apk, sha256: null }, ios: { ipa, version: v, code: ipa ? code : 0, notes: r.body || '', page: r.html_url, release: r.html_url } };
 }
+// iPhone: se l'ultima release non ha l'IPA (build solo Android), cerchiamo la più recente che ce l'ha
+export const releasesUrlFor = url => { const m = String(url).match(/github\.com\/([^/]+)\/([^/]+)\/releases/); return m ? `https://api.github.com/repos/${m[1]}/${m[2]}/releases?per_page=15` : null; };
+export function ipaFromReleases(list) {
+  for (const r of Array.isArray(list) ? list : []) {
+    if (r.draft || r.prerelease) continue;
+    const a = (r.assets || []).find(x => /\.ipa$/i.test(x.name)); if (!a) continue;
+    const v = String(r.tag_name || '').replace(/^v/, ''), code = Number((v.match(/(\d+)$/) || [])[1] || 0);
+    return { ipa: a.browser_download_url, version: v, code, notes: r.body || '', release: r.html_url, page: r.html_url, size: a.size || 0 };
+  }
+  return null;
+}
 export const apiUrlFor = url => { const m = String(url).match(/github\.com\/([^/]+)\/([^/]+)\/releases/); return m ? `https://api.github.com/repos/${m[1]}/${m[2]}/releases/latest` : null; };
 
 
@@ -171,6 +182,11 @@ export const webNative = {
       const api = apiUrlFor(url); if (!api) throw new Error('Aggiornamenti non raggiungibili');
       const r = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } }); if (!r.ok) throw new Error('HTTP ' + r.status);
       const j = releaseToVersion(await r.json()); if (!j) throw new Error('Release non valida'); return j;
+    },
+    async latestIpa(url) {
+      const u = releasesUrlFor(url); if (!u) return null;
+      const r = await fetch(u, { headers: { Accept: 'application/vnd.github+json' } }); if (!r.ok) return null;
+      return ipaFromReleases(await r.json());
     },
     async canInstall() { return false; },
     async openInstallSettings() {},

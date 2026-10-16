@@ -395,3 +395,16 @@ Poi **Actions → Pubblica server** (aggiorna la funzione `vicina`, che ora canc
 
 Regole della foto profilo (solo se compare l'avviso durante l'aggiornamento): bucket **avatars** → New policy, ruolo **authenticated**,
 operazioni **INSERT**, **SELECT** e **DELETE** con la definizione `bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text`.
+
+## 50 strumenti nuovi, luoghi sicuri sulla mappa, aggiornamenti iPhone
+- **152 strumenti** (`src/tools-more3.js`): 16 interattivi — codice anti-costrizione (il codice d'emergenza «annulla» ma invia l'SOS di nascosto),
+  SOS a tempo, raffica di foto, finta videochiamata, parola d'ordine, «Tutto ok?», «Se trovi questo telefono», luce rossa, batteria critica,
+  altitudine per il Soccorso Alpino, quanto manca al buio, ritrova il punto (freccia + distanza), Morse luminoso, appello del gruppo,
+  messaggio programmato, identikit — e 34 guide (persona armata, scippo, taxi abusivo, mezzi di notte, folla, mare, montagna, temporale,
+  black-out, ascensore, SMS truffa, tracker nascosti, molestie, viaggi, hotel, panico, alcol, avvelenamento, monossido, IT-alert…).
+- **Luoghi sicuri sulla mappa**: accesi di serie (pulsante con lo scudo per nasconderli), con segnaposto quadrati e icona del tipo,
+  diversi dal punto blu della tua posizione. Se il GPS non risponde si cercano intorno al centro della mappa.
+- **Aggiornamenti iPhone**: l'app non vedeva mai le nuove versioni perché leggeva `ios.code`, che `version.json` non conteneva.
+  Ora usa il numero della release, cerca l'IPA anche nelle release precedenti se l'ultima è solo Android e **scarica da sola** il file
+  in File › Sul mio iPhone › Vicina › Aggiornamenti, poi propone «Apri con…» (SideStore / AltStore). Il workflow scrive anche
+  `ios.version` e `ios.code`. Le versioni già installate fino alla 1.0.31 vanno aggiornate a mano una volta sola.

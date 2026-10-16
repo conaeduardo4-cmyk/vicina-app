@@ -8,7 +8,7 @@ import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, osmQuery, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState, fastPos, saveMediaState, startRecording } from './native-web.js';
+import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, osmQuery, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState, fastPos, saveMediaState, startRecording, releasesUrlFor, ipaFromReleases } from './native-web.js';
 
 // Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
 const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
@@ -159,6 +159,13 @@ export const native = !isNative ? webNative : {
       if (vj?.browser_download_url) { try { const r2 = await get(vj.browser_download_url, '*/*'); const j = parseJsonLoose(r2.data); if (j && j.version) return { release: rel.html_url, ...j }; } catch {} }
       const j = releaseToVersion(rel); if (!j) throw new Error('Release non valida'); return j;
     },
+    // iPhone: l'IPA più recente pubblicato su GitHub (anche se l'ultima build era solo Android)
+    async latestIpa(url) {
+      const u = releasesUrlFor(url); if (!u) return null;
+      const r = await CapacitorHttp.get({ url: u, connectTimeout: 12000, readTimeout: 15000, responseType: 'text', headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Vicina-app' } });
+      if (r.status !== 200) return null;
+      return ipaFromReleases(parseJsonLoose(r.data));
+    },
     async canInstall() { try { return (await ApkUpdater.info()).canInstall !== false; } catch { return true; } },
     openInstallSettings: () => ApkUpdater.openInstallSettings(),
     // iPhone: scarica l'IPA nella cartella Documenti dell'app (visibile in File › Sul mio iPhone › Vicina)
@@ -167,12 +174,29 @@ export const native = !isNative ? webNative : {
       let h = null;
       try { h = await Filesystem.addListener('progress', e => { if (e?.contentLength) onProgress?.(e.bytes * 100 / e.contentLength); }); } catch {}
       try {
-        try { await Filesystem.deleteFile({ path, directory: Directory.Documents }); } catch {}
-        await Filesystem.downloadFile({ url, path, directory: Directory.Documents, recursive: true, progress: true });
+        // via le versioni vecchie: nella cartella resta solo l'ultima (si risparmia spazio)
+        try { const { files } = await Filesystem.readdir({ path: 'Aggiornamenti', directory: Directory.Documents }); for (const f of files || []) { const n = f.name || f; if (/\.ipa$/i.test(n)) await Filesystem.deleteFile({ path: 'Aggiornamenti/' + n, directory: Directory.Documents }).catch(() => {}); } } catch {}
+        let ok = false;
+        try {
+          await Filesystem.downloadFile({ url, path, directory: Directory.Documents, recursive: true, progress: true });
+          const st = await Filesystem.stat({ path, directory: Directory.Documents }); ok = Number(st.size) > 200000;
+        } catch (e) { console.warn('downloadFile', e); }
+        if (!ok) {   // riserva: scarico con la richiesta nativa e scrivo il file io
+          onProgress?.(5);
+          const r = await CapacitorHttp.get({ url, responseType: 'blob', connectTimeout: 15000, readTimeout: 120000, headers: { 'User-Agent': 'Vicina-app' } });
+          if (r.status !== 200 || !r.data) throw new Error('Download non riuscito (HTTP ' + r.status + ')');
+          await Filesystem.writeFile({ path, data: r.data, directory: Directory.Documents, recursive: true });
+        }
         const { uri } = await Filesystem.getUri({ path, directory: Directory.Documents });
         onProgress?.(100);
         return { uri, path };
       } finally { try { h?.remove(); } catch {} }
+    },
+    // c'è già il file di questa versione? (così non si riscarica a ogni avvio)
+    async savedIpa(name) {
+      const path = 'Aggiornamenti/' + name.replace(/[^\w.-]/g, '_');
+      try { const st = await Filesystem.stat({ path, directory: Directory.Documents }); if (Number(st.size) > 200000) return { uri: st.uri || (await Filesystem.getUri({ path, directory: Directory.Documents })).uri, path }; } catch {}
+      return null;
     },
     // foglio di condivisione di iOS: «Salva su File», SideStore, AltStore…
     async shareFile(uri, title) { await Share.share({ title, files: [uri], dialogTitle: title }); },

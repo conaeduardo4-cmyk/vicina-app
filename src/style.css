@@ -1507,3 +1507,42 @@ html.dz #s-home .sos-ring b{font-size:0!important}
 .perm-blocked .fl span{white-space:normal}
 .hero-av,.grp-stack i{position:relative;overflow:hidden}
 .hero-av img,.grp-stack i img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+
+/* ===== strumenti nuovi (x3) ===== */
+.tool-ov.x3-red,.tool-ov.x3-morse{justify-content:space-between;align-items:center;transition:background .06s}
+.tool-ov.x3-red .col-name,.tool-ov.x3-morse .col-name{margin:0;padding:8px 14px;border-radius:99px;background:rgba(0,0,0,.45);color:#fff;font-size:14px;font-weight:650}
+.tool-ov.x3-red .col-x,.tool-ov.x3-morse .col-x,.tool-ov.x3-lost .col-x{align-self:center;background:rgba(0,0,0,.45);color:#fff;border-color:rgba(255,255,255,.2)}
+.x3-lock{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.x3-dots{font-size:30px;letter-spacing:12px;font-weight:400}
+.x3-msg{color:#AEB4C2;font-size:15px;min-height:20px}
+.x3-pad{display:grid;grid-template-columns:repeat(3,76px);gap:16px;margin-top:14px}
+.x3-pad button{width:76px;height:76px;border-radius:50%;background:rgba(255,255,255,.1);font-size:28px;font-weight:500;color:#fff}
+.x3-pad button:active{background:rgba(255,255,255,.28)}
+.x3-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.x3-grid img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px}
+.tool-ov.x3-video{padding:0;background:#111}
+.x3-vc{position:relative;flex:1;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:calc(var(--sat) + 30px) 0 calc(var(--sab) + 34px);background:linear-gradient(180deg,#2B3550,#10131C)}
+.x3-vc-other{position:absolute;inset:0;display:grid;place-items:center}.x3-vc-other b{width:130px;height:130px;border-radius:50%;background:#59607A;display:grid;place-items:center;font-size:52px;font-weight:600}
+.x3-vc-top{position:relative;text-align:center;display:flex;flex-direction:column;gap:4px}.x3-vc-top b{font-size:28px;font-weight:600}.x3-vc-top span{color:#AEB4C2;font-variant-numeric:tabular-nums}
+.x3-vc video{position:absolute;right:16px;top:calc(var(--sat) + 96px);width:104px;height:150px;object-fit:cover;border-radius:16px;border:2px solid rgba(255,255,255,.25);transform:scaleX(-1)}
+.x3-vc .call-btns{position:relative}
+.x3-saver{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#888;text-align:center}
+.x3-saver p{display:flex;align-items:center;gap:8px;color:#FFB547;font-weight:700}
+.x3-sv-sos{width:150px;height:150px;border-radius:50%;background:#3a0a10;border:2px solid #7a1420;color:#ff4d5e;font-size:34px;font-weight:900}
+.x3-saver ul{list-style:none;font-size:14px;line-height:1.7}
+.x3-big{font-size:18px;margin:14px 0;line-height:1.4}.x3-big b{font-size:22px}
+.x3-arrow{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;background:rgba(77,163,255,.12);border:2px solid rgba(77,163,255,.4);color:#4DA3FF;margin:20px 0;transition:transform .25s}
+.x3-arrow .i{width:70px;height:70px}
+.tool-ov.x3-lost{background:#0B0B10;justify-content:space-between}
+.x3-lostcard{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
+.x3-lostcard p{display:flex;gap:8px;align-items:center;color:#FF4D5E;font-weight:700}
+.x3-lostcard h1{font-size:40px;letter-spacing:-.02em}
+.x3-lostcard span{color:#AEB4C2}
+.x3-lostnum{font-size:34px;font-weight:800;color:#fff;padding:12px 22px;border-radius:18px;background:#E8192C;margin:6px 0 14px}
+/* segnaposto dei luoghi sicuri: quadratini con icona, diversi dal punto blu «sei qui» */
+.pin-safe{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.5);cursor:pointer;padding:0;z-index:1}
+.pin-safe svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.pin-safe.police{background:#2F6FD6}.pin-safe.hospital{background:#E8192C}.pin-safe.pharmacy{background:#1FA45B}.pin-safe.defib{background:#E89A12}.pin-safe.open{background:#6E5BD6}
+.pin-safe.hospital svg path{fill:#fff;stroke:none}
+.maplibregl-marker:has(.pin-ring),.pin-sos{z-index:3}
+.pin-me{z-index:2}

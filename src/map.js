@@ -38,30 +38,44 @@ export async function createMap(el, { onPick, interactive = true, center = null 
   map.addSource('acc', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'acc', type: 'fill', source: 'acc', paint: { 'fill-color': '#FF3B4E', 'fill-opacity': 0.12 } }, 'tracks-glow');
 
-  // luoghi sicuri (polizia, pronto soccorso, farmacie, defibrillatori…): punti colorati, al tocco nome e indicazioni
-  map.addSource('safe', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-  const SAFE_COL = ['match', ['get', 'cat'], 'police', '#4DA3FF', 'hospital', '#FF4D5E', 'pharmacy', '#2FD27A', 'defib', '#FFB547', '#9C8CFF'];
-  map.addLayer({ id: 'safe-halo', type: 'circle', source: 'safe', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 7, 16, 14], 'circle-color': SAFE_COL, 'circle-opacity': 0.22 } });
-  map.addLayer({ id: 'safe-pts', type: 'circle', source: 'safe', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3.5, 16, 7.5], 'circle-color': SAFE_COL, 'circle-stroke-color': '#fff', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 1, 16, 2] } });
-  let safeById = new Map(), popup = null, onSafe = null;
+  // luoghi sicuri (polizia, pronto soccorso, farmacie, defibrillatori…): segnaposto quadrati con l'icona del tipo,
+  // ben diversi dal punto blu della tua posizione. Al tocco: nome, distanza, indicazioni e chiamata.
   const SAFE_T = { police: 'Polizia / Carabinieri', hospital: 'Pronto soccorso', pharmacy: 'Farmacia', defib: 'Defibrillatore', open: 'Aperto 24 ore' };
-  const openSafe = (f, at) => {
-    const x = safeById.get(f.properties.id); if (!x) return;
+  const SAFE_I = {
+    police: '<path d="M12 3l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/>',
+    hospital: '<path d="M9 4h6v5h5v6h-5v5H9v-5H4V9h5z"/>',
+    pharmacy: '<rect x="3.5" y="8.5" width="17" height="7" rx="3.5" transform="rotate(-45 12 12)"/><path d="M9.5 9.5l5 5"/>',
+    defib: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M12.5 8.5l-2 3.5h3l-2 3.5"/>',
+    open: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
+  };
+  const safeMarkers = new Map();
+  let popup = null, onSafe = null;
+  const openSafe = x => {
     popup?.remove();
     const html = `<div class="sp-pop"><span class="sp-k ${x.cat}">${esc(SAFE_T[x.cat] || 'Luogo sicuro')}</span><b>${esc(x.name)}</b>
       <span class="sp-s">${[x.dist, x.addr, x.h24 ? 'aperto 24 ore' : ''].filter(Boolean).map(esc).join(' · ')}</span>
       <div class="sp-acts"><button class="btn red sm" data-a="x-url" data-u="${esc(x.dir)}">Indicazioni</button>${x.tel ? `<a class="btn ghost sm" href="tel:${esc(x.tel.replace(/[^\d+]/g, ''))}">Chiama</a>` : ''}</div></div>`;
-    popup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px', className: 'sp-popup', offset: 12 }).setLngLat(at || [x.lng, x.lat]).setHTML(html).addTo(map);
+    popup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px', className: 'sp-popup', offset: 22 }).setLngLat([x.lng, x.lat]).setHTML(html).addTo(map);
     onSafe?.(x);
   };
-  map.on('click', 'safe-pts', e => { const f = e.features?.[0]; if (f) openSafe(f, f.geometry.coordinates); });
-  map.on('click', 'safe-halo', e => { const f = e.features?.[0]; if (f && !map.queryRenderedFeatures(e.point, { layers: ['safe-pts'] }).length) openSafe(f, f.geometry.coordinates); });
-  map.on('mouseenter', 'safe-pts', () => { map.getCanvas().style.cursor = 'pointer'; });
-  map.on('mouseleave', 'safe-pts', () => { map.getCanvas().style.cursor = ''; });
   function setSafe(items = [], cb) {
     onSafe = cb || onSafe;
-    safeById = new Map(items.map(x => [String(x.id), x]));
-    map.getSource('safe').setData({ type: 'FeatureCollection', features: items.map(x => ({ type: 'Feature', properties: { id: String(x.id), cat: x.cat }, geometry: { type: 'Point', coordinates: [x.lng, x.lat] } })) });
+    const seen = new Set();
+    for (const x of items) {
+      const id = String(x.id); seen.add(id);
+      let m = safeMarkers.get(id);
+      if (!m) {
+        const e = document.createElement('button');
+        e.className = 'pin-safe ' + (x.cat || 'open'); e.type = 'button';
+        e.setAttribute('aria-label', (SAFE_T[x.cat] || 'Luogo sicuro') + ': ' + x.name);
+        e.innerHTML = `<svg viewBox="0 0 24 24">${SAFE_I[x.cat] || SAFE_I.open}</svg>`;
+        e.addEventListener('click', ev => { ev.stopPropagation(); openSafe(e._x); });
+        m = new maplibregl.Marker({ element: e, anchor: 'center' }).setLngLat([x.lng, x.lat]).addTo(map);
+        safeMarkers.set(id, m);
+      }
+      m.getElement()._x = x;
+    }
+    for (const [id, m] of safeMarkers) if (!seen.has(id)) { m.remove(); safeMarkers.delete(id); }
     if (!items.length) { popup?.remove(); popup = null; }
   }
 
@@ -123,6 +137,7 @@ export async function createMap(el, { onPick, interactive = true, center = null 
   return {
     setData, setSafe,
     zoomTo(lat, lng, z = 15) { map.flyTo({ center: [lng, lat], zoom: z, duration: 700 }); },
+    getCenter() { const c = map.getCenter(); return { lat: c.lat, lng: c.lng }; },
     focus(id, lat, lng) { focusId = id; fitted = true; map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 15.5), duration: 800 }); },
     showAll(people, me) { focusId = null; fitted = false; fitAll(people, me); },
     center(lat, lng) { focusId = null; map.flyTo({ center: [lng, lat], zoom: 15.5, duration: 700 }); },
