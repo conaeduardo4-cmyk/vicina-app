@@ -97,12 +97,11 @@ export function boot(api, native) {
   // Verticale (9:16) su telefono, orizzontale (16:9) su tablet/PC. Muta per discrezione.
   // Si salta toccando lo schermo, e da sola se arriva o è attivo un SOS: in emergenza non deve far perdere tempo.
   const intro = (() => {
-    const box = $('#intro'), v = $('#intro-video');
+    const box = $('#intro');
     let finished = false;
     const done = fast => {
       if (finished || !box) return; finished = true;
       native.hideSplash();
-      try { v.pause(); } catch {}
       box.classList.add(fast ? 'out-fast' : 'out');
       document.body.classList.add('entering');
       setTimeout(() => { box.remove(); document.body.classList.remove('entering'); }, 1300);
@@ -110,33 +109,16 @@ export function boot(api, native) {
     if (!box) { native.hideSplash(); return { done() {}, start() {}, lockedAtBoot: false }; }
     const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) { box.remove(); native.hideSplash(); return { done() {}, start() {}, lockedAtBoot: false }; }
-    // con il blocco dell'app attivo il video parte solo DOPO il codice / Face ID (start() lo chiama lo sblocco)
+    // con il blocco dell'app attivo l'animazione parte solo DOPO il codice / Face ID (start() lo chiama lo sblocco)
     let started = false;
     const start = () => { if (started || finished) return; started = true; play(); };
     const lockedAtBoot = (() => { try { const c = JSON.parse(ls.get('appLock') || 'null'); return !!(prefs.lock && c && c.hash); } catch { return false; } })();
-    function play() {
-    const base = 'intro/' + (window.innerHeight >= window.innerWidth ? 'intro-9x16' : 'intro-16x9');
-    // il video resta invisibile finché non mostra davvero dei fotogrammi: niente «player vuoto» su Android
-    let playing = false;
-    const fallback = () => {                       // il video non parte: resta l'animazione di riserva e poi si entra
-      if (playing || finished) return;
-      box.classList.add('fb-only'); native.hideSplash();
-      try { v.pause(); v.removeAttribute('src'); v.innerHTML = ''; v.load(); } catch {}
-      setTimeout(() => done(false), 1500);
-    };
-    v.innerHTML = `<source src="${base}.mp4" type="video/mp4"><source src="${base}.webm" type="video/webm">`;
-    v.lastElementChild.addEventListener('error', fallback);
-    v.addEventListener('error', fallback);
-    const shown = () => { if (playing || finished) return; playing = true; box.classList.add('vid-on'); native.hideSplash(); };
-    v.addEventListener('playing', () => { if (v.currentTime > 0 || v.readyState >= 3) shown(); else setTimeout(shown, 120); }, { once: true });
-    v.addEventListener('timeupdate', () => { if (v.currentTime > 0.05) shown(); });
-    v.addEventListener('ended', () => done(false));
-    box.addEventListener('click', () => done(true));
-    native.hideSplash();                            // lo splash nativo lascia subito il posto all'animazione di riserva
-    v.load();
-    const pl = v.play(); if (pl && pl.catch) pl.catch(fallback);
-    setTimeout(() => { if (!playing) fallback(); }, 1600);   // non parte in fretta: animazione di riserva
-    setTimeout(() => done(false), 8000);                      // limite massimo
+    function play() {   // animazione in CSS: parte subito, anche senza rete, e dura circa 3,7 secondi
+      native.hideSplash();
+      void box.offsetWidth;
+      box.classList.add('play');
+      box.addEventListener('click', () => done(true));
+      setTimeout(() => done(false), 3700);
     }
     if (lockedAtBoot) native.hideSplash(); else start();
     return { done, start, lockedAtBoot };

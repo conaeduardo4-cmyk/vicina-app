@@ -199,7 +199,7 @@ mentre per farsi guidare **Raggiungi** usa Apple Mappe o Google Maps del telefon
 ## Aggiornamenti automatici (Android) e avviso di aggiornamento (iPhone)
 **Come funziona**
 - Ogni volta che lanci **Actions → Compila app** (con "Pubblica come aggiornamento" spuntato) GitHub:
-  1. dà alla build un numero di versione (`1.0.<numero build>`), lo scrive dentro l'app e nel nome dei file;
+  1. dà alla build un numero di versione (quello che scrivi nel campo **versione** di "Run workflow", es. `1.2.0`; se lo lasci vuoto `1.0.<numero build>`), lo scrive dentro l'app e nel nome dei file. Il codice interno sale sempre da solo, quindi gli aggiornamenti arrivano qualunque numero scegli;
   2. firma l'APK **sempre con la stessa chiave**;
   3. pubblica una **Release** con `Vicina.apk`, `Eduardo.apk` (stesso file, per il link del sito) e `version.json` (versione, data, novità, link).
 - L'app controlla `version.json` all'avvio e ogni 6 ore. Si può controllare anche a mano da **Impostazioni → App → Aggiornamenti**.

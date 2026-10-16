@@ -44,9 +44,27 @@
 
 <!-- Intro animata a ogni avvio (tocca per saltare) -->
 <div id="intro" aria-hidden="true">
-  <!-- animazione di riserva: si vede finché il video non parte davvero (su alcuni Android il video è lento o non parte) -->
-  <div class="intro-fb"><span class="ifb-ring"></span><span class="ifb-ring b"></span><div class="logo ifb-logo"><svg class="i"><use href="#i-shield"/></svg></div><b class="ifb-name">Vicina</b></div>
-  <video id="intro-video" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
+  <!-- la tua cerchia compare intorno a te, si stringe e diventa lo scudo di Vicina (tutto in CSS, niente video) -->
+  <div class="vi-stage">
+    <div class="vi-ctr">
+      <div class="vi-glow"></div>
+      <svg class="vi-lines" viewBox="0 0 260 260"><g>
+        <line pathLength="1" x1="130" y1="130" x2="130" y2="18" style="--i:0"/>
+        <line pathLength="1" x1="130" y1="130" x2="227" y2="74" style="--i:1"/>
+        <line pathLength="1" x1="130" y1="130" x2="227" y2="186" style="--i:2"/>
+        <line pathLength="1" x1="130" y1="130" x2="130" y2="242" style="--i:3"/>
+        <line pathLength="1" x1="130" y1="130" x2="33" y2="186" style="--i:4"/>
+        <line pathLength="1" x1="130" y1="130" x2="33" y2="74" style="--i:5"/>
+      </g></svg>
+      <i class="vi-dot" style="--a:-90deg;--i:0"></i><i class="vi-dot" style="--a:-30deg;--i:1"></i><i class="vi-dot" style="--a:30deg;--i:2"></i>
+      <i class="vi-dot" style="--a:90deg;--i:3"></i><i class="vi-dot" style="--a:150deg;--i:4"></i><i class="vi-dot" style="--a:210deg;--i:5"></i>
+      <i class="vi-me"></i>
+      <i class="vi-ring"></i><i class="vi-ring b"></i>
+      <div class="vi-logo"><svg viewBox="0 0 24 24"><path pathLength="1" d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path pathLength="1" d="M9 12l2.2 2.2L15.5 10"/></svg></div>
+    </div>
+    <div class="vi-word"><i style="--i:0">V</i><i style="--i:1">i</i><i style="--i:2">c</i><i style="--i:3">i</i><i style="--i:4">n</i><i style="--i:5">a</i></div>
+    <div class="vi-tag">La tua cerchia, <b>sempre vicina</b></div>
+  </div>
   <span class="intro-skip">Tocca per saltare</span>
 </div>
 

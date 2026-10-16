@@ -12,6 +12,11 @@ on:
         type: choice
         options: [android, ios, entrambe]
         default: android
+      versione:
+        description: 'Numero di versione (es. 1.2.0). Vuoto = automatico 1.0.<numero compilazione>'
+        type: string
+        required: false
+        default: ''
       novita:
         description: 'Novità di questa versione (le vede chi aggiorna). Facoltativo'
         type: string
@@ -26,7 +31,9 @@ on:
 
 env:
   NODE_VERSION: '22'
-  APP_VERSION: '1.0.${{ github.run_number }}'
+  # versione scelta a mano nel modulo "Run workflow", altrimenti automatica.
+  # Il codice interno (run_number) sale sempre da solo: gli aggiornamenti funzionano qualunque numero scegli.
+  APP_VERSION: ${{ inputs.versione != '' && inputs.versione || format('1.0.{0}', github.run_number) }}
 
 jobs:
   web:
@@ -34,6 +41,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Controlla il numero di versione
+        run: |
+          V="$APP_VERSION"
+          if ! printf '%s' "$V" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+            echo "::error::Versione «$V» non valida: usa solo numeri e punti, per esempio 1.2.0 oppure 2.0"; exit 1; fi
+          if [ "${GITHUB_REF_TYPE}" != "tag" ] && git ls-remote --exit-code --tags origin "refs/tags/v$V" >/dev/null 2>&1; then
+            echo "::error::La versione $V esiste già (tag v$V): scegli un numero diverso"; exit 1; fi
+          echo "Versione scelta: $V"
       - uses: actions/setup-node@v4
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Dipendenze
