@@ -1472,3 +1472,38 @@ html.dz .tl-feat .tl-big.red{background:linear-gradient(140deg,#2F80ED,#56A8FF)}
 html.dz #s-home .sos-ring b{font-size:0!important}
 /* il riquadro Assistente non deve MAI restringersi (overflow:hidden gli toglieva l'altezza minima) */
 .ai-card{flex:0 0 auto!important;min-height:76px!important;height:auto!important}
+
+/* ===== foto profilo ===== */
+.av{position:relative;overflow:hidden}
+.av.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.av.xl{width:132px;height:132px;border-radius:44px;font-size:44px}
+.av-big{display:flex;justify-content:center;margin:18px 0 22px}
+.av-edit{position:relative;flex:none;display:block}
+.av-edit > i{position:absolute;right:-5px;bottom:-5px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#0B0B10;border:2px solid var(--s1)}
+.av-edit > i .i{width:13px;height:13px}
+.me-card button.row{width:100%;text-align:left}
+.me-card .av-hint{display:block;color:var(--blue);font-size:13px;font-weight:600;margin-top:2px}
+.beacon.ph{background:#1a0508}
+.beacon.ph > img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:1}
+.in-head .beacon.ph > svg.i,.beacon.ph > svg.i{position:absolute;z-index:2;right:-6px;bottom:-6px;width:32px;height:32px;padding:7px;border-radius:50%;background:var(--red);border:3px solid #1a0508}
+.pin-head{overflow:hidden}
+.pin-head img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* ===== luoghi sicuri sulla mappa ===== */
+.map-safe-btn.on{background:var(--blue);color:#06111F}
+.sp-popup .maplibregl-popup-content{background:var(--s2);color:var(--ink);border:1px solid var(--line2);border-radius:16px;padding:14px 14px 12px;box-shadow:0 18px 40px rgba(0,0,0,.55);font:inherit}
+.sp-popup .maplibregl-popup-tip{border-top-color:var(--s2)!important;border-bottom-color:var(--s2)!important}
+.sp-popup .maplibregl-popup-close-button{color:var(--sub);font-size:20px;padding:2px 8px;right:2px;top:2px}
+.sp-pop{display:flex;flex-direction:column;gap:4px;min-width:190px;padding-right:14px}
+.sp-pop b{font-size:15.5px;line-height:1.25}
+.sp-pop .sp-s{color:var(--sub);font-size:13px}
+.sp-k{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:99px;background:var(--s3);color:var(--sub);text-transform:uppercase}
+.sp-k.police{background:var(--bluebg);color:var(--blue)}.sp-k.hospital{background:var(--redbg);color:var(--red2)}
+.sp-k.pharmacy{background:rgba(47,210,122,.14);color:#2FD27A}.sp-k.defib{background:rgba(255,181,71,.15);color:#FFB547}
+.sp-acts{display:flex;gap:8px;margin-top:8px}.sp-acts .btn{flex:1;margin:0}
+[data-a="safe-map"]{margin:2px 0 10px}
+
+/* ===== permessi bloccati ===== */
+.perm-blocked .fl span{white-space:normal}
+.hero-av,.grp-stack i{position:relative;overflow:hidden}
+.hero-av img,.grp-stack i img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}

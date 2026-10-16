@@ -44,6 +44,12 @@ export function createTools(ctx) {
     try { await a.play(); } catch (e) { console.warn('audio', e); }
     return () => { try { a.pause(); a.src = ''; } catch {} };
   }
+  // il suono parte senza far aspettare lo schermo: lo strumento si apre subito, l'audio lo raggiunge appena pronto
+  function playNow(k) {
+    let stop = null, dead = false;
+    play(k).then(s => { if (dead) s(); else stop = s; });
+    return () => { dead = true; try { stop?.(); } catch {} };
+  }
   let wake = null;
   const keepAwake = async on => { try { if (on) wake = await navigator.wakeLock?.request('screen'); else { await wake?.release(); wake = null; } } catch {} };
   const buzz = p => { try { native.vibrate(p); } catch {} };
@@ -55,7 +61,7 @@ export function createTools(ctx) {
     if (ovKind === 'cd') return;
     const ok = canSos();
     let left = secs;
-    const stop = await play('beep');
+    const stop = playNow('beep');
     showOv('cd', `<div class="cd-wrap"><div class="cd-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45"/><circle class="cd-arc" id="cd-arc" cx="50" cy="50" r="45"/></svg><b id="cd-n">${left}</b></div>
       <h1>${esc(title)}</h1><p>${esc(ok ? text : 'Non hai nessuno da avvisare: se sei in pericolo chiama il 112.')}</p></div>
       <div class="cd-foot"><button class="btn white big" data-a="cd-cancel">${I('check')}${okLabel || 'Sto bene, annulla'}</button>
@@ -125,8 +131,8 @@ export function createTools(ctx) {
   }
 
   /* ---------- sirena e luce ---------- */
-  async function siren() {
-    const stop = await play('siren');
+  function siren() {
+    const stop = playNow('siren');
     showOv('siren', `<div class="sr-in"><b>${I('alert')}AIUTO</b><span>Sirena attiva</span></div>
       <button class="btn white big sr-stop" data-a="tool-close">${I('x')}Ferma la sirena</button>`, () => { stop(); keepAwake(false); });
     keepAwake(true); buzz([500, 200, 500, 200, 500]);
@@ -152,8 +158,8 @@ export function createTools(ctx) {
       <button class="btn" data-a="fake-go">${I('phone')}Programma la chiamata</button>
       <p class="note">Lascia Vicina aperta (anche con lo schermo acceso al minimo): la chiamata arriva dentro l'app.</p>`, 'fake');
   }
-  async function fakeRing(name) {
-    const stop = await play('ring'); let vib = setInterval(() => buzz([800, 400, 800]), 3000); buzz([800, 400, 800]);
+  function fakeRing(name) {
+    const stop = playNow('ring'); let vib = setInterval(() => buzz([800, 400, 800]), 3000); buzz([800, 400, 800]);
     const ini = esc(String(name).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
     showOv('call', `<div class="call-top"><span>Chiamata in arrivo</span><b>${esc(name)}</b><small>cellulare</small></div><div class="call-av">${ini}</div>
       <div class="call-btns"><button data-a="fake-no" class="cb red" aria-label="Rifiuta">${I('phone')}</button><button data-a="fake-yes" class="cb green" aria-label="Rispondi">${I('phone')}</button></div>
@@ -170,20 +176,29 @@ export function createTools(ctx) {
   }
 
   /* ---------- Dove sono ---------- */
-  let here = null;
+  let here = null, whereTok = null;
   async function sheetWhere(refresh) {
     openSheet(`<h2>Dove sono</h2><p class="sub">Da leggere al 112 o da mandare a qualcuno.</p><div class="where" id="where"><div class="where-load">${I('pin')}Cerco il GPS…</div></div>`, 'where');
-    const p = await native.getPos();
-    if (!$('#where')) return;
-    if (!p) { $('#where').innerHTML = `<div class="where-load">${I('pin')}Posizione non disponibile: controlla che il GPS sia acceso e che Vicina abbia il permesso.</div><button class="btn ghost" data-a="where">Riprova</button>`; return; }
-    here = { ...p, addr: '' };
-    rWhere();
+    here = null; const tok = whereTok = {};
+    // prima la posizione veloce (ultima nota o di rete), poi quella precisa del GPS appena arriva
+    const fast = await native.getPos().catch(() => null);
+    if (!$('#where') || whereTok !== tok) return;
+    if (fast) { here = { ...fast, addr: '', rough: true }; rWhere(); findAddr(here); }
+    const p = await native.getPos({ precise: true }).catch(() => null);
+    if (!$('#where') || whereTok !== tok) return;
+    if (!p && !fast) { $('#where').innerHTML = `<div class="where-load">${I('pin')}Posizione non disponibile: controlla che il GPS sia acceso e che Vicina abbia il permesso.</div><button class="btn ghost" data-a="where">Riprova</button>`; return; }
+    if (p && (!fast || p.lat !== fast.lat || p.lng !== fast.lng || (p.acc || 0) < (fast.acc || 0))) {
+      const old = here; here = { ...p, addr: old && km2(old, p) < 0.03 ? old.addr : '' }; rWhere(); if (!here.addr) findAddr(here);
+    } else if (here) { here.rough = false; rWhere(); }
+  }
+  const km2 = (a, b) => Math.hypot((a.lat - b.lat) * 111, (a.lng - b.lng) * 111 * Math.cos(a.lat * Math.PI / 180));
+  async function findAddr(h) {
     try {   // indirizzo (serve internet; se non c'è restano le coordinate)
       const c = new AbortController(); setTimeout(() => c.abort(), 6000);
-      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p.lat}&lon=${p.lng}&zoom=18&accept-language=it`, { signal: c.signal, headers: { Accept: 'application/json' } });
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${h.lat}&lon=${h.lng}&zoom=18&accept-language=it`, { signal: c.signal, headers: { Accept: 'application/json' } });
       const j = await r.json(), a = j.address || {};
-      here.addr = [[a.road || a.pedestrian || a.footway || a.square, a.house_number].filter(Boolean).join(' '), a.village || a.town || a.city || a.municipality, a.county ? '(' + a.county + ')' : ''].filter(Boolean).join(', ') || j.display_name || '';
-      if (here.lat === p.lat) rWhere();
+      h.addr = [[a.road || a.pedestrian || a.footway || a.square, a.house_number].filter(Boolean).join(' '), a.village || a.town || a.city || a.municipality, a.county ? '(' + a.county + ')' : ''].filter(Boolean).join(', ') || j.display_name || '';
+      if (here === h) rWhere();
     } catch { /* offline */ }
   }
   function rWhere() {
@@ -191,7 +206,7 @@ export function createTools(ctx) {
     const lat = here.lat.toFixed(5), lng = here.lng.toFixed(5);
     el.innerHTML = `${here.addr ? `<p class="where-addr">${esc(here.addr)}</p>` : ''}
       <div class="where-ll"><div><small>Latitudine</small><b>${lat}</b></div><div><small>Longitudine</small><b>${lng}</b></div></div>
-      <p class="note">Precisione circa ${Math.max(5, Math.round(here.acc || 0))} m · alle ${hhmm(Date.now())}</p>
+      <p class="note">${here.rough ? 'Posizione approssimativa, sto affinando col GPS… · ' : ''}Precisione circa ${Math.max(5, Math.round(here.acc || 0))} m · alle ${hhmm(Date.now())}</p>
       <div class="row2"><button class="btn ghost sm" data-a="where-copy">${I('copy')}Copia</button><button class="btn ghost sm" data-a="where-share">${I('share')}Condividi</button></div>
       <div class="row2"><button class="btn ghost sm" data-a="where-maps">${I('pin')}Mappe</button><a class="btn red sm" href="tel:112">${I('phone')}Chiama 112</a></div>`;
   }
@@ -258,15 +273,19 @@ export function createTools(ctx) {
     if (on && ask && typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
       try { if ((await DeviceMotionEvent.requestPermission()) !== 'granted') { toast('Serve il permesso «Movimento»'); return false; } } catch { return false; }
     }
-    if (on && !shakeOn) window.addEventListener('devicemotion', onMotion);
-    if (!on && shakeOn) window.removeEventListener('devicemotion', onMotion);
+    // sempre stacca e riattacca: niente stati «a metà» se l'interruttore viene toccato più volte di seguito
+    window.removeEventListener('devicemotion', onMotion);
+    if (on) { peaks = []; window.addEventListener('devicemotion', onMotion); }
     shakeOn = on; return true;
   }
+  // tutti gli interruttori con la stessa preferenza (Strumenti, foglio Strumenti, Impostazioni) mostrano lo stesso stato:
+  // prima uno poteva restare «acceso» mentre la funzione era spenta, e toccandolo la si spegneva di nuovo
+  const syncPref = k => document.querySelectorAll(`input[data-pref="${k}"]`).forEach(i => { i.checked = !!prefs[k]; });
 
 
   /* ---------- fischietto ---------- */
-  async function whistle() {
-    const stop = await play('whistle');
+  function whistle() {
+    const stop = playNow('whistle');
     showOv('whistle', `<div class="sr-in"><b>${I('bell')}FISCHIETTO</b><span>3 fischi e una pausa: il segnale di richiesta d'aiuto. Si sente lontano, anche sotto le macerie.</span></div>
       <button class="btn white big sr-stop" data-a="tool-close">${I('x')}Ferma</button>`, () => { stop(); keepAwake(false); });
     keepAwake(true);
@@ -458,7 +477,8 @@ export function createTools(ctx) {
   // metronomo RCP a schermo intero
   function cpr() {
     closeSheet(); let n = 0, cyc = 0, t;
-    play('cpr').then(stop => {
+    const stop = playNow('cpr');
+    {
       showOv('cpr', `<div class="cpr-in"><p class="cpr-eye">RCP · 110 al minuto</p><div class="cpr-dot" id="cpr-dot"></div><b class="cpr-n" id="cpr-n">0</b><span class="cpr-s" id="cpr-s">Spingi a ogni battito · 5–6 cm</span></div>
         <div class="cd-foot"><a class="btn white" href="tel:112">${I('phone')}Chiama il 112</a><button class="btn ghost" data-a="tool-close">${I('x')}Ferma</button></div>`, () => { stop(); clearInterval(t); keepAwake(false); });
       keepAwake(true);
@@ -467,7 +487,7 @@ export function createTools(ctx) {
         const c = $('#cpr-n'); if (c) c.textContent = ((n - 1) % 30) + 1;
         if (n % 30 === 0) { cyc++; const s = $('#cpr-s'); if (s) s.textContent = `${cyc} cicli · se sai farlo: 2 insufflazioni, poi riprendi`; }
       }, 60000 / 110);
-    });
+    }
   }
   function stopwatch() {
     closeSheet(); const t0 = Date.now(); let t;
@@ -563,7 +583,7 @@ export function createTools(ctx) {
   let lastProof = null, recSess = null, recT = null;
   async function recordProof() {
     closeSheet();
-    try { recSess = await native.startRecording(); } catch { return toast('Serve il permesso del microfono'); }
+    try { recSess = await native.startRecording(); } catch (e) { return e?.code === 'mic-blocked' && ctx.micBlocked ? ctx.micBlocked() : toast('Serve il permesso del microfono'); }
     const t0 = Date.now();
     showOv('rec', `<div class="cpr-in"><p class="cpr-eye">${I('mic')}Registrazione in corso</p><div class="rec-dot"></div><b class="cpr-n" id="rec-n">0:00</b><span class="cpr-s">Tieni l'app aperta. Lo schermo può restare acceso al minimo.</span></div>
       <div class="cd-foot"><button class="btn white big" data-a="rec-stop">${I('check')}Ferma e salva</button><button class="btn ghost" data-a="rec-cancel">Annulla</button></div>`, () => { clearInterval(recT); keepAwake(false); try { recSess?.cancel(); } catch {} recSess = null; });
@@ -608,20 +628,24 @@ export function createTools(ctx) {
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       try { if ((await DeviceOrientationEvent.requestPermission()) !== 'granted') return toast('Serve il permesso «Movimento e orientamento»'); } catch { return; }
     }
-    const pos = await native.getPos().catch(() => null);
+    // si apre subito: prima si aspettava il GPS (anche 10 secondi) prima di mostrare la bussola
+    let noData = null;
     showOv('compass', `<div class="cmp-in"><p class="cpr-eye">Bussola</p><div class="cmp-rose" id="cmp-rose"><span class="n">N</span><span class="e">E</span><span class="s">S</span><span class="w">O</span><i></i></div>
       <b class="cpr-n" id="cmp-deg">–</b><span class="cpr-s" id="cmp-dir">Tieni il telefono in piano</span>
-      ${pos ? `<p class="cmp-ll">${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}</p>` : ''}</div>
-      <div class="cd-foot"><button class="btn ghost" data-a="tool-close">${I('x')}Chiudi</button></div>`, () => { if (compassH) { window.removeEventListener('deviceorientationabsolute', compassH); window.removeEventListener('deviceorientation', compassH); } compassH = null; });
+      <p class="cmp-ll" id="cmp-ll"></p></div>
+      <div class="cd-foot"><button class="btn ghost" data-a="tool-close">${I('x')}Chiudi</button></div>`, () => { clearTimeout(noData); if (compassH) { window.removeEventListener('deviceorientationabsolute', compassH); window.removeEventListener('deviceorientation', compassH); } compassH = null; });
     const DIRS = ['Nord', 'Nord-est', 'Est', 'Sud-est', 'Sud', 'Sud-ovest', 'Ovest', 'Nord-ovest'];
+    let got = false;
     compassH = e => {
       let h = e.webkitCompassHeading != null ? e.webkitCompassHeading : (e.absolute || e.type === 'deviceorientationabsolute') && e.alpha != null ? 360 - e.alpha : null;
-      if (h == null) return; h = (h + 360) % 360;
+      if (h == null) return; h = (h + 360) % 360; got = true;
       const r = $('#cmp-rose'); if (r) r.style.transform = `rotate(${-h}deg)`;
       const d = $('#cmp-deg'); if (d) d.textContent = Math.round(h) + '°';
       const t = $('#cmp-dir'); if (t) t.textContent = 'Verso ' + DIRS[Math.round(h / 45) % 8];
     };
     window.addEventListener('deviceorientationabsolute', compassH); window.addEventListener('deviceorientation', compassH);
+    noData = setTimeout(() => { if (!got && ovKind === 'compass') { const t = $('#cmp-dir'); if (t) t.textContent = 'Muovi il telefono a forma di 8 per calibrare la bussola'; } }, 3000);
+    native.getPos().then(pos => { const el = $('#cmp-ll'); if (pos && el && ovKind === 'compass') el.textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`; }).catch(() => {});
   }
 
   /* ---------- foglio «Strumenti» ---------- */
@@ -696,7 +720,7 @@ export function createTools(ctx) {
       body.querySelectorAll('.tl-sec').forEach(x => { x.hidden = !!b.dataset.g && x !== sec; });
       el.scrollTo?.({ top: 0, behavior: 'smooth' });
     });
-    el.addEventListener('change', e => { const k = e.target.dataset.pref; if (!k) return; prefs[k] = e.target.checked; savePrefs(); prefChanged(k, prefs[k], e.target); });
+    if (!el.dataset.prefOn) { el.dataset.prefOn = '1'; el.addEventListener('change', e => { const k = e.target.dataset.pref; if (!k) return; prefs[k] = e.target.checked; savePrefs(); prefChanged(k, prefs[k], e.target); }); }
     return n;
   }
 
@@ -795,10 +819,14 @@ export function createTools(ctx) {
     b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
   });
 
+  let shakeReq = 0;
   async function prefChanged(k, on, input) {
+    syncPref(k);
     if (k === 'shake') {
+      const my = ++shakeReq;
       const ok = await shake(on, true);
-      if (on && !ok) { prefs.shake = false; savePrefs(); if (input) input.checked = false; return; }
+      if (my !== shakeReq) return;             // nel frattempo l'interruttore è stato toccato di nuovo
+      if (on && !ok) { prefs.shake = false; savePrefs(); syncPref(k); return; }
       toast(on ? 'Scuoti per SOS attivo' : 'Scuoti per SOS disattivato');
     }
   }
@@ -810,8 +838,14 @@ export function createTools(ctx) {
       else endWalk();
     } else { walk = null; rWalk(); }
     if (prefs.shake) shake(true, false);
+    // quando l'app torna in primo piano il sensore viene riagganciato (alcuni telefoni lo staccano in background)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && prefs.shake) shake(true, false); });
+    // iPhone: il permesso «Movimento» si può chiedere solo dopo un tocco: lo chiediamo al primo tocco nell'app
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      document.addEventListener('pointerup', () => { if (prefs.shake) shake(true, true); }, { once: true });
+    }
   }
   const busy = () => !!ovKind;
   const h = { showOv, closeOv, play, keepAwake, buzz, countdown, startWalk, sheetWalk, siren, light, whistle, fakeRing, sheetWhere, sheetMed, med, diary, sheetDiaryNew, sheetQuick, mmss, ov, sx, get walk() { return walk; }, get ovKind() { return ovKind; } };
-  return { handle, rWalk, restore, medicalLine, prefChanged, busy, sheetMed, h, renderScreen, count: () => allTools().reduce((a, g) => a + g[1].length, 0), setExtra: x => { extras.push(x); } };
+  return { handle, rWalk, restore, medicalLine, prefChanged, syncPref, busy, sheetMed, h, renderScreen, count: () => allTools().reduce((a, g) => a + g[1].length, 0), setExtra: x => { extras.push(x); } };
 }

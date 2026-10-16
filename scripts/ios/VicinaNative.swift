@@ -25,7 +25,9 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setShortcuts", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "updateWidget", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "pendingUrl", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "pendingUrl", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "mediaState", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestMedia", returnType: CAPPluginReturnPromise)
     ]
     private let synth = AVSpeechSynthesizer()
 
@@ -109,6 +111,26 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func stopSpeaking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { self.synth.stopSpeaking(at: .immediate); call.resolve() }
+    }
+
+    // ---------- microfono e fotocamera: richiesta di sistema ----------
+    private func avState(_ t: AVMediaType) -> String {
+        switch AVCaptureDevice.authorizationStatus(for: t) {
+        case .authorized: return "granted"
+        case .denied, .restricted: return "denied"
+        default: return "prompt"
+        }
+    }
+    @objc func mediaState(_ call: CAPPluginCall) {
+        call.resolve(["mic": avState(.audio), "cam": avState(.video)])
+    }
+    @objc func requestMedia(_ call: CAPPluginCall) {
+        let t: AVMediaType = call.getString("type") == "cam" ? .video : .audio
+        if AVCaptureDevice.authorizationStatus(for: t) == .notDetermined {
+            AVCaptureDevice.requestAccess(for: t) { _ in call.resolve(["state": self.avState(t)]) }
+        } else {
+            call.resolve(["state": avState(t)])
+        }
     }
 
     // ---------- impostazioni ----------

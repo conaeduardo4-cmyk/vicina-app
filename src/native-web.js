@@ -17,6 +17,34 @@ export async function snap(facing) { // foto senza anteprima: l'app deve essere 
   finally { s?.getTracks().forEach(t => t.stop()); v?.remove(); }
 }
 
+// ---------- posizione: veloce per gli strumenti, precisa per l'SOS ----------
+// Gli strumenti (bussola, luoghi sicuri, mappa…) usano l'ultima posizione nota se è recente e intanto ne chiedono
+// una nuova; altrimenti corrono in parallelo la posizione «di rete» (rapida) e il GPS: vince la prima che arriva.
+// L'SOS chiede sempre il GPS preciso ({ precise: true }).
+let lastFix = null, bgFix = null;
+const strip = f => f && { lat: f.lat, lng: f.lng, acc: f.acc, alt: f.alt ?? null };
+const keepFix = p => { if (p && isFinite(p.lat) && isFinite(p.lng)) { lastFix = { ...p, t: Date.now() }; ls.set('lastFix', JSON.stringify(lastFix)); } return p; };
+export const cachedFix = () => {
+  if (lastFix) return lastFix;
+  try { const f = JSON.parse(ls.get('lastFix') || 'null'); if (f && isFinite(f.lat) && isFinite(f.lng)) return (lastFix = f); } catch {}
+  return null;
+};
+const firstOk = ps => new Promise((ok, ko) => { let n = ps.length; ps.forEach(p => p.then(v => (v ? ok(v) : --n || ko(new Error('nessuna posizione'))), () => --n || ko(new Error('nessuna posizione')))); });
+export async function fastPos(geo, opt = {}) {
+  const hi = () => geo({ enableHighAccuracy: true, timeout: 7000, maximumAge: 10000 }).then(keepFix);
+  const lo = () => geo({ enableHighAccuracy: false, timeout: 4000, maximumAge: 300000 }).then(keepFix);
+  const refresh = () => bgFix || (bgFix = hi().catch(() => null).finally(() => { bgFix = null; }));
+  if (opt.precise) {
+    try { return strip(await hi()); } catch {}
+    try { return strip(await lo()); } catch {}
+    const c = cachedFix(); return c && Date.now() - c.t < 120000 ? strip(c) : null;
+  }
+  const c = cachedFix(), maxAge = opt.maxAge ?? 60000;
+  if (c && Date.now() - c.t < maxAge) { refresh(); return strip(c); }
+  try { return strip(await firstOk([lo(), refresh()])); }
+  catch { return c && Date.now() - c.t < 6 * 3600e3 ? strip(c) : null; }
+}
+
 export async function cameraPermission() {
   try { const s = await navigator.mediaDevices.getUserMedia({ video: true }); s.getTracks().forEach(t => t.stop()); ls.set('cam', 'granted'); return 'granted'; }
   catch (e) { const r = /NotAllowed|Permission/i.test(e?.name || '') ? 'denied' : 'prompt'; ls.set('cam', r); return r; }
@@ -52,6 +80,7 @@ export async function micPermission() {
   catch (e) { const r = /NotAllowed|Permission/i.test(e?.name || '') ? 'denied' : 'prompt'; ls.set('mic', r); return r; }
 }
 export const micState = () => ls.get('mic') || 'prompt';
+export const saveMediaState = (k, v) => ls.set(k, v);
 
 // Apre la posizione nell'app di mappe del telefono: Apple Mappe su iPhone/iPad/Mac, Google Maps altrove.
 export const mapsLinks = (lat, lng, name, nav, platform) => {
@@ -99,31 +128,32 @@ export const OVERPASS = [
   'https://overpass.kumi.systems/api/interpreter'
 ];
 export async function osmQuery(get, q, opt = {}) {
-  let last = null;
-  for (const u of OVERPASS) {
-    try {
-      const j = parseJsonLoose(await get(u + '?data=' + encodeURIComponent(q), 'application/json'));
-      if (j && Array.isArray(j.elements)) {
-        if (j.elements.length) return j;
-        if (!j.remark) { last = 'vuoto'; break; }            // risposta valida ma niente intorno: inutile chiedere agli altri
-      }
-      last = new Error(j?.remark || 'risposta non valida');
-    } catch (e) { last = e; }
-  }
-  // ultima spiaggia: Nominatim, cercando per nome («farmacia», «carabinieri»…) dentro un riquadro intorno a te
-  if (opt.term && opt.p) {
-    try {
-      const d = Math.min(0.2, (opt.r || 3000) / 111000), { lat, lng } = opt.p;
-      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=15&bounded=1&accept-language=it&viewbox=${lng - d * 1.4},${lat + d},${lng + d * 1.4},${lat - d}&q=${encodeURIComponent(opt.term)}`;
-      const a = parseJsonLoose(await get(url, 'application/json'));
-      if (Array.isArray(a) && a.length) return { elements: a.map(x => ({ id: x.osm_id, lat: Number(x.lat), lon: Number(x.lon), tags: { name: x.name || String(x.display_name || '').split(',')[0], [x.category]: x.type, 'addr:street': x.address?.road } })) };
-    } catch (e) { last = e; }
-  }
-  if (last === 'vuoto') return { elements: [] };
-  throw last || new Error('Luoghi non raggiungibili');
+  // tutti i server insieme: vince il primo che risponde bene (prima si provava uno alla volta, anche 1 minuto di attesa)
+  const ask = u => get(u + '?data=' + encodeURIComponent(q), 'application/json').then(t => {
+    const j = parseJsonLoose(t);
+    if (j && Array.isArray(j.elements) && (j.elements.length || !j.remark)) return j;
+    throw new Error(j?.remark || 'risposta non valida');
+  });
+  // riserva: Nominatim (ricerca per nome, una sola categoria). Parte se Overpass fallisce o non risponde entro 6 secondi
+  const nomi = async () => {
+    const d = Math.min(0.2, (opt.r || 3000) / 111000), { lat, lng } = opt.p;
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=15&bounded=1&accept-language=it&viewbox=${lng - d * 1.4},${lat + d},${lng + d * 1.4},${lat - d}&q=${encodeURIComponent(opt.term)}`;
+    const a = parseJsonLoose(await get(url, 'application/json'));
+    if (!Array.isArray(a) || !a.length) throw new Error('niente');
+    return { elements: a.map(x => ({ id: x.osm_id, lat: Number(x.lat), lon: Number(x.lon), tags: { name: x.name || String(x.display_name || '').split(',')[0], [x.category]: x.type, 'addr:street': x.address?.road } })) };
+  };
+  const tries = OVERPASS.map(ask);
+  const full = firstOk(tries.map(p => p.then(j => (j.elements.length ? j : null))));
+  const racers = [full];
+  let over = false; full.then(() => { over = true; }, () => {});
+  if (opt.term && opt.p) racers.push(Promise.race([new Promise(r => setTimeout(r, 6000)), full.catch(() => null)]).then(() => (over ? null : nomi())));
+  try { const j = await firstOk(racers); over = true; return j; } catch {}
+  // nessun server con risultati: se almeno uno ha risposto «niente intorno» è una risposta valida
+  if ((await Promise.allSettled(tries)).some(x => x.status === 'fulfilled')) return { elements: [] };
+  throw new Error('Luoghi non raggiungibili');
 }
 const webGet = async (url, accept) => {
-  const c = new AbortController(), t = setTimeout(() => c.abort(), 14000);
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 12000);
   try { const r = await fetch(url, { headers: { Accept: accept }, signal: c.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.text(); }
   finally { clearTimeout(t); }
 };
@@ -146,12 +176,10 @@ export const webNative = {
     async openInstallSettings() {},
     async install(url) { window.open(url, '_blank', 'noopener'); }
   },
-  async getPos() {
+  async getPos(opt) {
     if (!navigator.geolocation) return null;
-    for (const o of [{ enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }, { enableHighAccuracy: false, timeout: 4000, maximumAge: 600000 }]) {
-      try { const p = await new Promise((ok, ko) => navigator.geolocation.getCurrentPosition(ok, ko, o)); return { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude ?? null }; } catch {}
-    }
-    return null;
+    const geo = o => new Promise((ok, ko) => navigator.geolocation.getCurrentPosition(p => ok({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude ?? null }), ko, o));
+    return fastPos(geo, opt);
   },
   async permState() {
     let loc = 'prompt';
@@ -160,7 +188,7 @@ export const webNative = {
     return { loc, cam: cameraState(), push, mic: micState() };
   },
   async requestPerms() {
-    await this.getPos();
+    await this.getPos({ precise: true });
     await cameraPermission();
     await micPermission();
     try { if (typeof Notification !== 'undefined') await Notification.requestPermission(); } catch {}

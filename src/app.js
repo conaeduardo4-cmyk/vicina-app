@@ -14,9 +14,11 @@ export function boot(api, native) {
   const COL = ['#FF7A59', '#9C8CFF', '#4DA3FF', '#2FD27A', '#FF5C8A', '#FFB547', '#3DD6D0'];
   const col = n => COL[[...String(n)].reduce((a, c) => a + c.charCodeAt(0), 0) % COL.length];
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-  const AV = (n, k, cls = '') => k === 'g'
+  // avatar: la foto profilo se c'è (visibile a tutta la cerchia), altrimenti le iniziali. Se la foto non si carica restano le iniziali.
+  const avUrl = uid => (uid && (st.av[uid] || (uid === st.uid ? st.p?.avatar : ''))) || '';
+  const AV = (n, k, cls = '', uid = null) => k === 'g'
     ? `<div class="av ${cls}" style="background:linear-gradient(145deg,#9C8CFF,#5B4BD6)">${I('group')}</div>`
-    : `<div class="av ${cls}" style="background:${col(n)}">${esc(initials(n))}</div>`;
+    : `<div class="av ${cls}${avUrl(uid) ? ' ph' : ''}" style="background:${col(n)}">${esc(initials(n))}${avUrl(uid) ? `<img src="${esc(avUrl(uid))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
   const wait = ms => new Promise(r => setTimeout(r, ms));
   let tools = null, extra = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
   const dz = createDisguise({ native, api });
@@ -37,7 +39,7 @@ export function boot(api, native) {
 
   /* ================= stato ================= */
   const st = {
-    uid: null, email: '', p: null, links: [], groups: [], muted: [], threads: {}, sosIn: [], sosMine: null,
+    uid: null, email: '', p: null, links: [], groups: [], muted: [], threads: {}, sosIn: [], sosMine: null, av: {},
     tab: 'home', open: null, setup: 1, authMode: 'up', dismissed: new Set(), shownIn: null
   };
   let unwatch = null, chatUn = {}, curSheet = null, linksLoaded = false;
@@ -152,7 +154,7 @@ export function boot(api, native) {
     st.tab = t; st.open = null;
     if (t === 'home' && st.sosMine) { rActive(); return show('s-active', how); }
     show(TABS[t], how); render();
-    if (t === 'tools') { const r = $('#tl-root'); if (!r.dataset.n || Number(r.dataset.n) !== tools.count()) r.dataset.n = tools.renderScreen(r); }
+    if (t === 'tools') { const r = $('#tl-root'); if (!r.dataset.n || Number(r.dataset.n) !== tools.count()) r.dataset.n = tools.renderScreen(r); tools.syncPref('shake'); }
     if (t === 'map') openMapTab(); else closeMapTab();
     if (t === 'home') setTimeout(() => homeApi?.resize(), 80);
   }
@@ -223,15 +225,23 @@ export function boot(api, native) {
     <div class="row"><i class="ic-dot blue">${I('pin')}</i><div class="fl wrap"><b>Posizione</b><span>Solo mentre usi l'app</span></div>${permIcon(perm.loc)}</div>
     <div class="row"><i class="ic-dot violet">${I('camera')}</i><div class="fl wrap"><b>Fotocamera</b><span>Due foto durante l'SOS</span></div>${permIcon(perm.cam)}</div>
     <div class="row"><i class="ic-dot red">${I('bell')}</i><div class="fl wrap"><b>Notifiche</b><span>Per ricevere gli SOS degli altri</span></div>${permIcon(perm.push)}</div>
-    <div class="row"><i class="ic-dot amber">${I('mic')}</i><div class="fl wrap"><b>Microfono</b><span>Facoltativo: messaggio vocale nell'SOS</span></div>${permIcon(perm.mic)}</div>`;
+    <div class="row"><i class="ic-dot amber">${I('mic')}</i><div class="fl wrap"><b>Microfono</b><span>Facoltativo: messaggio vocale nell'SOS</span></div>${perm.mic === 'granted' ? permIcon(perm.mic) : `<button class="pill${perm.mic === 'denied' ? '' : ' ok'}" data-a="perm-mic">${perm.mic === 'denied' ? 'Sblocca' : 'Attiva'}</button>`}</div>
+    ${Object.values(perm).includes('denied') ? `<div class="row perm-blocked"><i class="ic-dot gray">${I('lock')}</i><div class="fl wrap"><b>Qualcosa è bloccato</b><span>Se in passato hai scelto «Non consentire», il telefono non mostra più la richiesta: attivalo da Impostazioni › App › Vicina › Autorizzazioni.</span></div><button class="pill ok" data-a="x-settings">Apri</button></div>` : ''}`;
   async function refreshPerms() { try { perm = await native.permState(); } catch {} }
+  // il telefono non mostra più il popup (l'utente aveva negato): spieghiamo e apriamo le impostazioni
+  async function micBlocked() {
+    const go = await dialog({ title: 'Microfono bloccato', text: native.platform === 'ios'
+      ? 'Apri Impostazioni › Vicina e attiva «Microfono». Poi torna qui.'
+      : 'Il telefono non mostra più la richiesta perché in passato è stata negata. Apri Impostazioni › Autorizzazioni › Microfono › «Consenti solo mentre l\'app è in uso». Poi torna qui.', ok: 'Apri impostazioni', cancel: 'Non ora' });
+    if (go) native.vx?.openSettings?.();
+  }
 
   /* ================= home ================= */
   function rHome() {
     if (!st.p) return;
     $('#h-name').textContent = 'Ciao, ' + st.p.name;
     { const n0 = recipients().size + smsOn().length, e = $('#h-eye'); if (e) { e.textContent = n0 ? `Sei ${G().prot} · ${n0} ${n0 === 1 ? 'persona' : 'persone'}` : 'Aggiungi qualcuno alla cerchia'; e.classList.toggle('ok', !!n0); } }
-    $('#h-av').innerHTML = AV(st.p.name + ' ' + st.p.surname);
+    $('#h-av').innerHTML = AV(st.p.name + ' ' + st.p.surname, null, '', st.uid);
     const n = recipients().size + smsOn().length;
     $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
     $('#sos-wrap').classList.toggle('off', !n);
@@ -289,7 +299,7 @@ export function boot(api, native) {
     const sosId = rid(), end = () => { sending = false; $('#ov-send').classList.remove('on'); };
     let res = null, srvErr = null; const imgs = [], links = [];
     try {
-      stp(1, 'run'); const pos = await native.getPos(); if (cancelled) { end(); return toast('SOS annullato'); }
+      stp(1, 'run'); const pos = await native.getPos({ precise: true }); if (cancelled) { end(); return toast('SOS annullato'); }
       stp(1, pos ? 'done' : 'fail'); cancel.hidden = true;
       Object.assign(lastSms, { pos, links: [], imgs: [], at: Date.now() });
       // Android: il primo SMS con la posizione parte subito, anche senza internet
@@ -369,9 +379,9 @@ export function boot(api, native) {
     $('#a-live').innerHTML = liveOn
       ? `${I('live')}<div><b id="a-live-left">Posizione live · ${liveAge(s)}</b><span>Resta attiva finché non tocchi «Sono al sicuro»</span></div>`
       : `${I('pin')}<div><b>${s.lat != null ? 'Posizione inviata' : 'Posizione non disponibile'}</b><span>${s.lat != null ? 'Attivo la posizione live…' : 'Controlla che il GPS sia acceso'}</span></div>`;
-    const ackNames = Object.values(s.acks || {});
+    const ackNames = Object.entries(s.acks || {});
     const others = Math.max(0, n - ackNames.length);
-    $('#a-info').innerHTML = (ackNames.length ? ackNames.map(nm => `<div class="row">${AV(nm)}<div class="fl"><b>${esc(nm)}</b><span>Se ne sta occupando</span></div><span class="tag green">Ho visto, arrivo</span></div>`).join('') : '')
+    $('#a-info').innerHTML = (ackNames.length ? ackNames.map(([auid, nm]) => `<div class="row">${AV(nm, null, '', auid)}<div class="fl"><b>${esc(nm)}</b><span>Se ne sta occupando</span></div><span class="tag green">Ho visto, arrivo</span></div>`).join('') : '')
       + (others ? `<div class="row"><div class="av more">+${others}</div><div class="fl"><b>${ackNames.length ? 'Gli altri' : 'La tua cerchia'}</b><span>Avvisati · in attesa di risposta</span></div></div>` : '')
       + (smsOn().length ? `<div class="row sms-act"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>${smsOn().length} ${smsOn().length === 1 ? 'contatto' : 'contatti'} via SMS</b><span>Senza app · posizione e link alle foto</span></div></div>
         <div class="row2 sms-btns"><button class="btn ghost sm" data-a="sms-resend">${I('sms')}Rimanda SMS</button>${lastSms.imgs.length ? `<button class="btn ghost sm" data-a="sms-photos">${I('camera')}Invia le foto</button>` : ''}</div>` : '');
@@ -413,7 +423,7 @@ export function boot(api, native) {
     // se il GPS resta fermo (persona immobile) rimanda comunque la posizione ogni minuto: la cerchia vede che è ancora attiva
     clearInterval(live.timer); live.timer = setInterval(async () => {
       if (live.sosId !== sosId || Date.now() - live.lastOk < 55000) return;
-      const pos = live.pending || await native.getPos(); if (!pos || live.sosId !== sosId) return;
+      const pos = live.pending || await native.getPos({ precise: true }); if (!pos || live.sosId !== sosId) return;
       try { const r = await api.call('updateSosLocation', { sosId, lat: pos.lat, lng: pos.lng, acc: pos.acc }); if (r && r.live === false) return stopLive(false); live.lastOk = Date.now(); live.pending = null; } catch {}
     }, 30000);
     rActive();
@@ -453,7 +463,7 @@ export function boot(api, native) {
     if (st.sosMine.audio || voice.sentFor === st.sosMine.id) return toast('Il messaggio vocale è già stato inviato');
     voice.busy = true;
     try { voice.rec = await native.startRecording(); }
-    catch (e) { voice.busy = false; return toast('Microfono non disponibile: attivalo nelle impostazioni del telefono'); }
+    catch (e) { voice.busy = false; if (e?.code === 'mic-blocked') return micBlocked(); return toast('Serve il permesso del microfono per il vocale'); }
     voice.busy = false; voice.t0 = Date.now(); native.haptic('medium'); rVoice();
     clearInterval(voice.timer); voice.timer = setInterval(() => {
       const ms = Date.now() - voice.t0, el = $('#v-time');
@@ -517,7 +527,7 @@ export function boot(api, native) {
     if (first || !ov.classList.contains('on')) {
       ov.innerHTML = `<div class="topbar" style="justify-content:flex-end"><button class="iconbtn" data-a="in-close" aria-label="Chiudi">${I('x')}</button></div>
       <div class="sc">
-        <div class="in-head"><div class="beacon"><i></i><i></i>${I('alert')}</div><h1>${esc(s.fromName)}<br>ha bisogno di aiuto</h1><p id="in-when"></p></div>
+        <div class="in-head"><div class="beacon${avUrl(s.from) ? ' ph' : ''}"><i></i><i></i>${avUrl(s.from) ? `<img src="${esc(avUrl(s.from))}" alt="" onerror="this.parentElement.classList.remove('ph');this.remove()">` : ''}${I('alert')}</div><h1>${esc(s.fromName)}<br>ha bisogno di aiuto</h1><p id="in-when"></p></div>
         <div class="in-body">
           <div id="in-map"></div>
           <div id="in-audio"></div>
@@ -563,10 +573,10 @@ export function boot(api, native) {
   function mapPeople() {
     const out = st.sosIn.filter(s => s.lat != null && s.lng != null).map(s => ({
       id: s.id, name: s.fromName, ini: initials(s.fromName), lat: s.lat, lng: s.lng, acc: s.acc, track: s.track || [], audio: s.audio, phone: s.fromPhone,
-      locAt: s.locAt || s.at, at: s.at, live: s.active !== false, stale: Date.now() - (s.locAt || s.at) > 3 * 60e3, label: s.fromName.split(' ')[0], chats: s.chats, src: s
+      locAt: s.locAt || s.at, at: s.at, live: s.active !== false, stale: Date.now() - (s.locAt || s.at) > 3 * 60e3, label: s.fromName.split(' ')[0], chats: s.chats, src: s, img: avUrl(s.from)
     }));
     const m = st.sosMine;
-    if (m && m.lat != null) out.push({ id: m.id, name: 'Tu', ini: 'TU', lat: m.lat, lng: m.lng, acc: m.acc, track: m.track || [], audio: m.audio, locAt: m.locAt || m.at, at: m.at, live: true, mine: true, label: 'Il tuo SOS' });
+    if (m && m.lat != null) out.push({ id: m.id, name: 'Tu', ini: 'TU', lat: m.lat, lng: m.lng, acc: m.acc, track: m.track || [], audio: m.audio, locAt: m.locAt || m.at, at: m.at, live: true, mine: true, label: 'Il tuo SOS', img: avUrl(st.uid) });
     return out;
   }
   async function refreshMyPos(force) {
@@ -584,11 +594,29 @@ export function boot(api, native) {
     if (mapLoading || mapFailed) return;
     const msg = $('#map-msg'); msg.hidden = false; msg.innerHTML = '<span class="typing"><i></i><i></i><i></i></span> Carico la mappa…';
     mapLoading = import('./map.js').then(m => m.createMap($('#map'), { onPick: id => { const c = document.querySelector(`.map-card[data-id="${id}"]`); c?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); c?.classList.add('hl'); setTimeout(() => c?.classList.remove('hl'), 1200); } }))
-      .then(api_ => { mapApi = api_; msg.hidden = true; rMap(); if (pendingFocus) { mapApi.focus(...pendingFocus); pendingFocus = null; } })
+      .then(api_ => { mapApi = api_; msg.hidden = true; rMap(); if (pendingFocus) { mapApi.focus(...pendingFocus); pendingFocus = null; } mapSafe(safeFly); safeFly = false; })
       .catch(e => { console.warn('mappa', e); mapFailed = true; msg.hidden = false; msg.innerHTML = `${esc(e?.message || 'Mappa non disponibile.')} Puoi comunque usare «Raggiungi» qui sotto. <button class="chip" data-a="map-retry">Riprova</button>`; })
       .finally(() => { mapLoading = null; });
   }
   function closeMapTab() { clearInterval(mapTimer); }
+  // luoghi sicuri come punti sulla mappa (si accendono col pulsante con lo scudo o da «Luoghi sicuri»)
+  let safeBusy = false, safeFly = false;
+  async function mapSafe(fly) {
+    const b = $('#map-safe-btn'); if (b) { b.classList.toggle('on', !!prefs.mapSafe); b.setAttribute('aria-pressed', !!prefs.mapSafe); }
+    if (!mapApi) return;
+    if (!prefs.mapSafe) { mapApi.setSafe([]); return; }
+    if (safeBusy) return; safeBusy = true;
+    try {
+      const me = st.myPos || await refreshMyPos(true);
+      if (!me) { toast('Posizione non disponibile: attiva il GPS per vedere i luoghi sicuri'); return; }
+      if (fly) mapApi.zoomTo(me.lat, me.lng, 14.6);
+      const items = await extra.safeForMap(me);
+      if (!prefs.mapSafe) return;
+      mapApi.setSafe(items.map(x => ({ ...x, dist: dist(km(me, x)) })));
+      if (fly) toast(items.length ? `${items.length} luoghi sicuri entro 3 km: tocca un punto per le indicazioni` : 'Nessun luogo sicuro trovato entro 3 km');
+    } catch (e) { console.warn('luoghi sulla mappa', e); if (fly) toast('Non riesco a caricare i luoghi sicuri (serve internet)'); }
+    finally { safeBusy = false; }
+  }
   // mini mappa nella Home (widget): stessa mappa, ferma, solo da guardare
   let homeApi = null, homeLoading = false, homeFailAt = 0;
   const savedPos = () => { try { const p = JSON.parse(ls.get('lastPos') || 'null'); return p && isFinite(p.lat) && isFinite(p.lng) ? p : null; } catch { return null; } };
@@ -643,7 +671,7 @@ export function boot(api, native) {
     el.dataset.k = key;
     el.innerHTML = people.map(p => {
       return `<div class="map-card${p.mine ? ' mine' : ''}" data-id="${p.id}">
-        <button class="map-card-h" data-a="map-focus" data-id="${p.id}">${p.mine ? `<div class="av" style="background:var(--red)">TU</div>` : AV(p.name)}<div class="fl"><b>${p.mine ? 'Il tuo SOS' : esc(p.name)}</b><span class="st">${status(p)}</span></div>${I('chev', 'chev')}</button>
+        <button class="map-card-h" data-a="map-focus" data-id="${p.id}">${p.mine ? `<div class="av" style="background:var(--red)">TU</div>` : AV(p.name, null, '', p.src?.from)}<div class="fl"><b>${p.mine ? 'Il tuo SOS' : esc(p.name)}</b><span class="st">${status(p)}</span></div>${I('chev', 'chev')}</button>
         ${p.audio ? `<div class="voice-in sm">${I('mic')}<audio controls preload="none" data-p="${esc(p.audio)}"></audio></div>` : ''}
         ${p.mine ? '' : `<div class="map-acts"><button class="btn red sm" data-a="map-nav" data-id="${p.id}">${I('send')}Raggiungi</button>
           ${p.phone ? `<a class="btn ghost sm" href="tel:${esc(p.phone.replace(/[^\d+]/g, ''))}">${I('phone')}Chiama</a>` : ''}
@@ -667,7 +695,7 @@ export function boot(api, native) {
     $('#c-list').innerHTML =
       (live.length ? live.map(s => `<button class="sos-alert" data-a="in-open" data-id="${s.id}"><span class="deco"></span><span class="hero-av">${esc(initials(s.fromName))}</span><span class="fl"><small>SOS IN CORSO</small><b>${esc(s.fromName)}</b><span>Ha chiesto aiuto ${ago(s.at)}${s.audio ? ' · vocale' : ''}</span></span>${I('chev', 'chev')}</button>`).join('') : '')
       + (cs.length ? `<div class="label">Conversazioni</div><div class="card">${cs.map(c => { const u = unread(c.id);
-        return `<button class="row" data-a="open" data-id="${c.id}">${AV(c.name, c.k)}<div class="fl"><b>${esc(c.name)}</b><span>${c.last ? preview(c.last) : esc(c.sub)}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">${c.last ? `<span class="meta" style="margin:0">${when(c.last.at)}</span>` : ''}${u ? `<b class="badge" style="position:static">${u}</b>` : ''}</div></button>`; }).join('')}</div>`
+        return `<button class="row" data-a="open" data-id="${c.id}">${AV(c.name, c.k, '', c.uid)}<div class="fl"><b>${esc(c.name)}</b><span>${c.last ? preview(c.last) : esc(c.sub)}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">${c.last ? `<span class="meta" style="margin:0">${when(c.last.at)}</span>` : ''}${u ? `<b class="badge" style="position:static">${u}</b>` : ''}</div></button>`; }).join('')}</div>`
         : `<div class="empty"><i class="ic-dot violet">${I('chat')}</i><b>Nessuna conversazione</b>Quando aggiungi qualcuno alla tua cerchia, la chat compare qui.<button class="btn" data-a="add">Aggiungi persona</button></div>`);
   }
   const nameIn = (cid, uid) => st.groups.find(g => g.id === cid)?.members.find(m => m.uid === uid)?.name || '';
@@ -752,7 +780,7 @@ export function boot(api, native) {
     const c = convs().find(x => x.id === id); if (!c) return;
     st.open = id; show('s-thread', 'in-push');
     $('#t-name').textContent = c.name;
-    $('#t-av').innerHTML = AV(c.name, c.k, 'sm');
+    $('#t-av').innerHTML = AV(c.name, c.k, 'sm', c.uid);
     openLive(id); rTSub(); rThread();
   }
   function rThread() {
@@ -813,7 +841,7 @@ export function boot(api, native) {
   function rCircle() {
     const p = partner(), f = friends(), g = groups(), appN = recipients().size, sl = smsList(), smsN = smsOn().length, n = appN + smsN;
     { const el = $('#c-count'); if (el) el.innerHTML = `${String(n).padStart(2, '0')}<small> ${n === 1 ? 'persona' : 'persone'}</small>`; }
-    const person = x => `<button class="row" data-a="person" data-id="${x.id}">${AV(x.name)}<div class="fl"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div>${I('chev', 'chev')}</button>`;
+    const person = x => `<button class="row" data-a="person" data-id="${x.id}">${AV(x.name, null, '', x.uid)}<div class="fl"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div>${I('chev', 'chev')}</button>`;
     const ini = n => esc(initials(n));
     // stato: le informazioni che prima stavano in Home
     const status = n
@@ -825,12 +853,12 @@ export function boot(api, native) {
       body = `<div class="empty sm"><i class="ic-dot violet">${I('people')}</i><b>Nessuno con l'app</b>Aggiungi il partner, ${G().amico} o crea un gruppo.<button class="btn" data-a="add">Aggiungi persona</button></div>`;
     } else {
       const hero = p
-        ? `<button class="hero-card" data-a="person" data-id="${p.id}"><span class="deco"></span><span class="hero-av">${ini(p.name)}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>Riceve sempre i tuoi SOS</span></span>${I('chev', 'chev')}</button>`
+        ? `<button class="hero-card" data-a="person" data-id="${p.id}"><span class="deco"></span><span class="hero-av">${ini(p.name)}${avUrl(p.uid) ? `<img src="${esc(avUrl(p.uid))}" alt="" onerror="this.remove()">` : ''}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>Riceve sempre i tuoi SOS</span></span>${I('chev', 'chev')}</button>`
         : `<button class="hero-card empty-hero" data-a="invite" data-k="partner"><span class="hero-av">${I('heart')}</span><span class="fl"><small>PARTNER</small><b>Aggiungi il partner</b><span>Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
       const grpCard = x => {
         const ms = (x.members || []).filter(m => m.uid !== st.uid).slice(0, 3);
         return `<button class="grp-card" data-a="grp" data-id="${x.id}">
-          <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
+          <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}${avUrl(m.uid) ? `<img src="${esc(avUrl(m.uid))}" alt="" onerror="this.remove()">` : ''}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
           <span class="grp-name">${esc(x.name)}</span><span class="grp-sub">${x.members.length} di 8 persone${x.admin && x.req.length ? ` · <b>${x.req.length} richieste</b>` : ''}</span></button>`;
       };
       body = hero
@@ -879,11 +907,56 @@ export function boot(api, native) {
   /* ================= impostazioni ================= */
   const permCount = () => ['loc', 'cam', 'push', 'mic'].filter(k => perm[k] === 'granted').length;
   const toggleRow = (key, icon, color, title, sub) => `<label class="row"><i class="ic-dot ${color}">${I(icon)}</i><div class="fl wrap"><b>${title}</b><span>${sub}</span></div><input type="checkbox" class="switch" data-pref="${key}" ${prefs[key] ? 'checked' : ''}></label>`;
+  /* ---------- foto profilo ---------- */
+  function sheetAvatar() {
+    const full = st.p.name + ' ' + st.p.surname, has = !!avUrl(st.uid);
+    openSheet(`<h2>Foto profilo</h2><p class="sub">La vede tutta la tua cerchia: partner, amici e gruppi, nelle chat, sulla mappa e quando invii un SOS.</p>
+      <div class="av-big">${AV(full, null, 'xl', st.uid)}</div>
+      <button class="btn" data-a="avatar-pick">${I('camera')}${has ? 'Cambia foto' : 'Scegli una foto'}</button>
+      ${has ? `<button class="btn ghost" data-a="avatar-del">${I('trash')}Rimuovi la foto</button>` : ''}
+      <p class="note">Puoi scattarla ora o sceglierla dalla galleria. Viene ritagliata quadrata e ridotta (pochi KB).</p>`, 'avatar');
+  }
+  // ritaglio quadrato al centro, 512×512 JPEG: leggero da caricare e da scaricare per tutta la cerchia
+  const squareJpeg = file => new Promise((ok, ko) => {
+    const u = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const side = Math.min(img.naturalWidth, img.naturalHeight), out = Math.min(512, side), c = document.createElement('canvas');
+      c.width = c.height = out;
+      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+      g.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+      URL.revokeObjectURL(u);
+      let q = 0.86, d = c.toDataURL('image/jpeg', q);
+      while (d.length > 480000 && q > 0.4) { q -= 0.12; d = c.toDataURL('image/jpeg', q); }
+      ok(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); ko(new Error('Immagine non leggibile')); };
+    img.src = u;
+  });
+  function pickAvatar() {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async () => {
+      const f = inp.files?.[0]; if (!f) return;
+      const btn = $('[data-a="avatar-pick"]');
+      try {
+        await busy(btn, async () => {
+          const d = await squareJpeg(f);
+          const url = await api.setAvatar(st.uid, d);
+          st.p = { ...st.p, avatar: url }; st.av = { ...st.av, [st.uid]: url };
+        });
+        render(); rMap(); if (curSheet === 'avatar') sheetAvatar();
+        toast('Foto profilo aggiornata: la vede la tua cerchia');
+      } catch (e) {
+        console.warn('foto profilo', e);
+        toast(e?.code === 'avatar-setup' ? 'Il server non è ancora pronto per le foto profilo: esegui aggiornamento-foto-profilo.sql su Supabase' : e?.message === 'Immagine non leggibile' ? 'Questa immagine non si può usare: prova con un\'altra' : errMsg(e));
+      }
+    };
+    inp.click();
+  }
   function rMe() {
     if (!st.p) return;
     const p = st.p, full = p.name + ' ' + p.surname, pc = permCount();
     $('#m-body').innerHTML = `
-      <div class="card me-card"><div class="row">${AV(full)}<div class="fl"><b>${esc(full)}</b><span>${esc(st.email)}</span></div></div>
+      <div class="card me-card"><button class="row" data-a="avatar" aria-label="Foto profilo"><span class="av-edit">${AV(full, null, '', st.uid)}<i>${I('camera')}</i></span><div class="fl"><b>${esc(full)}</b><span>${esc(st.email)}</span><span class="av-hint">${avUrl(st.uid) ? 'Cambia foto profilo' : 'Aggiungi una foto profilo'}</span></div>${I('chev', 'chev')}</button>
         <button class="row" data-a="phone"><i class="ic-dot green">${I('phone')}</i><div class="fl"><b>Telefono</b><span>${p.phone ? esc(p.phone) : 'Aggiungi: chi ti aiuta potrà chiamarti'}</span></div>${I('chev', 'chev')}</button></div>
       <div class="label">SOS</div><div class="card">
         <div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Sempre attiva dopo l'SOS, finché non tocchi «Sono al sicuro»</span></div></div>
@@ -1042,7 +1115,7 @@ export function boot(api, native) {
     <button class="btn" data-a="mkgroup">Crea gruppo</button>`, 'newgroup');
   function sheetPerson(id) {
     const x = [partner(), ...friends()].find(p => p && p.id === id); if (!x) return;
-    openSheet(`<div style="display:flex;align-items:center;gap:14px">${AV(x.name)}<div class="fl"><h2>${esc(x.name)}</h2><span class="sub" style="margin:0">${esc(x.sub)} · riceve i tuoi SOS</span></div></div>
+    openSheet(`<div style="display:flex;align-items:center;gap:14px">${AV(x.name, null, '', x.uid)}<div class="fl"><h2>${esc(x.name)}</h2><span class="sub" style="margin:0">${esc(x.sub)} · riceve i tuoi SOS</span></div></div>
       <button class="btn" data-a="open" data-id="${id}" style="margin-top:22px">${I('chat')}Apri la chat</button>
       <button class="btn danger" data-a="unlink" data-id="${id}">Rimuovi dalla cerchia</button>`, 'person:' + id);
   }
@@ -1051,8 +1124,8 @@ export function boot(api, native) {
     openSheet(`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h2>${esc(g.name)}</h2><span class="tag">${g.members.length}/8</span></div>
       ${g.admin ? `<div class="code sm"><b>${esc(g.code)}</b><span>Codice del gruppo · chi lo usa entra solo se approvi</span></div>
         <button class="btn ghost" data-a="grp-share" data-id="${id}">${I('share')}Condividi codice</button>` : ''}
-      ${g.admin && g.req.length ? `<div class="label">Richieste di ingresso</div><div class="card">${g.req.map(m => `<div class="row">${AV(m.name)}<div class="fl"><b>${esc(m.name)}</b></div><button class="pill" data-a="decide" data-ok="0" data-id="${id}" data-uid="${m.uid}">Rifiuta</button><button class="pill ok" data-a="decide" data-ok="1" data-id="${id}" data-uid="${m.uid}">Accetta</button></div>`).join('')}</div>` : ''}
-      <div class="label">Membri</div><div class="card">${g.members.map(m => `<div class="row">${AV(m.name)}<div class="fl"><b>${esc(m.name)}${m.uid === st.uid ? ' (tu)' : ''}</b></div>${m.uid === g.adminUid ? '<span class="tag">Admin</span>' : g.admin ? `<button class="iconbtn sm" data-a="kick" data-id="${id}" data-uid="${m.uid}" aria-label="Rimuovi">${I('x')}</button>` : ''}</div>`).join('')}</div>
+      ${g.admin && g.req.length ? `<div class="label">Richieste di ingresso</div><div class="card">${g.req.map(m => `<div class="row">${AV(m.name, null, '', m.uid)}<div class="fl"><b>${esc(m.name)}</b></div><button class="pill" data-a="decide" data-ok="0" data-id="${id}" data-uid="${m.uid}">Rifiuta</button><button class="pill ok" data-a="decide" data-ok="1" data-id="${id}" data-uid="${m.uid}">Accetta</button></div>`).join('')}</div>` : ''}
+      <div class="label">Membri</div><div class="card">${g.members.map(m => `<div class="row">${AV(m.name, null, '', m.uid)}<div class="fl"><b>${esc(m.name)}${m.uid === st.uid ? ' (tu)' : ''}</b></div>${m.uid === g.adminUid ? '<span class="tag">Admin</span>' : g.admin ? `<button class="iconbtn sm" data-a="kick" data-id="${id}" data-uid="${m.uid}" aria-label="Rimuovi">${I('x')}</button>` : ''}</div>`).join('')}</div>
       <div class="card" style="margin-top:14px"><label class="row"><div class="fl"><b>Includi negli SOS</b><span>${g.on ? 'Il gruppo riceve i tuoi SOS' : 'Il gruppo non riceve i tuoi SOS'}</span></div><input type="checkbox" class="switch" data-mute="${id}" ${g.on ? 'checked' : ''}></label></div>
       <button class="btn ghost" data-a="open" data-id="${id}">${I('chat')}Chat del gruppo</button>
       ${g.admin ? `<button class="btn danger" data-a="delgroup" data-id="${id}">Elimina gruppo</button>` : `<button class="btn danger" data-a="leave" data-id="${id}">Esci dal gruppo</button>`}`, 'group:' + id);
@@ -1159,6 +1232,7 @@ export function boot(api, native) {
     canSos: () => !!st.uid && canSos(), male: () => G() === GG.m, uid: () => st.uid, profile: () => st.p,
     showTools: () => tab('tools'),
     hasSms: () => smsOn().length > 0,
+    micBlocked: () => micBlocked(),
     quickSend: (t, o) => quickSendAll(t, o)
   });
   extra = createExtra({
@@ -1166,9 +1240,11 @@ export function boot(api, native) {
     smsList: () => smsList(),
     quickSend: (t, o) => quickSendAll(t, o),
     confirm: (title, text, ok) => dialog({ title, text, ok, cancel: 'No' }),
+    showSafeOnMap: () => { prefs.mapSafe = true; savePrefs(); safeFly = true; tab('map'); if (mapApi) { safeFly = false; mapSafe(true); } },
     async status() { let perm = {}; try { perm = await native.permState(); } catch {} return { perm, circle: recipients().size + smsOn().length, sms: smsOn().length, phone: st.p?.phone || '' }; }
   }, tools);
   tools.setExtra(extra);
+  extra.onSafeUpdate(() => { if (prefs.mapSafe) mapSafe(); });
   tools.setExtra(createMore({
     $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid, profile: () => st.p,
     smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o), simulate: () => simulateSos()
@@ -1281,7 +1357,7 @@ export function boot(api, native) {
           smsSave(smsList().filter(x => x.id !== id)); closeSheet(); render(); toast('Contatto rimosso'); break;
         }
         case 'sms-resend': {
-          const pos = await native.getPos() || lastSms.pos;
+          const pos = await native.getPos({ precise: true }) || lastSms.pos;
           await smsDeliver(smsText(pos, lastSms.links), { auto: true }).then(r => toast(r === 'sent' ? 'SMS inviati di nuovo' : 'Premi Invia in Messaggi'));
           break;
         }
@@ -1343,6 +1419,7 @@ export function boot(api, native) {
         case 'map-nav': case 'map-open': { const p = mapPeople().find(x => x.id === id) || (() => { const x = st.sosIn.find(y => y.id === id); return x && { lat: x.lat, lng: x.lng, name: x.fromName }; })(); if (p && p.lat != null) native.openMaps(p.lat, p.lng, p.name, a === 'map-nav'); else toast('Posizione non disponibile'); break; }
         case 'map-me': { const me = await refreshMyPos(true); if (me && mapApi) mapApi.center(me.lat, me.lng); else if (!me) toast('Posizione non disponibile: attiva il GPS'); break; }
         case 'map-all': if (mapApi) mapApi.showAll(mapPeople(), st.myPos); break;
+        case 'map-safe': prefs.mapSafe = !prefs.mapSafe; savePrefs(); native.haptic('light'); if (!prefs.mapSafe) toast('Luoghi sicuri nascosti'); await mapSafe(prefs.mapSafe); break;
         case 'map-retry': mapFailed = false; openMapTab(); break;
         case 'voice-send': await voiceSend(); break;
         case 'voice-cancel': voiceCancel(); break;
@@ -1360,6 +1437,22 @@ export function boot(api, native) {
         case 'ai-clear': if (await dialog({ title: 'Nuova conversazione?', text: 'La conversazione con l\'assistente verrà cancellata da questo telefono.', ok: 'Cancella', danger: true })) { aiMsgs = []; aiSave(); rAI(); } break;
         case 'phone': sheetPhone(); break;
         case 'perm-sheet': sheetPerms(); break;
+        case 'avatar': sheetAvatar(); break;
+        case 'avatar-pick': pickAvatar(); break;
+        case 'avatar-del': {
+          if (!(await dialog({ title: 'Rimuovere la foto profilo?', text: 'La tua cerchia vedrà di nuovo le tue iniziali.', ok: 'Rimuovi', cancel: 'Annulla', danger: true }))) break;
+          try { await api.removeAvatar(st.uid); st.p = { ...st.p, avatar: '' }; const a = { ...st.av }; delete a[st.uid]; st.av = a; render(); rMap(); closeSheet(); toast('Foto rimossa'); }
+          catch (e) { toast(errMsg(e)); }
+          break;
+        }
+        case 'perm-mic': {
+          const r = native.media ? await native.media('mic') : await native.requestPerms().then(() => null);
+          await refreshPerms();
+          if ((r || perm.mic) === 'denied') await micBlocked();
+          else if (perm.mic === 'granted') toast('Microfono attivo');
+          rMe(); if (curSheet === 'perms') sheetPerms(); else if ($('#s-setup.on')) setup(2);
+          break;
+        }
         case 'guide': closeSheet(); openGuide(); break;
         case 'guide-next': if (gi === GUIDE.length - 1) closeGuide(); else guideGo(gi + 1); break;
         case 'guide-prev': guideGo(gi - 1); break;
@@ -1369,7 +1462,7 @@ export function boot(api, native) {
           await busy(t, async () => { await api.updateProfile(st.uid, { phone: v }); st.p.phone = v; closeSheet(); rMe(); toast('Salvato'); });
           break;
         }
-        case 'perms': await busy(t, async () => { await native.requestPerms(); await refreshPerms(); await registerPush(); }); rMe(); if (curSheet === 'perms') sheetPerms(); break;
+        case 'perms': await busy(t, async () => { await native.requestPerms(); await refreshPerms(); await registerPush(); }); rMe(); if (curSheet === 'perms') sheetPerms(); if (Object.values(perm).includes('denied')) toast('Alcuni permessi sono bloccati: tocca «Apri» per attivarli dalle impostazioni'); break;
         case 'logout': if (await dialog({ title: 'Uscire da Vicina?', text: 'Finché non accedi di nuovo non riceverai gli SOS della tua cerchia.', ok: 'Esci', danger: true })) await api.signOut(); break;
         case 'delete':
           if (await dialog({ title: 'Eliminare l\'account?', text: 'Cancelleremo profilo, collegamenti, gruppi di cui sei admin, chat e foto. Non si può annullare.', ok: 'Elimina', danger: true })) {
@@ -1381,8 +1474,22 @@ export function boot(api, native) {
   });
 
   /* ================= dati in tempo reale ================= */
+  // foto profilo della cerchia: all'avvio, quando cambia la cerchia, quando l'app torna in primo piano e ogni 5 minuti
+  let avT = null, avIv = null;
+  function loadAvatars(now) {
+    clearTimeout(avT);
+    avT = setTimeout(async () => {
+      if (!st.uid || !api.circleAvatars) return;
+      try {
+        const m = await api.circleAvatars();
+        if (JSON.stringify(m) !== JSON.stringify(st.av)) { st.av = m; render(); rMap(); if (homeApi) homeApi.setData({ me: st.myPos || null, people: mapPeople() }); if (st.open) { const c = convs().find(x => x.id === st.open); if (c && $('#t-av')) $('#t-av').innerHTML = AV(c.name, c.k, 'sm', c.uid); } if (curSheet?.startsWith('group:')) refreshSheet(); }
+      } catch {}
+    }, now ? 0 : 700);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && st.uid) loadAvatars(); });
   function startData() {
     if (unwatch) return;
+    loadAvatars(true); clearInterval(avIv); avIv = setInterval(() => st.uid && loadAvatars(true), 5 * 60e3);
     unwatch = api.watch(st.uid, {
       user: d => { st.muted = d?.mutedGroups || []; if (d) st.p = { ...st.p, ...pick(d) }; render(); },
       links: ls_ => {
@@ -1397,15 +1504,15 @@ export function boot(api, native) {
               .then(ok => { if (!ok) api.call('removeLink', { linkId: added.id }).then(() => toast('Collegamento annullato')).catch(e => toast(errMsg(e))); });
           } else toast('Collegamento riuscito con ' + added.otherName);
         }
-        syncChats(); render(); refreshSheet(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
+        syncChats(); render(); refreshSheet(); loadAvatars(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
       },
       groups: gs => {
         st.groups = gs.map(g => ({ id: g.id, name: g.name, code: g.code, adminUid: g.adminUid, admin: g.adminUid === st.uid,
           members: Object.entries(g.members || {}).map(([uid, name]) => ({ uid, name })).sort((a, b) => (b.uid === g.adminUid) - (a.uid === g.adminUid)),
           req: Object.entries(g.requests || {}).map(([uid, name]) => ({ uid, name })) }));
-        syncChats(); render(); refreshSheet(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
+        syncChats(); render(); refreshSheet(); loadAvatars(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
       },
-      sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); checkIncoming(); rChats(); rBadge(); rMap(); if (st.open) rThread(); },
+      sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); if (st.sosIn.some(s => !(s.from in st.av))) loadAvatars(true); checkIncoming(); rChats(); rBadge(); rMap(); if (st.open) rThread(); },
       sosMine: list => {
         const was = !!st.sosMine; st.sosMine = list.filter(s => Date.now() - s.at < 12 * 36e5).sort((a, b) => b.at - a.at)[0] || null;
         if (st.sosMine) { intro.done(true); if (live.sosId !== st.sosMine.id) startLive(st.sosMine.id, st.sosMine.liveUntil || st.sosMine.at + 12 * 36e5); rActive(); if (!sending && ['s-home', 's-active'].some(s => $('#' + s).classList.contains('on'))) show('s-active'); }
@@ -1414,14 +1521,14 @@ export function boot(api, native) {
       }
     });
   }
-  const pick = d => ({ name: d.name, surname: d.surname, dob: d.dob, gender: d.gender, phone: d.phone || '' });
+  const pick = d => ({ name: d.name, surname: d.surname, dob: d.dob, gender: d.gender, phone: d.phone || '', avatar: d.avatar || '' });
   function refreshSheet() {
     if (!curSheet) return;
     if (curSheet.startsWith('group:')) sheetGroup(curSheet.slice(6));
   }
   function stopData() {
     unwatch?.(); unwatch = null; linksLoaded = false; Object.values(chatUn).forEach(f => f()); chatUn = {};
-    Object.assign(st, { uid: null, email: '', p: null, links: [], groups: [], muted: [], threads: {}, sosIn: [], sosMine: null, open: null, dismissed: new Set(), shownIn: null });
+    Object.assign(st, { uid: null, email: '', p: null, links: [], groups: [], muted: [], threads: {}, sosIn: [], sosMine: null, av: {}, open: null, dismissed: new Set(), shownIn: null });
     closeSheet(); closeIncoming(); $('#ov-send').classList.remove('on');
   }
 

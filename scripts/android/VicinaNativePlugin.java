@@ -3,6 +3,7 @@ package __PACKAGE__;
 // Integrazioni di Vicina con il telefono (Android):
 // icona alternativa (modalità anonima), torcia vera, batteria, voce che legge un testo,
 // impostazioni dell'app, scorciatoie sull'icona e widget nella schermata Home.
+import android.Manifest;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -23,14 +24,23 @@ import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import org.json.JSONObject;
 
-@CapacitorPlugin(name = "VicinaNative")
+@CapacitorPlugin(
+    name = "VicinaNative",
+    permissions = {
+        @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO }),
+        @Permission(alias = "camera", strings = { Manifest.permission.CAMERA })
+    }
+)
 public class VicinaNativePlugin extends Plugin {
     private TextToSpeech tts = null;
     private boolean ttsReady = false;
@@ -127,6 +137,41 @@ public class VicinaNativePlugin extends Plugin {
     public void stopSpeaking(PluginCall call) {
         try { if (tts != null) tts.stop(); } catch (Exception ignored) { }
         call.resolve();
+    }
+
+    /* ---------- microfono e fotocamera: richiesta di sistema vera ----------
+       La richiesta passava solo dal WebView (getUserMedia): se Android non mostrava il popup
+       il permesso restava «negato» senza modo di attivarlo. Ora si chiede direttamente ad Android;
+       se l'utente aveva scelto «Non chiedere più» lo stato è "denied" e l'app apre le impostazioni. */
+    private String mediaAlias(PluginCall call) {
+        return "cam".equals(call.getString("type", "mic")) ? "camera" : "microphone";
+    }
+
+    @PluginMethod
+    public void mediaState(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("mic", getPermissionState("microphone").toString());
+        r.put("cam", getPermissionState("camera").toString());
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void requestMedia(PluginCall call) {
+        String alias = mediaAlias(call);
+        if (getPermissionState(alias) == PermissionState.GRANTED) {
+            JSObject r = new JSObject();
+            r.put("state", "granted");
+            call.resolve(r);
+            return;
+        }
+        requestPermissionForAlias(alias, call, "mediaCallback");
+    }
+
+    @PermissionCallback
+    private void mediaCallback(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("state", getPermissionState(mediaAlias(call)).toString());
+        call.resolve(r);
     }
 
     /* ---------- impostazioni dell'app (permessi) ---------- */

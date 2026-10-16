@@ -38,6 +38,33 @@ export async function createMap(el, { onPick, interactive = true, center = null 
   map.addSource('acc', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'acc', type: 'fill', source: 'acc', paint: { 'fill-color': '#FF3B4E', 'fill-opacity': 0.12 } }, 'tracks-glow');
 
+  // luoghi sicuri (polizia, pronto soccorso, farmacie, defibrillatori…): punti colorati, al tocco nome e indicazioni
+  map.addSource('safe', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  const SAFE_COL = ['match', ['get', 'cat'], 'police', '#4DA3FF', 'hospital', '#FF4D5E', 'pharmacy', '#2FD27A', 'defib', '#FFB547', '#9C8CFF'];
+  map.addLayer({ id: 'safe-halo', type: 'circle', source: 'safe', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 7, 16, 14], 'circle-color': SAFE_COL, 'circle-opacity': 0.22 } });
+  map.addLayer({ id: 'safe-pts', type: 'circle', source: 'safe', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3.5, 16, 7.5], 'circle-color': SAFE_COL, 'circle-stroke-color': '#fff', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 1, 16, 2] } });
+  let safeById = new Map(), popup = null, onSafe = null;
+  const SAFE_T = { police: 'Polizia / Carabinieri', hospital: 'Pronto soccorso', pharmacy: 'Farmacia', defib: 'Defibrillatore', open: 'Aperto 24 ore' };
+  const openSafe = (f, at) => {
+    const x = safeById.get(f.properties.id); if (!x) return;
+    popup?.remove();
+    const html = `<div class="sp-pop"><span class="sp-k ${x.cat}">${esc(SAFE_T[x.cat] || 'Luogo sicuro')}</span><b>${esc(x.name)}</b>
+      <span class="sp-s">${[x.dist, x.addr, x.h24 ? 'aperto 24 ore' : ''].filter(Boolean).map(esc).join(' · ')}</span>
+      <div class="sp-acts"><button class="btn red sm" data-a="x-url" data-u="${esc(x.dir)}">Indicazioni</button>${x.tel ? `<a class="btn ghost sm" href="tel:${esc(x.tel.replace(/[^\d+]/g, ''))}">Chiama</a>` : ''}</div></div>`;
+    popup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px', className: 'sp-popup', offset: 12 }).setLngLat(at || [x.lng, x.lat]).setHTML(html).addTo(map);
+    onSafe?.(x);
+  };
+  map.on('click', 'safe-pts', e => { const f = e.features?.[0]; if (f) openSafe(f, f.geometry.coordinates); });
+  map.on('click', 'safe-halo', e => { const f = e.features?.[0]; if (f && !map.queryRenderedFeatures(e.point, { layers: ['safe-pts'] }).length) openSafe(f, f.geometry.coordinates); });
+  map.on('mouseenter', 'safe-pts', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'safe-pts', () => { map.getCanvas().style.cursor = ''; });
+  function setSafe(items = [], cb) {
+    onSafe = cb || onSafe;
+    safeById = new Map(items.map(x => [String(x.id), x]));
+    map.getSource('safe').setData({ type: 'FeatureCollection', features: items.map(x => ({ type: 'Feature', properties: { id: String(x.id), cat: x.cat }, geometry: { type: 'Point', coordinates: [x.lng, x.lat] } })) });
+    if (!items.length) { popup?.remove(); popup = null; }
+  }
+
   const markers = new Map();
   let meMarker = null, fitted = false, focusId = null;
 
@@ -69,7 +96,7 @@ export async function createMap(el, { onPick, interactive = true, center = null 
         m = new maplibregl.Marker({ element: e, anchor: 'bottom' }).setLngLat([p.lng, p.lat]).addTo(map);
         markers.set(p.id, m);
       }
-      m.getElement().innerHTML = `<span class="pin-ring"></span><span class="pin-head">${esc(p.ini)}</span><span class="pin-tail"></span>${p.label ? `<span class="pin-label">${esc(p.label)}</span>` : ''}`;
+      m.getElement().innerHTML = `<span class="pin-ring"></span><span class="pin-head">${esc(p.ini)}${p.img ? `<img src="${esc(p.img)}" alt="" onerror="this.remove()">` : ''}</span><span class="pin-tail"></span>${p.label ? `<span class="pin-label">${esc(p.label)}</span>` : ''}`;
       m.getElement().classList.toggle('stale', !!p.stale);
       m.setLngLat([p.lng, p.lat]);
     }
@@ -94,7 +121,8 @@ export async function createMap(el, { onPick, interactive = true, center = null 
   }
 
   return {
-    setData,
+    setData, setSafe,
+    zoomTo(lat, lng, z = 15) { map.flyTo({ center: [lng, lat], zoom: z, duration: 700 }); },
     focus(id, lat, lng) { focusId = id; fitted = true; map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 15.5), duration: 800 }); },
     showAll(people, me) { focusId = null; fitted = false; fitAll(people, me); },
     center(lat, lng) { focusId = null; map.flyTo({ center: [lng, lat], zoom: 15.5, duration: 700 }); },

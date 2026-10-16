@@ -373,3 +373,25 @@ ma le regole vanno create una volta a mano. Supabase → **Storage → Policies*
    or exists (select 1 from public.sos s where s.id = (storage.foldername(name))[2] and auth.uid() = any(s.recipients)))
    ```
 Se esistono già (le avevi create all'installazione) e foto e vocali funzionano, non serve fare nulla.
+
+## Correzioni e foto profilo (ottobre 2026)
+**Una volta sola**: Supabase → **SQL Editor** → incolla `supabase/aggiornamento-foto-profilo.sql` → **Run** (si può rieseguire; è già dentro `installa.sql` e `schema.sql`).
+Poi **Actions → Pubblica server** (aggiorna la funzione `vicina`, che ora cancella anche la foto profilo quando un account viene eliminato) e **Actions → Compila app**.
+
+- **Foto profilo**: Tu → tocca il tuo nome → *Scegli una foto* (fotocamera o galleria). Viene ritagliata quadrata (512×512, pochi KB)
+  e la vede tutta la cerchia: Home, Cerchia, chat, gruppi, mappa e schermata dell'SOS in arrivo. Senza l'aggiornamento SQL l'app funziona come prima (iniziali).
+  Le foto stanno nel bucket pubblico `avatars` con un nome casuale non indovinabile; ognuno può caricare e cancellare solo nella propria cartella.
+- **Strumenti che si aprivano in ritardo** (bussola, Dove sono, sirena, fischietto, finta chiamata, RCP): si aprono subito. La bussola prima aspettava il GPS
+  (fino a 10 secondi); i suoni prima dovevano partire prima di mostrare lo schermo.
+- **Posizione più veloce**: gli strumenti usano l'ultima posizione nota (se recente) o la prima tra rete e GPS; l'SOS usa sempre il GPS preciso.
+- **Luoghi sicuri più veloci**: i server di OpenStreetMap vengono interrogati tutti insieme (vince il primo), i luoghi restano salvati sul telefono
+  e riaprendo lo strumento compaiono subito mentre si aggiornano.
+- **Luoghi sicuri sulla mappa**: pulsante con lo scudo nella scheda Mappa (o *Mostrali sulla mappa* dentro Luoghi sicuri). Punti colorati:
+  blu polizia/carabinieri, rosso pronto soccorso, verde farmacie, giallo defibrillatori. Tocca un punto → nome, distanza, **Indicazioni** a piedi e **Chiama**.
+- **Scuoti per SOS**: l'interruttore nella scheda Strumenti restava «acceso» anche dopo averlo spento dalle Impostazioni, e toccandolo si spegneva di nuovo.
+  Ora tutti gli interruttori mostrano lo stesso stato e il sensore viene riagganciato quando l'app torna in primo piano.
+- **Microfono senza popup**: il permesso ora si chiede al telefono (plugin `VicinaNative`: `mediaState` / `requestMedia`, Android e iOS), non solo al WebView.
+  Se in passato era stato negato con «Non chiedere più», l'app lo spiega e apre le impostazioni del telefono (pulsante *Sblocca* / *Apri* in Permessi).
+
+Regole della foto profilo (solo se compare l'avviso durante l'aggiornamento): bucket **avatars** → New policy, ruolo **authenticated**,
+operazioni **INSERT**, **SELECT** e **DELETE** con la definizione `bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text`.

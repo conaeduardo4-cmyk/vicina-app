@@ -77,12 +77,12 @@ async function push(uids: string[], p: Push) {
 }
 
 /* ---------- storage ---------- */
-async function removeFolder(prefix: string) {
-  const { data } = await SB.storage.from('sos').list(prefix, { limit: 100 });
+async function removeFolder(prefix: string, bucket = 'sos') {
+  const { data } = await SB.storage.from(bucket).list(prefix, { limit: 100 });
   const files = (data || []).filter(f => f.id).map(f => `${prefix}/${f.name}`);
   const dirs = (data || []).filter(f => !f.id).map(f => `${prefix}/${f.name}`);
-  if (files.length) await SB.storage.from('sos').remove(files);
-  for (const d of dirs) await removeFolder(d);
+  if (files.length) await SB.storage.from(bucket).remove(files);
+  for (const d of dirs) await removeFolder(d, bucket);
 }
 
 /* ---------- eventi ---------- */
@@ -130,6 +130,7 @@ async function handle(ev: { event: string; id: string; [k: string]: unknown }) {
     }
     case 'purge': { // account eliminato: via tutte le sue foto (e l'utente, se il database non ha potuto)
       await removeFolder(ev.id);
+      await removeFolder(ev.id, 'avatars').catch(() => {});   // foto profilo
       await SB.auth.admin.deleteUser(ev.id).catch(() => {});
       return 1;
     }

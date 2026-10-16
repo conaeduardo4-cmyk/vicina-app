@@ -75,40 +75,74 @@ export function createExtra(ctx, base) {
     ['defib', 'Defibrillatori', 'heart', e => e.emergency === 'defibrillator'],
     ['open', 'Aperti 24 ore', 'clock', e => /24\/7/.test(e.opening_hours || '')]
   ];
-  let safeCache = null;
+  // Cache dei luoghi salvata sul telefono: riaprendo lo strumento (o la mappa) i luoghi compaiono subito
+  // e intanto si aggiornano in sottofondo. Prima ogni volta si aspettava GPS + server (anche più di un minuto).
+  const SFK = 'safeCache2';
+  let safeCache = (() => { try { const c = JSON.parse(ls.get(SFK) || 'null'); return c && Array.isArray(c.items) ? c : null; } catch { return null; } })();
+  let safeLoading = null;
+  const safeFresh = (p, cat) => safeCache && Date.now() - safeCache.at < 30 * 60e3 && km(safeCache.p, p) < 0.5 && (!safeCache.only || safeCache.only === cat);
+  const safeUsable = p => safeCache && Date.now() - safeCache.at < 7 * 24 * 3600e3 && km(safeCache.p, p) < 1.5;
+  async function loadSafe(p, cat = 'police', force = false) {
+    if (!force && safeFresh(p, cat)) return safeCache;
+    if (safeLoading) return safeLoading;
+    const q = `[out:json][timeout:12];(nwr(around:3000,${p.lat},${p.lng})[amenity~"^(police|hospital|clinic|pharmacy|fuel)$"];nwr(around:3000,${p.lat},${p.lng})[emergency=defibrillator];nwr(around:3000,${p.lat},${p.lng})[shop~"^(supermarket|convenience)$"][opening_hours="24/7"];);out center tags 250;`;
+    const term = { police: 'carabinieri', hospital: 'ospedale', pharmacy: 'farmacia', defib: 'defibrillatore', open: 'farmacia' }[cat];
+    safeLoading = native.osm(q, { term, p, r: 3000 }).then(j => {
+      const only = j.elements.length && !j.elements.some(e => e.type) ? cat : null;
+      const items = j.elements.map(e => ({ ...e.tags, id: (e.type || 'n') + (e.id || ''), lat: e.lat ?? e.center?.lat, lng: e.lon ?? e.center?.lon })).filter(e => e.lat != null);
+      if (only === 'police') items.forEach(e => { e.amenity = 'police'; });
+      if (only === 'defib') items.forEach(e => { e.emergency = 'defibrillator'; });
+      safeCache = { at: Date.now(), p: { lat: p.lat, lng: p.lng }, only, items };
+      if (!only) ls.set(SFK, JSON.stringify(safeCache));
+      return safeCache;
+    }).finally(() => { safeLoading = null; });
+    return safeLoading;
+  }
+  const safeCat = e => e.emergency === 'defibrillator' ? 'defib' : e.amenity === 'police' ? 'police' : (e.amenity === 'hospital' || e.amenity === 'clinic') ? 'hospital' : e.amenity === 'pharmacy' ? 'pharmacy' : 'open';
+  const safeName = e => e.name || (e.emergency === 'defibrillator' ? 'Defibrillatore (DAE)' : e.amenity === 'police' ? (/carabin/i.test(e.operator || '') ? 'Carabinieri' : 'Polizia') : e.amenity === 'pharmacy' ? 'Farmacia' : e.amenity === 'fuel' ? 'Distributore' : e.amenity === 'hospital' ? 'Ospedale' : e.shop ? 'Negozio' : 'Luogo');
+  // per la mappa: tutti i luoghi utili con nome, tipo e indicazioni
+  async function safeForMap(p, force) {
+    const c = (!force && safeUsable(p)) ? safeCache : await loadSafe(p, 'police', force);
+    if (!force && c === safeCache && !safeFresh(p, 'police')) loadSafe(p, 'police', true).then(() => safeMapCb?.()).catch(() => {});
+    return (c?.items || []).filter(e => CATS.some(([, , , f]) => f(e)) || e.amenity === 'fuel').map(e => ({
+      id: e.id || `${e.lat},${e.lng}`, lat: e.lat, lng: e.lng, name: safeName(e), cat: safeCat(e),
+      tel: e.phone || e['contact:phone'] || '', addr: [e['addr:street'], e['addr:housenumber']].filter(Boolean).join(' '),
+      h24: e.opening_hours === '24/7', dir: dirUrl(e, 'walk'), er: e.emergency === 'yes'
+    }));
+  }
+  let safeMapCb = null, safeHere = null;
   async function sheetSafe(cat = 'police') {
     openSheet(`<h2>Luoghi sicuri vicini</h2><p class="sub">Posti dove entrare e chiedere aiuto, con la strada a piedi.</p>
       <div class="tabs" id="sf-tabs">${CATS.map(([k, t]) => `<button data-a="safe-cat" data-k="${k}" class="${k === cat ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <button class="btn ghost sm" data-a="safe-map">${I('pin')}Mostrali sulla mappa</button>
       <div id="sf-list"><div class="where-load">${I('pin')}Cerco intorno a te…</div></div>`, 'safe');
     const p = await native.getPos().catch(() => null);
-    if (!p) { $('#sf-list').innerHTML = `<p class="note">Posizione non disponibile.</p>`; return; }
-    try {
-      if (!safeCache || Date.now() - safeCache.at > 600000 || km(safeCache.p, p) > 0.4 || (safeCache.only && safeCache.only !== cat)) {
-        const q = `[out:json][timeout:25];(nwr(around:3000,${p.lat},${p.lng})[amenity~"^(police|hospital|clinic|pharmacy|fuel)$"];nwr(around:3000,${p.lat},${p.lng})[emergency=defibrillator];nwr(around:3000,${p.lat},${p.lng})[shop~"^(supermarket|convenience)$"][opening_hours="24/7"];);out center tags 200;`;
-        const term = { police: 'carabinieri', hospital: 'ospedale', pharmacy: 'farmacia', defib: 'defibrillatore' }[cat];
-        const j = await native.osm(q, { term, p, r: 3000 });
-        safeCache = { at: Date.now(), p, only: j.elements.length && !j.elements.some(e => e.type) ? cat : null, items: j.elements.map(e => ({ ...e.tags, lat: e.lat ?? e.center?.lat, lng: e.lon ?? e.center?.lon })).filter(e => e.lat != null) };
-        if (safeCache.only && cat === 'police') safeCache.items.forEach(e => { e.amenity = 'police'; });
-        if (safeCache.only && cat === 'defib') safeCache.items.forEach(e => { e.emergency = 'defibrillator'; });
-      }
-      rSafe(cat, p);
-    } catch (e) {
+    if (!$('#sf-list')) return;
+    if (!p) { $('#sf-list').innerHTML = `<p class="note">Posizione non disponibile: controlla che il GPS sia acceso.</p>`; return; }
+    safeHere = p;
+    const shownOld = safeUsable(p) && (!safeCache.only || safeCache.only === cat);
+    if (shownOld) rSafe(cat, p, !safeFresh(p, cat));
+    if (safeFresh(p, cat)) return;
+    try { await loadSafe(p, cat, shownOld); if ($('#sf-list') && $('#sf-tabs .on')?.dataset.k === cat) rSafe(cat, p); }
+    catch (e) {
       console.warn('overpass', e);
-      $('#sf-list').innerHTML = `<p class="note">Non riesco a caricare i luoghi (serve internet). Cercali direttamente nelle mappe:</p>${fallbackSafe(p)}`;
+      if (!shownOld && $('#sf-list')) $('#sf-list').innerHTML = `<p class="note">Non riesco a caricare i luoghi (serve internet). Cercali direttamente nelle mappe:</p>${fallbackSafe(p)}`;
+      else if ($('#sf-upd')) $('#sf-upd').textContent = 'Non riesco ad aggiornare: ti mostro gli ultimi luoghi trovati.';
     }
   }
   const fallbackSafe = p => `<div class="em-tools">${[['Carabinieri', 'carabinieri'], ['Polizia', 'polizia'], ['Pronto soccorso', 'pronto soccorso'], ['Farmacia', 'farmacia']].map(([t, q]) => `<button class="btn ghost sm" data-a="x-url" data-u="${esc(searchUrl(q, p))}">${t}</button>`).join('')}</div>`;
-  function rSafe(cat, p) {
+  function rSafe(cat, p, updating) {
+    if (!$('#sf-list')) return;
     const f = CATS.find(c => c[0] === cat)[3];
     const l = safeCache.items.filter(f).map(e => ({ ...e, d: km(p, e) })).sort((a, b) => a.d - b.d).slice(0, 12);
-    const name = e => e.name || (e.emergency === 'defibrillator' ? 'Defibrillatore (DAE)' : e.amenity === 'police' ? (/carabin/i.test(e.operator || '') ? 'Carabinieri' : 'Polizia') : e.amenity === 'pharmacy' ? 'Farmacia' : e.amenity === 'fuel' ? 'Distributore' : e.amenity === 'hospital' ? 'Ospedale' : e.shop ? 'Negozio' : 'Luogo');
+    const name = safeName;
     const hrs = e => e.opening_hours === '24/7' ? '<span class="tag green">Aperto 24 ore</span>' : e.opening_hours ? esc(e.opening_hours.slice(0, 40)) : '';
     $('#sf-list').innerHTML = l.length ? `<div class="card safe-list">${l.map(e => {
       const tel = e.phone || e['contact:phone'];
       const addr = [e['addr:street'], e['addr:housenumber']].filter(Boolean).join(' ');
       return `<div class="row safe-row"><div class="fl wrap"><b>${esc(name(e))}</b><span>${dist(e.d)}${addr ? ' · ' + esc(addr) : ''}${e.emergency === 'yes' ? ' · <b>pronto soccorso</b>' : ''}</span><span>${hrs(e)}</span></div>
         <div class="safe-acts"><button class="btn red sm" data-a="x-url" data-u="${esc(dirUrl(e, 'walk'))}">${I('send')}Vai</button>${tel ? `<a class="btn ghost sm" href="tel:${esc(tel.replace(/[^\d+]/g, ''))}">${I('phone')}</a>` : ''}</div></div>`;
-    }).join('')}</div><p class="note">Dati di OpenStreetMap: orari e numeri possono non essere aggiornati.</p>` : `<p class="note">Niente trovato entro 3 km.</p>${fallbackSafe(p)}`;
+    }).join('')}</div><p class="note" id="sf-upd">${updating ? 'Aggiorno i luoghi… ' : ''}Dati di OpenStreetMap: orari e numeri possono non essere aggiornati.</p>` : `<p class="note" id="sf-upd">${updating ? 'Aggiorno i luoghi…' : 'Niente trovato entro 3 km.'}</p>${updating ? '' : fallbackSafe(p)}`;
   }
 
   /* ---------- Taxi e passaggi ---------- */
@@ -416,7 +450,8 @@ export function createExtra(ctx, base) {
         closeSheet(); open(dirUrl(h, m)); return true;
       }
       case 'safe-places': closeSheet(); sheetSafe(); return true;
-      case 'safe-cat': { document.querySelectorAll('#sf-tabs button').forEach(b => b.classList.toggle('on', b === t)); if (safeCache) rSafe(t.dataset.k, safeCache.p); else sheetSafe(t.dataset.k); return true; }
+      case 'safe-cat': { document.querySelectorAll('#sf-tabs button').forEach(b => b.classList.toggle('on', b === t)); const k = t.dataset.k; if (safeCache && safeHere && (!safeCache.only || safeCache.only === k)) rSafe(k, safeHere); else sheetSafe(k); return true; }
+      case 'safe-map': closeSheet(); ctx.showSafeOnMap?.(); return true;
       case 'taxi': closeSheet(); sheetTaxi(); return true;
       case 'ride-ask': { const p = await pos(); const n = await ctx.quickSend(`🚗 Mi serve un passaggio, qualcuno può venirmi a prendere?${p ? '\nSono qui: ' + mapsLink(p) : ''}`); toast(n ? 'Richiesta inviata alla cerchia' : 'Nessuna chat a cui inviarla'); return true; }
       case 'car': closeSheet(); sheetCar(); return true;
@@ -543,5 +578,5 @@ export function createExtra(ctx, base) {
     document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && batteryWatch());
   }
   const nav = { dirUrl, searchUrl, open, wa, store, km, dist, sendBar, outbox, geocode };
-  return { nav, handle, groups, handleUrl, restore, batteryLine: () => (lastBattery && lastBattery.level >= 0 ? `Batteria: ${lastBattery.level}%` : ''), readBattery };
+  return { nav, safeForMap, onSafeUpdate: cb => { safeMapCb = cb; }, handle, groups, handleUrl, restore, batteryLine: () => (lastBattery && lastBattery.level >= 0 ? `Batteria: ${lastBattery.level}%` : ''), readBattery };
 }

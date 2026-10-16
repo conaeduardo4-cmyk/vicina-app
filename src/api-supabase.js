@@ -31,7 +31,10 @@ export function createApi(env) {
     photos: x.photos || [], at: ms(x.created_at), active: x.active, locAt: x.loc_at ? Date.parse(x.loc_at) : null, liveUntil: x.live_until ? Date.parse(x.live_until) : null, track: x.track || [], audio: x.audio || null, acks: x.acks || {}, recipients: x.recipients || [], chats: x.chats || []
   });
   const msg = m => ({ id: m.id, type: m.type, from: m.from_uid, fromName: m.from_name, text: m.text, sosId: m.sos_id, lat: m.lat, lng: m.lng, photos: m.photos || [], audio: m.audio || null, at: ms(m.created_at) });
-  const prof = p => p && ({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '', mutedGroups: p.muted_groups || [], termsVersion: p.terms_version || 0 });
+  const prof = p => p && ({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '', mutedGroups: p.muted_groups || [], termsVersion: p.terms_version || 0, avatar: p.avatar ? avatarUrl(p.id, p.avatar) : '' });
+  // foto profilo: bucket pubblico «avatars», il nome del file è un codice casuale (lo conosce solo chi è nella tua cerchia)
+  const avatarUrl = (uid, tok) => `${String(env.VITE_SUPABASE_URL).replace(/\/+$/, '')}/storage/v1/object/public/avatars/${uid}/${tok}.jpg`;
+  const token = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join('');
 
   // nomi usati dall'interfaccia → funzioni SQL
   const RPC = {
@@ -197,6 +200,25 @@ export function createApi(env) {
     async uploadAudio(p, blob, mime) {
       const { error } = await sb.storage.from('sos').upload(p.replace(/^sos\//, ''), blob, { contentType: mime, upsert: false });
       if (error && !dup(error)) throw rerr(error);   // già caricato da un tentativo precedente: va bene così
+    },
+    // ---------- foto profilo ----------
+    async setAvatar(uid, dataUrl) {
+      const blob = await (await fetch(dataUrl)).blob(), tok = token();
+      const up = await sb.storage.from('avatars').upload(`${uid}/${tok}.jpg`, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+      if (up.error) throw Object.assign(rerr(up.error), /bucket|not found/i.test(up.error.message || '') ? { code: 'avatar-setup' } : {});
+      const r = await sb.rpc('set_avatar', { p_avatar: tok });
+      if (r.error) throw Object.assign(rerr(r.error), /set_avatar|function/i.test(r.error.message || '') ? { code: 'avatar-setup' } : {});
+      this.cleanAvatars(uid, tok);
+      return avatarUrl(uid, tok);
+    },
+    async removeAvatar(uid) { ok(await sb.rpc('set_avatar', { p_avatar: null })); this.cleanAvatars(uid, null); },
+    async cleanAvatars(uid, keep) {   // via le foto vecchie (in sottofondo)
+      try { const { data } = await sb.storage.from('avatars').list(uid, { limit: 50 }); const old = (data || []).filter(f => f.name !== keep + '.jpg').map(f => `${uid}/${f.name}`); if (old.length) await sb.storage.from('avatars').remove(old); } catch {}
+    },
+    async circleAvatars() {
+      const { data, error } = await sb.rpc('circle_avatars');
+      if (error) return {};            // server non ancora aggiornato (aggiornamento-foto-profilo.sql): nessuna foto, nessun errore
+      return Object.fromEntries((data || []).map(r => [r.uid, avatarUrl(r.uid, r.avatar)]));
     },
     async uploadPhoto(p, dataUrl) {
       const blob = await (await fetch(dataUrl)).blob();

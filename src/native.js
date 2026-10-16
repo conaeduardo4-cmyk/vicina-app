@@ -8,7 +8,7 @@ import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, osmQuery, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState } from './native-web.js';
+import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, osmQuery, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState, fastPos, saveMediaState, startRecording } from './native-web.js';
 
 // Posizione anche a schermo spento (servizio in primo piano su Android, modalità background su iOS)
 const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
@@ -28,25 +28,48 @@ export const native = !isNative ? webNative : {
   isNative: true,
   platform: Capacitor.getPlatform(),
 
-  async getPos() {
-    for (const o of [{ enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }, { enableHighAccuracy: false, timeout: 4000, maximumAge: 600000 }]) {
-      try { const p = await Geolocation.getCurrentPosition(o); return { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude ?? null }; } catch {}
-    }
-    return null;
+  async getPos(opt) {
+    const geo = o => Geolocation.getCurrentPosition(o).then(p => ({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude ?? null }));
+    return fastPos(geo, opt);
   },
 
   async permState() {
-    let loc = 'prompt', push = 'prompt';
+    let loc = 'prompt', push = 'prompt', cam = cameraState(), mic = micState();
     try { loc = norm((await Geolocation.checkPermissions()).location); } catch {}
     try { push = norm((await FirebaseMessaging.checkPermissions()).receive); } catch {}
-    return { loc, cam: cameraState(), push, mic: micState() };
+    // stato vero di microfono e fotocamera chiesto al telefono (prima era solo un ricordo salvato nell'app)
+    try { const m = await VN.mediaState(); cam = norm(m.cam); mic = norm(m.mic); saveMediaState('cam', cam); saveMediaState('mic', mic); } catch {}
+    return { loc, cam, push, mic };
+  },
+
+  // Microfono / fotocamera: popup di sistema vero (Android e iPhone). Se manca il pezzo nativo (build vecchia) usa il WebView.
+  // Restituisce 'granted', 'denied' (il telefono non mostra più la richiesta: serve Impostazioni) o 'prompt'.
+  async media(type) {
+    try {
+      const r = norm((await VN.requestMedia({ type })).state);
+      saveMediaState(type, r);
+      if (r === 'granted') { try { await (type === 'mic' ? micPermission() : cameraPermission()); } catch {} }   // sblocca anche il WebView
+      return r;
+    } catch (e) {
+      console.warn('permesso ' + type, e);
+      return type === 'mic' ? micPermission() : cameraPermission();
+    }
   },
 
   async requestPerms() {
     try { await Geolocation.requestPermissions({ permissions: ['location'] }); } catch (e) { console.warn('geo', e); }
-    await cameraPermission();
-    await micPermission();
+    await this.media('cam');
+    await this.media('mic');
     try { await FirebaseMessaging.requestPermissions(); } catch (e) { console.warn('push perm', e); }
+  },
+
+  // registrazione: prima il permesso di sistema (così il popup compare davvero), poi il microfono del WebView
+  async startRecording() {
+    if (micState() !== 'granted') {
+      const r = await this.media('mic');
+      if (r !== 'granted') throw Object.assign(new Error('Permesso del microfono negato'), { code: r === 'denied' ? 'mic-blocked' : 'mic-denied' });
+    }
+    return startRecording();
   },
 
   // Registra il dispositivo per le notifiche push (FCM). Richiede google-services.json / GoogleService-Info.plist.
@@ -108,7 +131,7 @@ export const native = !isNative ? webNative : {
   // Aggiornamenti: su Android scarica e installa l'APK dentro l'app; su iOS solo avviso + istruzioni
   // luoghi vicini: richiesta nativa (niente CORS, con un User-Agent riconoscibile come chiedono i server OSM)
   osm: (q, opt) => osmQuery(async (url, accept) => {
-    const r = await CapacitorHttp.get({ url, connectTimeout: 12000, readTimeout: 25000, responseType: 'text', headers: { Accept: accept, 'User-Agent': 'Vicina-app/1.0 (app SOS)' } });
+    const r = await CapacitorHttp.get({ url, connectTimeout: 8000, readTimeout: 14000, responseType: 'text', headers: { Accept: accept, 'User-Agent': 'Vicina-app/1.0 (app SOS)' } });
     if (r.status < 200 || r.status >= 300) throw new Error('HTTP ' + r.status);
     return r.data;
   }, opt),

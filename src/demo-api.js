@@ -56,7 +56,13 @@ export function createDemoApi() {
     x.fillText(k === 'back' ? 'Foto posteriore' : 'Foto frontale', 150, 200); x.font = '14px system-ui'; x.fillText('(demo)', 150, 228);
     return c.toDataURL('image/jpeg', .8);
   };
-  const photos = {};
+  const photos = {}, avatars = {};
+  const demoFace = (a, b) => {   // ritratto stilizzato per la demo
+    const c = document.createElement('canvas'); c.width = c.height = 160; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 160, 160); g.addColorStop(0, a); g.addColorStop(1, b); x.fillStyle = g; x.fillRect(0, 0, 160, 160);
+    x.fillStyle = 'rgba(255,255,255,.92)'; x.beginPath(); x.arc(80, 64, 30, 0, 7); x.fill(); x.beginPath(); x.ellipse(80, 150, 52, 44, 0, 0, 7); x.fill();
+    return c.toDataURL('image/jpeg', .85);
+  };
 
   const fns = {
     async createInvite({ kind }) {
@@ -169,6 +175,10 @@ export function createDemoApi() {
     async call(name, data = {}) { await wait(250); if (!fns[name]) throw err('not-found', 'Funzione inesistente'); return fns[name](data); },
     async uploadAudio(p, blob) { await wait(300); photos[p] = URL.createObjectURL(blob); },
     async photoUrl(p) { if (p === 'demo/voice.webm') return fakeVoice(); if (p.startsWith('demo/')) return fakePhoto(p.includes('back') ? 'back' : 'front'); if (photos[p]) return photos[p]; throw err('not-found', 'x'); },
-    async uploadPhoto(p, dataUrl) { await wait(300); photos[p] = dataUrl; }
+    async uploadPhoto(p, dataUrl) { await wait(300); photos[p] = dataUrl; },
+    // foto profilo (demo: restano in memoria). Giulia ha una foto di prova per vedere come appare agli altri
+    async setAvatar(uid, dataUrl) { await wait(400); avatars.me = dataUrl; db.user.avatar = dataUrl; emit(); return dataUrl; },
+    async removeAvatar() { delete avatars.me; if (db.user) db.user.avatar = ''; emit(); },
+    async circleAvatars() { const ok = new Set(db.links.flatMap(l => l.uids)); return Object.fromEntries(Object.entries({ ...avatars, u_giulia: avatars.u_giulia || (avatars.u_giulia = demoFace('#FF8FA3', '#7A2E5C')) }).filter(([k]) => k === 'me' || ok.has(k))); }
   };
 }
