@@ -107,9 +107,14 @@ export function boot(api, native) {
       document.body.classList.add('entering');
       setTimeout(() => { box.remove(); document.body.classList.remove('entering'); }, 1300);
     };
-    if (!box) { native.hideSplash(); return { done() {} }; }
+    if (!box) { native.hideSplash(); return { done() {}, start() {}, lockedAtBoot: false }; }
     const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) { box.remove(); native.hideSplash(); return { done() {} }; }
+    if (reduce) { box.remove(); native.hideSplash(); return { done() {}, start() {}, lockedAtBoot: false }; }
+    // con il blocco dell'app attivo il video parte solo DOPO il codice / Face ID (start() lo chiama lo sblocco)
+    let started = false;
+    const start = () => { if (started || finished) return; started = true; play(); };
+    const lockedAtBoot = (() => { try { const c = JSON.parse(ls.get('appLock') || 'null'); return !!(prefs.lock && c && c.hash); } catch { return false; } })();
+    function play() {
     const base = 'intro/' + (window.innerHeight >= window.innerWidth ? 'intro-9x16' : 'intro-16x9');
     // il video resta invisibile finché non mostra davvero dei fotogrammi: niente «player vuoto» su Android
     let playing = false;
@@ -132,7 +137,9 @@ export function boot(api, native) {
     const pl = v.play(); if (pl && pl.catch) pl.catch(fallback);
     setTimeout(() => { if (!playing) fallback(); }, 1600);   // non parte in fretta: animazione di riserva
     setTimeout(() => done(false), 8000);                      // limite massimo
-    return { done };
+    }
+    if (lockedAtBoot) native.hideSplash(); else start();
+    return { done, start, lockedAtBoot };
   })();
 
   /* ================= navigazione ================= */
@@ -1310,12 +1317,17 @@ export function boot(api, native) {
     $, I, esc, toast, openSheet, closeSheet, native, ls, prefs, savePrefs,
     dialog: o => dialog(o),
     ready: () => !!(st.uid && st.p && !$('#s-setup').classList.contains('on')),
-    sos: () => { if (st.sosMine || sending) return; if (!canSos()) { toast('Nessuno nella cerchia: chiama il 112'); return; } trigger(); },
+    sos: async () => {
+      for (let i = 0; i < 40 && !(st.uid && st.p && linksLoaded); i++) await wait(250);   // all'avvio: aspetta account e cerchia (max 10 s)
+      if (st.sosMine || sending) return; if (!canSos()) { toast('Nessuno nella cerchia: chiama il 112'); return; } trigger();
+    },
     logout: () => api.signOut().catch(() => {}),
     refresh: () => rMe(),
     afterOffer: () => { const f = lockAfter; lockAfter = null; f?.(); },
-    onUnlock: () => { if (glass.supported) syncGlass(true); }
+    onUnlock: () => { intro.start(); if (glass.supported) syncGlass(true); }
   });
+  // blocco dell'app: la schermata del codice compare per prima, prima ancora del video di apertura
+  if (intro.lockedAtBoot && lock.enabled()) lock.show('start'); else intro.start();
   tools.setExtra(createMore3({
     $, I, esc, toast, openSheet, closeSheet, native, ls, mapsLink, hhmm, uid: () => st.uid, profile: () => st.p,
     smsList: () => smsList(), quickSend: (t, o) => quickSendAll(t, o),
@@ -1806,7 +1818,6 @@ export function boot(api, native) {
     if (pendingAdd) { const f = pendingAdd; pendingAdd = null; setTimeout(f, 1500); }
     if (!ls.get('setup:' + st.uid) && !ls.get('permAsked')) return setup(2);
     tab('home');
-    if (lock?.enabled()) lock.show('start');   // blocco dell'app: codice o Face ID all'apertura
   }
   // tema anonimo salvato: si applica subito, già dalla prima schermata
   dz.apply(!!prefs.disguise);
