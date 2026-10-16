@@ -134,8 +134,14 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         return false
     }
 
+    // versione di iOS letta all'avvio: se è 26 o successiva l'app mostra l'opzione (anche su iOS 27, 28…)
     @objc func glassInfo(_ call: CAPPluginCall) {
-        call.resolve(["supported": glassAvailable(), "ios": UIDevice.current.systemVersion])
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        var compiled = false
+        #if compiler(>=6.2)
+        compiled = true
+        #endif
+        call.resolve(["supported": glassAvailable(), "compiled": compiled, "major": v.majorVersion, "ios": "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"])
     }
 
     private func color(_ hex: String?) -> UIColor? {

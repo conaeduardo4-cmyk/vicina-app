@@ -142,7 +142,7 @@ export function boot(api, native) {
   /* ---------- Liquid Glass nativo (iOS 26+) ----------
      La barra delle schede viene disegnata da iOS con UIGlassEffect (VicinaNative.swift), sopra la pagina.
      Si nasconde da sola quando si apre un foglio, uno strumento a schermo intero o una schermata senza barra. */
-  const glass = { supported: false, last: '' };
+  const glass = { supported: false, os26: false, ios: '', last: '' };
   let glassT = null, glassObs = null;
   function syncGlass(now) {
     clearTimeout(glassT);
@@ -164,8 +164,12 @@ export function boot(api, native) {
       }
     }, now ? 0 : 40);
   }
+  // all'avvio, in sottofondo: versione di iOS. Da 26 in su (27, 28…) compare l'opzione nelle Impostazioni
   native.vx?.glassInfo?.().then(r => {
-    glass.supported = !!r?.supported;
+    const major = Number(r?.major) || parseInt(String(r?.ios || ''), 10) || 0;
+    glass.os26 = major >= 26; glass.ios = r?.ios || String(major);
+    glass.supported = !!r?.supported && glass.os26;
+    if (glass.os26 && st.p) rMe();
     if (!glass.supported) return;
     native.vx.onGlassTab(t => { if (t && TABS[t]) { native.haptic('light'); tab(t); } });
     if (st.p) rMe();
@@ -1010,7 +1014,7 @@ export function boot(api, native) {
       </div>
       <div class="label">Chat</div><div class="card">
         ${toggleRow('typingPreview', 'chat', 'green', 'Anteprima mentre scrivi', 'Chi è in chat con te vede cosa stai scrivendo prima che lo invii')}
-        ${glass.supported ? toggleRow('glass', 'spark', 'blue', 'Liquid Glass', 'La barra in basso usa il vetro nativo di iOS 26 (solo su iPhone con iOS 26 o successivo)') : ''}
+        ${glass.os26 ? toggleRow('glass', 'spark', 'blue', 'Liquid Glass', glass.supported ? `La barra in basso usa il vetro nativo di iOS (hai iOS ${esc(glass.ios)})` : `Hai iOS ${esc(glass.ios)}: serve la prossima versione di Vicina, compilata con Xcode 26`) : ''}
       </div>
       <div class="label">Strumenti</div><div class="card">
         <button class="row" data-a="med"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Scheda medica</b><span>Gruppo sanguigno, allergie, farmaci</span></div>${I('chev', 'chev')}</button>
@@ -1041,7 +1045,10 @@ export function boot(api, native) {
     else if (k === 'quiet') toast(prefs.quiet ? 'SOS discreto attivo' : 'SOS discreto disattivato');
     else if (k === 'disguise') setDisguise(prefs[k], e.target);
     else if (k === 'typingPreview') toast(prefs.typingPreview ? 'Gli altri vedono l\'anteprima mentre scrivi' : 'Gli altri vedono solo «sta scrivendo…»');
-    else if (k === 'glass') { syncGlass(true); toast(prefs.glass ? 'Liquid Glass attivo' : 'Liquid Glass disattivato'); }
+    else if (k === 'glass') {
+      if (prefs.glass && !glass.supported) { prefs.glass = false; savePrefs(); e.target.checked = false; toast('Questa installazione di Vicina è stata compilata senza Xcode 26: aggiorna l\'app per usare il Liquid Glass'); return; }
+      syncGlass(true); toast(prefs.glass ? 'Liquid Glass attivo' : 'Liquid Glass disattivato');
+    }
     else tools.prefChanged(k, prefs[k], e.target);
   });
   const sheetPerms = () => openSheet(`<h2>Permessi</h2><p class="sub">Servono perché l'SOS parta subito, senza richieste.</p><div class="card" style="margin-top:14px">${permRows()}</div>
