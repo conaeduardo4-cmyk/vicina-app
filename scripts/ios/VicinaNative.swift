@@ -122,11 +122,11 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
 
     // ---------- Liquid Glass (iOS 26) ----------
     // Tutto con i componenti di sistema, niente imitazioni:
-    //  - barra delle schede = una vera UITabBarController di iOS (vetro, bolla che si sposta tra le schede, badge)
+    //  - barra delle schede = una vera UITabBar di iOS con tutte e 6 le schede (vetro, bolla che si sposta tra le schede, badge)
     //  - avvisi e conferme = UIAlertController di iOS
     //  - messaggi brevi = capsula UIGlassEffect
     // Disponibile solo se l'app è compilata con l'SDK di iOS 26 (Xcode 26) e il telefono ha iOS 26 o successivo.
-    private var tabCtl: UITabBarController?
+    private var tabCtl: UITabBar?
     private var tabBox: GlassPassView?
     private var tabVisible = false
     private var glassTint = UIColor(red: 0.91, green: 0.10, blue: 0.17, alpha: 1)
@@ -159,36 +159,32 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         return UIColor(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
     }
 
-    // La UITabBarController occupa tutto lo schermo ma è trasparente: i tocchi passano alla pagina,
-    // tranne quelli sulla barra. Così la barra è quella vera di iOS, che sfoca e riflette la pagina sotto.
-    private func makeTabs(_ hostVC: UIViewController) -> UITabBarController {
-        let tc = UITabBarController()
-        tc.delegate = self
-        tc.overrideUserInterfaceStyle = .dark
-        tc.view.backgroundColor = .clear
-        tc.viewControllers = glassTabs.enumerated().map { (i, t) in
-            let vc = UIViewController()
-            vc.view.backgroundColor = .clear
-            vc.view.isUserInteractionEnabled = false
-            vc.tabBarItem = UITabBarItem(title: t.1, image: UIImage(systemName: t.2), tag: i)
-            vc.tabBarItem.accessibilityIdentifier = t.0
-            return vc
+    // Barra delle schede vera di iOS (UITabBar), da sola: una UITabBarController ne mostra al massimo 5
+    // (la sesta finisce in «More» con un pulsante Indietro), noi ne vogliamo 6 come nell'app.
+    // Sta in una vista trasparente a tutto schermo: i tocchi passano alla pagina, tranne quelli sulla barra.
+    private func makeTabs(_ hostVC: UIViewController) -> UITabBar {
+        let bar = UITabBar()
+        bar.delegate = self
+        bar.overrideUserInterfaceStyle = .dark
+        bar.itemPositioning = .fill
+        bar.items = glassTabs.enumerated().map { (i, t) in
+            let it = UITabBarItem(title: t.1, image: UIImage(systemName: t.2), tag: i)
+            it.accessibilityIdentifier = t.0
+            return it
         }
-        tc.tabBar.tintColor = glassTint
+        bar.selectedItem = bar.items?.first
+        bar.tintColor = glassTint
         let box = GlassPassView(frame: hostVC.view.bounds)
         box.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         box.backgroundColor = .clear
         box.alpha = 0
         box.isHidden = true
-        box.bar = tc.tabBar
-        hostVC.addChild(tc)
-        tc.view.frame = box.bounds
-        tc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        box.addSubview(tc.view)
+        box.bar = bar
+        box.addSubview(bar)
         hostVC.view.addSubview(box)
-        tc.didMove(toParent: hostVC)
+        box.setNeedsLayout()
         tabBox = box
-        return tc
+        return bar
     }
 
     // { on, visible, tab, badges: { chat: 3, map: 1 }, tint: "#E8192C" }
@@ -201,7 +197,6 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.main.async {
             guard self.glassAvailable(), let hostVC = self.bridge?.viewController else { call.resolve(["active": false]); return }
             if !on {
-                self.tabCtl?.willMove(toParent: nil); self.tabCtl?.view.removeFromSuperview(); self.tabCtl?.removeFromParent()
                 self.tabBox?.removeFromSuperview(); self.tabCtl = nil; self.tabBox = nil; self.tabVisible = false
                 call.resolve(["active": false]); return
             }
@@ -210,18 +205,18 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
             self.tabCtl = tc
             guard let box = self.tabBox else { call.resolve(["active": false]); return }
             hostVC.view.bringSubviewToFront(box)
-            tc.tabBar.tintColor = self.glassTint
+            tc.tintColor = self.glassTint
             // le stesse icone della barra dell'app (PNG 84×84 = 28pt @3x), colorate da iOS
             if let icons = call.getObject("icons") {
                 for (i, t) in self.glassTabs.enumerated() {
                     guard let b64 = icons[t.0] as? String, let d = Data(base64Encoded: b64), let img = UIImage(data: d, scale: 3) else { continue }
-                    tc.viewControllers?[i].tabBarItem.image = img.withRenderingMode(.alwaysTemplate)
+                    tc.items?[i].image = img.withRenderingMode(.alwaysTemplate)
                 }
             }
-            if let i = self.glassTabs.firstIndex(where: { $0.0 == tab }), tc.selectedIndex != i { tc.selectedIndex = i }
+            if let i = self.glassTabs.firstIndex(where: { $0.0 == tab }), let it = tc.items?[i], tc.selectedItem !== it { tc.selectedItem = it }
             for (i, t) in self.glassTabs.enumerated() {
                 let n = (badges[t.0] as? NSNumber)?.intValue ?? (badges[t.0] as? Int) ?? 0
-                let item = tc.viewControllers?[i].tabBarItem
+                let item = tc.items?[i]
                 item?.badgeValue = n > 0 ? (n > 9 ? "9+" : "\(n)") : nil
                 item?.badgeColor = self.glassTint
             }
@@ -383,18 +378,28 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 }
 
-// tocco sulla barra delle schede di iOS → la pagina cambia scheda (la bolla di vetro si sposta da sola)
-extension VicinaNativePlugin: UITabBarControllerDelegate {
-    public func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
-        let i = tabBarController.viewControllers?.firstIndex(of: viewController) ?? 0
-        if i < glassTabs.count { notifyListeners("glassTab", data: ["tab": glassTabs[i].0]) }
-        return true
+// tocco sulla barra delle schede di iOS → la pagina cambia scheda (la selezione di vetro si sposta da sola)
+extension VicinaNativePlugin: UITabBarDelegate {
+    public func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
+        let i = item.tag
+        if i >= 0 && i < glassTabs.count {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            notifyListeners("glassTab", data: ["tab": glassTabs[i].0])
+        }
     }
 }
 
 // vista trasparente che lascia passare i tocchi alla pagina, tranne quelli sulla barra delle schede
 final class GlassPassView: UIView {
     weak var bar: UIView?
+    // la barra in basso, alta quanto dice iOS (compreso lo spazio sopra la linea della Home)
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard let b = bar else { return }
+        var h = b.sizeThatFits(CGSize(width: bounds.width, height: 0)).height
+        if h < 40 { h = 49 + safeAreaInsets.bottom }
+        b.frame = CGRect(x: 0, y: bounds.height - h, width: bounds.width, height: h)
+    }
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard let v = super.hitTest(point, with: event), let b = bar, !b.isHidden, v.isDescendant(of: b) else { return nil }
         return v

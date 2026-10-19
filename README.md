@@ -423,7 +423,7 @@ Senza questi due passi i luoghi funzionano lo stesso, direttamente da OpenStreet
 
 **Liquid Glass** – su iPhone con **iOS 26 o successivo** compare in Impostazioni l'opzione **Liquid Glass**. Attivandola l'app usa i
 componenti di sistema di iOS, non imitazioni in CSS (`scripts/ios/VicinaNative.swift`):
-- **barra delle schede**: una vera `UITabBarController` di iOS sopra la pagina (vetro, bolla che si sposta tra le schede, badge);
+- **barra delle schede**: una vera `UITabBar` di iOS con le 6 schede dell'app (vetro, bolla che si sposta tra le schede, badge);
   non compare durante caricamento, animazione d'apertura, schermata del codice, fogli e strumenti a schermo intero;
 - **conferme e avvisi**: `UIAlertController` di iOS;
 - **messaggi brevi**: capsula `UIGlassEffect` in alto;
