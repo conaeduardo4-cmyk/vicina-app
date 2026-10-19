@@ -421,8 +421,14 @@ e sono spesso sovraccarichi: l'app diceva «serve internet» anche con la connes
 Via Editor → nome **`luoghi`** → incolla `supabase/functions/luoghi/index.ts` → Deploy → **disattiva "Verify JWT"** (controlla lei l'utente).
 Senza questi due passi i luoghi funzionano lo stesso, direttamente da OpenStreetMap.
 
-**Liquid Glass** – su iPhone con **iOS 26 o successivo** compare in Impostazioni l'opzione **Liquid Glass**: la barra delle schede
-diventa quella nativa di iOS (`UIVisualEffectView` + `UIGlassEffect`, in `scripts/ios/VicinaNative.swift`), non un'imitazione in CSS.
+**Liquid Glass** – su iPhone con **iOS 26 o successivo** compare in Impostazioni l'opzione **Liquid Glass**. Attivandola l'app usa i
+componenti di sistema di iOS, non imitazioni in CSS (`scripts/ios/VicinaNative.swift`):
+- **barra delle schede**: una vera `UITabBarController` di iOS sopra la pagina (vetro, bolla che si sposta tra le schede, badge);
+  non compare durante caricamento, animazione d'apertura, schermata del codice, fogli e strumenti a schermo intero;
+- **conferme e avvisi**: `UIAlertController` di iOS;
+- **messaggi brevi**: capsula `UIGlassEffect` in alto;
+- **interruttori**: `<input switch>` disegnati da WebKit come quelli di iOS.
+Tastiera, selettori di data/ora/liste, condivisione e richieste di permesso sono già quelli di sistema.
 Serve compilare con **Xcode 26** (il workflow lo sceglie da solo se c'è sul server di GitHub); su iOS più vecchi o su Android l'opzione non appare.
 
 ## Blocco dell'app (codice, Face ID, volto o impronta)

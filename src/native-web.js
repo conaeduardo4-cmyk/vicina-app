@@ -283,6 +283,8 @@ export const webNative = {
     async setIcon() { throw new Error('Disponibile solo nell\'app installata'); },
     async glassInfo() { return { supported: false }; },
     async setGlassBar() { return { active: false }; },
+    async glassAlert() { return null; },
+    async glassToast() { return false; },
     async bioInfo() { return { available: false, type: 'none' }; },
     async bioAuth() { return { ok: false }; },
     onGlassTab() {},

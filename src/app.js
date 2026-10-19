@@ -29,7 +29,13 @@ export function boot(api, native) {
   const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'adesso' : m < 60 ? `${m} min fa` : `${Math.floor(m / 60)} h fa`; };
   const when = ms => { if (!ms) return ''; const d = new Date(ms), n = new Date(); return d.toDateString() === n.toDateString() ? hhmm(ms) : d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }); };
 
-  let tt; const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => e.classList.remove('on'), 2800); };
+  let tt; const webToast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => e.classList.remove('on'), 2800); };
+  // con il Liquid Glass attivo i messaggi brevi li mostra iOS in una capsula di vetro (se non riesce, quelli della pagina)
+  let glassUi = false;
+  const toast = t => {
+    if (!glassUi) return webToast(t);
+    native.vx.glassToast(dz.on ? dz.conv(String(t)) : String(t)).then(ok => { if (!ok) webToast(t); });
+  };
   const errMsg = e => {
     const c = e?.code || '';
     if (/unavailable|network/.test(c)) return 'Sei offline. Controlla la connessione.';
@@ -138,10 +144,14 @@ export function boot(api, native) {
     clearTimeout(glassT);
     glassT = setTimeout(() => {
       const on = !!(prefs.glass && glass.supported);
+      glassUi = on;
       document.body.classList.toggle('native-glass', on);
+      sysSwitches(on);
       if (!on) { if (glass.last !== 'off') { glass.last = 'off'; native.vx.setGlassBar?.({ on: false }); } glassObs?.disconnect(); glassObs = null; return; }
       const nav = $('#nav'), busy = ['#scrim', '#ov-tool', '#ov-in', '#ov-send', '#lock'].some(x => $(x)?.classList.contains('on'));
-      const visible = !!nav && !nav.hidden && !busy;
+      // mai durante il caricamento, l'animazione d'apertura o la schermata del codice
+      const ib = $('#intro'), introOn = !!ib && !ib.classList.contains('out') && !ib.classList.contains('out-fast');
+      const visible = !!nav && !nav.hidden && !busy && !introOn && curScreen !== 's-load' && !$('#dlg-scrim')?.classList.contains('on');
       const tab = $('#nav button.on')?.dataset.tab || st.tab || 'home';
       const num = el => (el && !el.hidden ? parseInt(el.textContent, 10) || 1 : 0);
       const tint = (getComputedStyle(document.documentElement).getPropertyValue('--red') || '#E8192C').trim();
@@ -149,10 +159,14 @@ export function boot(api, native) {
       const key = JSON.stringify(o); if (key === glass.last) return; glass.last = key;
       native.vx.setGlassBar?.(o).then(r => { if (r && r.active === false) { glass.supported = false; glass.last = ''; document.body.classList.remove('native-glass'); } });
       if (!glassObs) {   // la barra segue da sola schermate, fogli e badge
-        glassObs = new MutationObserver(() => syncGlass());
-        glassObs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class', 'hidden'], childList: false, characterData: true });
+        glassObs = new MutationObserver(ms => { if (ms.some(m => m.type === 'childList')) sysSwitches(true); syncGlass(); });
+        glassObs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class', 'hidden'], childList: true, characterData: true });
       }
     }, now ? 0 : 40);
+  }
+  // interruttori: con il Liquid Glass li disegna WebKit come veri interruttori di iOS (attributo «switch»)
+  function sysSwitches(on) {
+    $$('input.switch').forEach(i => { if (on) { if (!i.hasAttribute('switch')) i.setAttribute('switch', ''); } else if (i.hasAttribute('switch')) i.removeAttribute('switch'); });
   }
   // all'avvio, in sottofondo: versione di iOS. Da 26 in su (27, 28…) compare l'opzione nelle Impostazioni
   native.vx?.glassInfo?.().then(r => {
@@ -1104,6 +1118,13 @@ export function boot(api, native) {
   $('#scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeSheet(); });
   let dlgResolve;
   function dialog({ title, text, ok = 'OK', cancel = 'Annulla', danger = false }) {
+    if (glassUi) {   // Liquid Glass: avviso di sistema di iOS
+      const c = v => dz.on ? dz.conv(String(v ?? '')) : String(v ?? '');
+      return native.vx.glassAlert({ title: c(title), text: c(text), ok: c(ok), cancel: c(cancel), danger }).then(r => r === null ? webDialog({ title, text, ok, cancel, danger }) : r);
+    }
+    return webDialog({ title, text, ok, cancel, danger });
+  }
+  function webDialog({ title, text, ok, cancel, danger }) {
     $('#dlg').innerHTML = `<h3>${esc(title)}</h3><p>${esc(text)}</p><div class="row2"><button class="btn ghost" data-dlg="0">${esc(cancel)}</button><button class="btn ${danger ? 'danger' : ''}" data-dlg="1">${esc(ok)}</button></div>`;
     $('#dlg-scrim').classList.add('on');
     return new Promise(r => { dlgResolve = r; });

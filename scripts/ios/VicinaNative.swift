@@ -31,6 +31,8 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestMedia", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "glassInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setGlassBar", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "glassAlert", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "glassToast", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "bioInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "bioAuth", returnType: CAPPluginReturnPromise)
     ]
@@ -118,12 +120,15 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.main.async { self.synth.stopSpeaking(at: .immediate); call.resolve() }
     }
 
-    // ---------- Liquid Glass (iOS 26): barra delle schede nativa ----------
-    // Non è una copia fatta in CSS: è una vera UIVisualEffectView con UIGlassEffect di iOS 26, sopra il WebView.
+    // ---------- Liquid Glass (iOS 26) ----------
+    // Tutto con i componenti di sistema, niente imitazioni:
+    //  - barra delle schede = una vera UITabBarController di iOS (vetro, bolla che si sposta tra le schede, badge)
+    //  - avvisi e conferme = UIAlertController di iOS
+    //  - messaggi brevi = capsula UIGlassEffect
     // Disponibile solo se l'app è compilata con l'SDK di iOS 26 (Xcode 26) e il telefono ha iOS 26 o successivo.
-    private var glassBar: UIView?
-    private var glassButtons: [String: UIButton] = [:]
-    private var glassBadges: [String: UILabel] = [:]
+    private var tabCtl: UITabBarController?
+    private var tabBox: GlassPassView?
+    private var tabVisible = false
     private var glassTint = UIColor(red: 0.91, green: 0.10, blue: 0.17, alpha: 1)
     private let glassTabs: [(String, String, String)] = [
         ("home", "Home", "house.fill"), ("map", "Mappa", "map.fill"), ("tools", "Strumenti", "square.grid.2x2.fill"),
@@ -154,105 +159,146 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         return UIColor(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
     }
 
-    private func makeGlassBar(in host: UIView) -> UIView? {
-        #if compiler(>=6.2)
-        if #available(iOS 26.0, *) {
-            let glass = UIGlassEffect()
-            glass.isInteractive = true
-            let bar = UIVisualEffectView(effect: glass)
-            bar.translatesAutoresizingMaskIntoConstraints = false
-            bar.layer.cornerRadius = 31
-            bar.layer.cornerCurve = .continuous
-            bar.clipsToBounds = true
-            bar.overrideUserInterfaceStyle = .dark
-            let stack = UIStackView()
-            stack.axis = .horizontal
-            stack.distribution = .fillEqually
-            stack.translatesAutoresizingMaskIntoConstraints = false
-            bar.contentView.addSubview(stack)
-            NSLayoutConstraint.activate([
-                stack.leadingAnchor.constraint(equalTo: bar.contentView.leadingAnchor, constant: 6),
-                stack.trailingAnchor.constraint(equalTo: bar.contentView.trailingAnchor, constant: -6),
-                stack.topAnchor.constraint(equalTo: bar.contentView.topAnchor),
-                stack.bottomAnchor.constraint(equalTo: bar.contentView.bottomAnchor)
-            ])
-            for (id, title, symbol) in glassTabs {
-                var cfg = UIButton.Configuration.plain()
-                cfg.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold))
-                cfg.imagePlacement = .top
-                cfg.imagePadding = 3
-                var t = AttributedString(title)
-                t.font = UIFont.systemFont(ofSize: 10, weight: .semibold)
-                cfg.attributedTitle = t
-                cfg.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
-                let b = UIButton(configuration: cfg)
-                b.tintColor = UIColor.secondaryLabel
-                b.accessibilityLabel = title
-                b.addAction(UIAction { [weak self] _ in
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    self?.notifyListeners("glassTab", data: ["tab": id])
-                }, for: .touchUpInside)
-                let badge = UILabel()
-                badge.translatesAutoresizingMaskIntoConstraints = false
-                badge.backgroundColor = glassTint
-                badge.textColor = .white
-                badge.font = UIFont.systemFont(ofSize: 10, weight: .bold)
-                badge.textAlignment = .center
-                badge.layer.cornerRadius = 8
-                badge.clipsToBounds = true
-                badge.isHidden = true
-                b.addSubview(badge)
-                NSLayoutConstraint.activate([
-                    badge.centerXAnchor.constraint(equalTo: b.centerXAnchor, constant: 13),
-                    badge.topAnchor.constraint(equalTo: b.topAnchor, constant: 3),
-                    badge.heightAnchor.constraint(equalToConstant: 16),
-                    badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 16)
-                ])
-                stack.addArrangedSubview(b)
-                glassButtons[id] = b
-                glassBadges[id] = badge
-            }
-            host.addSubview(bar)
-            NSLayoutConstraint.activate([
-                bar.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 14),
-                bar.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -14),
-                bar.bottomAnchor.constraint(equalTo: host.safeAreaLayoutGuide.bottomAnchor, constant: -4),
-                bar.heightAnchor.constraint(equalToConstant: 62)
-            ])
-            return bar
+    // La UITabBarController occupa tutto lo schermo ma è trasparente: i tocchi passano alla pagina,
+    // tranne quelli sulla barra. Così la barra è quella vera di iOS, che sfoca e riflette la pagina sotto.
+    private func makeTabs(_ hostVC: UIViewController) -> UITabBarController {
+        let tc = UITabBarController()
+        tc.delegate = self
+        tc.overrideUserInterfaceStyle = .dark
+        tc.view.backgroundColor = .clear
+        tc.viewControllers = glassTabs.enumerated().map { (i, t) in
+            let vc = UIViewController()
+            vc.view.backgroundColor = .clear
+            vc.view.isUserInteractionEnabled = false
+            vc.tabBarItem = UITabBarItem(title: t.1, image: UIImage(systemName: t.2), tag: i)
+            vc.tabBarItem.accessibilityIdentifier = t.0
+            return vc
         }
-        #endif
-        return nil
+        tc.tabBar.tintColor = glassTint
+        let box = GlassPassView(frame: hostVC.view.bounds)
+        box.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        box.backgroundColor = .clear
+        box.alpha = 0
+        box.isHidden = true
+        box.bar = tc.tabBar
+        hostVC.addChild(tc)
+        tc.view.frame = box.bounds
+        tc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        box.addSubview(tc.view)
+        hostVC.view.addSubview(box)
+        tc.didMove(toParent: hostVC)
+        tabBox = box
+        return tc
     }
 
     // { on, visible, tab, badges: { chat: 3, map: 1 }, tint: "#E8192C" }
     @objc func setGlassBar(_ call: CAPPluginCall) {
         let on = call.getBool("on") ?? false
-        let visible = call.getBool("visible") ?? true
+        let visible = call.getBool("visible") ?? false
         let tab = call.getString("tab") ?? "home"
         let badges = call.getObject("badges") ?? [:]
         let tint = color(call.getString("tint"))
         DispatchQueue.main.async {
-            guard self.glassAvailable(), let host = self.bridge?.viewController?.view else { call.resolve(["active": false]); return }
+            guard self.glassAvailable(), let hostVC = self.bridge?.viewController else { call.resolve(["active": false]); return }
             if !on {
-                self.glassBar?.removeFromSuperview(); self.glassBar = nil; self.glassButtons = [:]; self.glassBadges = [:]
+                self.tabCtl?.willMove(toParent: nil); self.tabCtl?.view.removeFromSuperview(); self.tabCtl?.removeFromParent()
+                self.tabBox?.removeFromSuperview(); self.tabCtl = nil; self.tabBox = nil; self.tabVisible = false
                 call.resolve(["active": false]); return
             }
             if let t = tint { self.glassTint = t }
-            if self.glassBar == nil { self.glassBar = self.makeGlassBar(in: host) }
-            guard let bar = self.glassBar else { call.resolve(["active": false]); return }
-            host.bringSubviewToFront(bar)
-            UIView.animate(withDuration: 0.18) { bar.alpha = visible ? 1 : 0 }
-            bar.isUserInteractionEnabled = visible
-            for (id, b) in self.glassButtons { b.tintColor = id == tab ? self.glassTint : UIColor.secondaryLabel }
-            for (id, l) in self.glassBadges {
-                let n = (badges[id] as? NSNumber)?.intValue ?? (badges[id] as? Int) ?? 0
-                l.isHidden = n <= 0
-                l.text = n > 9 ? " 9+ " : " \(n) "
-                l.backgroundColor = self.glassTint
+            let tc = self.tabCtl ?? self.makeTabs(hostVC)
+            self.tabCtl = tc
+            guard let box = self.tabBox else { call.resolve(["active": false]); return }
+            hostVC.view.bringSubviewToFront(box)
+            tc.tabBar.tintColor = self.glassTint
+            if let i = self.glassTabs.firstIndex(where: { $0.0 == tab }), tc.selectedIndex != i { tc.selectedIndex = i }
+            for (i, t) in self.glassTabs.enumerated() {
+                let n = (badges[t.0] as? NSNumber)?.intValue ?? (badges[t.0] as? Int) ?? 0
+                let item = tc.viewControllers?[i].tabBarItem
+                item?.badgeValue = n > 0 ? (n > 9 ? "9+" : "\(n)") : nil
+                item?.badgeColor = self.glassTint
+            }
+            if visible != self.tabVisible {
+                self.tabVisible = visible
+                if visible { box.isHidden = false }
+                UIView.animate(withDuration: visible ? 0.28 : 0.15, animations: { box.alpha = visible ? 1 : 0 }) { _ in
+                    if !self.tabVisible { box.isHidden = true }
+                }
             }
             call.resolve(["active": true])
         }
+    }
+
+    // conferme e avvisi con l'UIAlertController di iOS (in iOS 26 è Liquid Glass)
+    // { title, text, ok, cancel, danger } → { ok: true/false }
+    @objc func glassAlert(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let vc = self.topVC() else { call.resolve(["ok": false]); return }
+            let a = UIAlertController(title: call.getString("title"), message: call.getString("text"), preferredStyle: .alert)
+            let cancel = call.getString("cancel") ?? ""
+            if !cancel.isEmpty { a.addAction(UIAlertAction(title: cancel, style: .cancel) { _ in call.resolve(["ok": false]) }) }
+            let danger = call.getBool("danger") ?? false
+            let ok = UIAlertAction(title: call.getString("ok") ?? "OK", style: danger ? .destructive : .default) { _ in call.resolve(["ok": true]) }
+            a.addAction(ok)
+            a.preferredAction = ok
+            a.view.tintColor = danger ? nil : self.glassTint
+            vc.present(a, animated: true)
+        }
+    }
+
+    // messaggio breve in una capsula di vetro in alto
+    private var toastView: UIView?
+    private var toastGen = 0
+    @objc func glassToast(_ call: CAPPluginCall) {
+        let text = call.getString("text") ?? ""
+        DispatchQueue.main.async {
+            guard self.glassAvailable(), let host = self.bridge?.viewController?.view else { call.resolve(["shown": false]); return }
+            #if compiler(>=6.2)
+            if #available(iOS 26.0, *) {
+                self.toastView?.removeFromSuperview()
+                self.toastGen += 1
+                let gen = self.toastGen
+                let v = UIVisualEffectView(effect: UIGlassEffect())
+                v.overrideUserInterfaceStyle = .dark
+                v.cornerConfiguration = .capsule()
+                v.translatesAutoresizingMaskIntoConstraints = false
+                let l = UILabel()
+                l.text = text
+                l.numberOfLines = 3
+                l.textAlignment = .center
+                l.textColor = .label
+                l.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+                l.translatesAutoresizingMaskIntoConstraints = false
+                v.contentView.addSubview(l)
+                host.addSubview(v)
+                NSLayoutConstraint.activate([
+                    l.leadingAnchor.constraint(equalTo: v.contentView.leadingAnchor, constant: 20),
+                    l.trailingAnchor.constraint(equalTo: v.contentView.trailingAnchor, constant: -20),
+                    l.topAnchor.constraint(equalTo: v.contentView.topAnchor, constant: 13),
+                    l.bottomAnchor.constraint(equalTo: v.contentView.bottomAnchor, constant: -13),
+                    v.centerXAnchor.constraint(equalTo: host.centerXAnchor),
+                    v.widthAnchor.constraint(lessThanOrEqualTo: host.widthAnchor, constant: -40),
+                    v.topAnchor.constraint(equalTo: host.safeAreaLayoutGuide.topAnchor, constant: 8)
+                ])
+                v.alpha = 0
+                v.transform = CGAffineTransform(translationX: 0, y: -24).scaledBy(x: 0.9, y: 0.9)
+                self.toastView = v
+                UIView.animate(withDuration: 0.45, delay: 0, usingSpringWithDamping: 0.75, initialSpringVelocity: 0.4) { v.alpha = 1; v.transform = .identity }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+                    guard gen == self.toastGen else { return }
+                    UIView.animate(withDuration: 0.25, animations: { v.alpha = 0; v.transform = CGAffineTransform(translationX: 0, y: -16) }) { _ in v.removeFromSuperview() }
+                }
+                call.resolve(["shown": true]); return
+            }
+            #endif
+            call.resolve(["shown": false])
+        }
+    }
+
+    private func topVC() -> UIViewController? {
+        var vc = bridge?.viewController
+        while let p = vc?.presentedViewController { vc = p }
+        return vc
     }
 
     // ---------- blocco dell'app: Face ID / Touch ID ----------
@@ -327,5 +373,23 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         let u = UserDefaults.standard.string(forKey: "vicina_pending_url")
         UserDefaults.standard.removeObject(forKey: "vicina_pending_url")
         if let u = u { call.resolve(["url": u]) } else { call.resolve([:]) }
+    }
+}
+
+// tocco sulla barra delle schede di iOS → la pagina cambia scheda (la bolla di vetro si sposta da sola)
+extension VicinaNativePlugin: UITabBarControllerDelegate {
+    public func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
+        let i = tabBarController.viewControllers?.firstIndex(of: viewController) ?? 0
+        if i < glassTabs.count { notifyListeners("glassTab", data: ["tab": glassTabs[i].0]) }
+        return true
+    }
+}
+
+// vista trasparente che lascia passare i tocchi alla pagina, tranne quelli sulla barra delle schede
+final class GlassPassView: UIView {
+    weak var bar: UIView?
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard let v = super.hitTest(point, with: event), let b = bar, !b.isHidden, v.isDescendant(of: b) else { return nil }
+        return v
     }
 }

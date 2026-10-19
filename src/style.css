@@ -1574,6 +1574,9 @@ html.dz #s-home .sos-ring b{font-size:0!important}
 .pin-me{z-index:2}
 /* Liquid Glass nativo (iOS 26): la barra la disegna iOS, quella della pagina resta solo come spazio */
 body.native-glass #nav{visibility:hidden}
+/* interruttori di sistema (WebKit li disegna come quelli di iOS, con il vetro su iOS 26) */
+body.native-glass input.switch[switch]{appearance:auto;-webkit-appearance:auto;width:auto;height:auto;background:none;border-radius:0;transition:none;accent-color:var(--green);color-scheme:dark;margin:0}
+body.native-glass input.switch[switch]::after,body.native-glass input.switch[switch]::before{content:none;display:none}
 
 /* ===== blocco dell'app (codice / Face ID) ===== */
 .lock{position:fixed;inset:0;z-index:2000;display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(var(--sat) + 40px) 24px calc(var(--sab) + 18px);background:radial-gradient(120% 70% at 50% 0%,#2a0b10 0%,#0B0B10 60%),#0B0B10;color:#fff;-webkit-user-select:none;user-select:none}
