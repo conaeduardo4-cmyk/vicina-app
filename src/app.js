@@ -147,7 +147,7 @@ export function boot(api, native) {
       glassUi = on;
       document.body.classList.toggle('native-glass', on);
       sysSwitches(on);
-      if (!on) { if (glass.last !== 'off') { glass.last = 'off'; native.vx.setGlassBar?.({ on: false }); } glassObs?.disconnect(); glassObs = null; return; }
+      if (!on) { if (glass.last !== 'off') { glass.last = 'off'; glass.iconsSent = false; native.vx.setGlassBar?.({ on: false }); } glassObs?.disconnect(); glassObs = null; return; }
       const nav = $('#nav'), busy = ['#scrim', '#ov-tool', '#ov-in', '#ov-send', '#lock'].some(x => $(x)?.classList.contains('on'));
       // mai durante il caricamento, l'animazione d'apertura o la schermata del codice
       const ib = $('#intro'), introOn = !!ib && !ib.classList.contains('out') && !ib.classList.contains('out-fast');
@@ -156,13 +156,31 @@ export function boot(api, native) {
       const num = el => (el && !el.hidden ? parseInt(el.textContent, 10) || 1 : 0);
       const tint = (getComputedStyle(document.documentElement).getPropertyValue('--red') || '#E8192C').trim();
       const o = { on: true, visible, tab, badges: { chat: num($('#badge')), map: num($('#map-badge')) }, tint };
-      const key = JSON.stringify(o); if (key === glass.last) return; glass.last = key;
+      if (!glass.icons) { glass.icons = 'wait'; glassIcons().then(ic => { glass.icons = ic; glass.last = ''; syncGlass(true); }); }
+      const key = JSON.stringify(o) + (glass.icons && glass.icons !== 'wait' && !glass.iconsSent ? '+ic' : '');
+      if (key === glass.last) return; glass.last = key;
+      if (glass.icons && glass.icons !== 'wait' && !glass.iconsSent) { o.icons = glass.icons; glass.iconsSent = true; }
       native.vx.setGlassBar?.(o).then(r => { if (r && r.active === false) { glass.supported = false; glass.last = ''; document.body.classList.remove('native-glass'); } });
       if (!glassObs) {   // la barra segue da sola schermate, fogli e badge
         glassObs = new MutationObserver(ms => { if (ms.some(m => m.type === 'childList')) sysSwitches(true); syncGlass(); });
         glassObs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class', 'hidden'], childList: true, characterData: true });
       }
     }, now ? 0 : 40);
+  }
+  // le stesse icone della barra dell'app, trasformate in immagini per la barra di iOS (iOS le colora da solo)
+  async function glassIcons() {
+    const out = {};
+    for (const b of $$('#nav button[data-tab]')) {
+      const id = b.querySelector('use')?.getAttribute('href'); const sym = id && document.querySelector(id);
+      if (!sym) continue;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${sym.getAttribute('viewBox') || '0 0 24 24'}" width="84" height="84" fill="none" stroke="#000" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${sym.innerHTML}</svg>`;
+      try {
+        const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); await img.decode();
+        const c = document.createElement('canvas'); c.width = c.height = 84; c.getContext('2d').drawImage(img, 0, 0, 84, 84);
+        out[b.dataset.tab] = c.toDataURL('image/png').split(',')[1];
+      } catch { /* resta l'icona di sistema */ }
+    }
+    return out;
   }
   // interruttori: con il Liquid Glass li disegna WebKit come veri interruttori di iOS (attributo «switch»)
   function sysSwitches(on) {

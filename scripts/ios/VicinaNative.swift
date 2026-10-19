@@ -131,8 +131,8 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
     private var tabVisible = false
     private var glassTint = UIColor(red: 0.91, green: 0.10, blue: 0.17, alpha: 1)
     private let glassTabs: [(String, String, String)] = [
-        ("home", "Home", "house.fill"), ("map", "Mappa", "map.fill"), ("tools", "Strumenti", "square.grid.2x2.fill"),
-        ("chat", "Avvisi", "bell.fill"), ("circle", "Cerchia", "person.2.fill"), ("me", "Tu", "person.crop.circle.fill")
+        ("home", "Home", "checkmark.shield"), ("map", "Mappa", "mappin.and.ellipse"), ("tools", "Strumenti", "square.grid.2x2"),
+        ("chat", "Avvisi", "bubble.left"), ("circle", "Cerchia", "person.2"), ("me", "Tu", "person")
     ]
 
     private func glassAvailable() -> Bool {
@@ -211,6 +211,13 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
             guard let box = self.tabBox else { call.resolve(["active": false]); return }
             hostVC.view.bringSubviewToFront(box)
             tc.tabBar.tintColor = self.glassTint
+            // le stesse icone della barra dell'app (PNG 84×84 = 28pt @3x), colorate da iOS
+            if let icons = call.getObject("icons") {
+                for (i, t) in self.glassTabs.enumerated() {
+                    guard let b64 = icons[t.0] as? String, let d = Data(base64Encoded: b64), let img = UIImage(data: d, scale: 3) else { continue }
+                    tc.viewControllers?[i].tabBarItem.image = img.withRenderingMode(.alwaysTemplate)
+                }
+            }
             if let i = self.glassTabs.firstIndex(where: { $0.0 == tab }), tc.selectedIndex != i { tc.selectedIndex = i }
             for (i, t) in self.glassTabs.enumerated() {
                 let n = (badges[t.0] as? NSNumber)?.intValue ?? (badges[t.0] as? Int) ?? 0
