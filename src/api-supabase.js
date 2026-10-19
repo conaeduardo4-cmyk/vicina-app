@@ -30,6 +30,11 @@ export function createApi(env) {
     id: x.id, from: x.from_uid, fromName: x.from_name, fromPhone: x.from_phone || '', lat: x.lat, lng: x.lng, acc: x.acc,
     photos: x.photos || [], at: ms(x.created_at), active: x.active, locAt: x.loc_at ? Date.parse(x.loc_at) : null, liveUntil: x.live_until ? Date.parse(x.live_until) : null, track: x.track || [], audio: x.audio || null, acks: x.acks || {}, recipients: x.recipients || [], chats: x.chats || []
   });
+  const chk = (c, ans) => ({
+    id: c.id, from: c.from_uid, fromName: c.from_name, reason: c.reason, note: c.note || '', recipients: c.recipients || [], lat: c.lat, lng: c.lng,
+    answered: c.answered || 0, helps: c.helps || 0, active: c.active, at: ms(c.created_at), remindedAt: c.reminded_at ? Date.parse(c.reminded_at) : 0,
+    answers: Object.fromEntries(ans.map(a => [a.uid, { status: a.status, name: a.name, note: a.note || '', lat: a.lat, lng: a.lng, acc: a.acc, at: ms(a.at) }]))
+  });
   const msg = m => ({ id: m.id, type: m.type, from: m.from_uid, fromName: m.from_name, text: m.text, sosId: m.sos_id, lat: m.lat, lng: m.lng, photos: m.photos || [], audio: m.audio || null, at: ms(m.created_at) });
   const prof = p => p && ({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '', mutedGroups: p.muted_groups || [], termsVersion: p.terms_version || 0, avatar: p.avatar ? avatarUrl(p.id, p.avatar) : '' });
   // foto profilo: bucket pubblico «avatars», il nome del file è un codice casuale (lo conosce solo chi è nella tua cerchia)
@@ -53,7 +58,12 @@ export function createApi(env) {
     attachSosPhotos: d => ['attach_sos_photos', { p_sos_id: d.sosId, p_paths: d.paths }],
     ackSos: d => ['ack_sos', { p_sos_id: d.sosId }],
     resolveSos: d => ['resolve_sos', { p_sos_id: d.sosId }],
-    deleteAccount: () => ['delete_account', {}]
+    deleteAccount: () => ['delete_account', {}],
+    // Appello «State tutti bene?»
+    sendCheck: d => ['send_check', { p_id: d.id, p_reason: d.reason || 'altro', p_note: d.note || null, p_lat: d.lat ?? null, p_lng: d.lng ?? null }],
+    answerCheck: d => ['answer_check', { p_id: d.id, p_status: d.status, p_note: d.note || null, p_lat: d.lat ?? null, p_lng: d.lng ?? null, p_acc: d.acc ?? null }],
+    remindCheck: d => ['remind_check', { p_id: d.id }],
+    closeCheck: d => ['close_check', { p_id: d.id }]
   };
 
   // aggiornamenti in tempo reale: a ogni modifica si ricarica la lista (le regole RLS filtrano cosa vedi)
@@ -102,6 +112,14 @@ export function createApi(env) {
           const { data, error } = await sb.from('groups').select('*');
           if (!error) h.groups(data.map(g => ({ id: g.id, name: g.name, code: g.code, adminUid: g.admin_uid, memberUids: g.member_uids, members: g.members, requests: g.requests })));
         },
+        checks: async () => {
+          if (!h.checks) return;
+          const { data, error } = await sb.from('checks').select('*').eq('active', true);
+          if (error) return;   // tabella non ancora creata (SQL dell'appello non lanciato): niente appelli
+          const ids = data.map(c => c.id);
+          const ans = ids.length ? ((await sb.from('check_answers').select('*').in('check_id', ids)).data || []) : [];
+          h.checks(data.map(c => chk(c, ans.filter(a => a.check_id === c.id))));
+        },
         sos: async () => {
           const { data, error } = await sb.from('sos').select('*').eq('active', true);
           if (error) return; const l = data.map(sos);
@@ -116,11 +134,16 @@ export function createApi(env) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, r.groups)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'sos' }, r.sos)
         .subscribe(status => { if (status === 'SUBSCRIBED') all(); });
+      // appelli su un canale a parte: se l'SQL dell'appello non è ancora stato lanciato, gli SOS funzionano lo stesso
+      const chC = sb.channel('vicina-chk-' + uid + '-' + (++chN))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'checks' }, r.checks)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'check_answers' }, r.checks)
+        .subscribe(status => { if (status === 'SUBSCRIBED') r.checks(); });
       const vis = () => document.visibilityState === 'visible' && all();
       document.addEventListener('visibilitychange', vis);
       const iv = setInterval(all, 60000); // rete di sicurezza se il tempo reale si interrompe
       all();
-      return () => { sb.removeChannel(ch); document.removeEventListener('visibilitychange', vis); clearInterval(iv); };
+      return () => { sb.removeChannel(ch); sb.removeChannel(chC); document.removeEventListener('visibilitychange', vis); clearInterval(iv); };
     },
 
     watchChat(id, cb) {

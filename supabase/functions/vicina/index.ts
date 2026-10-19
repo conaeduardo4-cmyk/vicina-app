@@ -13,6 +13,7 @@ let SA: { client_email: string; private_key: string; project_id: string } | null
 try { SA = JSON.parse(Deno.env.get('FCM_SERVICE_ACCOUNT') || 'null'); } catch { SA = null; }
 
 const PHOTO_DAYS = 7;
+const REASON: Record<string, string> = { terremoto: 'Terremoto', alluvione: 'Alluvione', incendio: 'Incendio', attentato: 'Emergenza', blackout: 'Blackout', maltempo: 'Maltempo', serata: 'Serata' };
 const first = (n?: string) => String(n || '').split(' ')[0];
 const b64url = (u8: Uint8Array) => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const enc = (o: unknown) => b64url(new TextEncoder().encode(JSON.stringify(o)));
@@ -105,6 +106,36 @@ async function handle(ev: { event: string; id: string; [k: string]: unknown }) {
     case 'safe': {
       const s = await one('sos', ev.id); if (!s) return;
       return push(s.recipients, { title: `${first(s.from_name)} è al sicuro`, body: "Ha chiuso l'SOS. Tutto a posto.", data: { type: 'safe', sosId: s.id }, quiet: { title: `${first(s.from_name)} sta bene`, body: 'Tutto a posto.' } });
+    }
+    // Appello «State tutti bene?»
+    case 'check': {
+      const c = await one('checks', ev.id); if (!c) return;
+      const why = REASON[c.reason] ? REASON[c.reason] + ' · ' : '';
+      return push(c.recipients, { title: `⚠️ ${why}${first(c.from_name)} chiede: stai bene?`, body: c.note ? `«${String(c.note).slice(0, 100)}» Rispondi con un tocco.` : 'Tocca per rispondere «Sto bene» o «Ho bisogno di aiuto».', data: { type: 'check', checkId: c.id }, sos: true, quiet: { title: `${first(c.from_name)} ti chiede come stai`, body: 'Apri Vicina e rispondi.' } });
+    }
+    case 'check_ans': {
+      const c = await one('checks', ev.id); if (!c) return;
+      const uid = String(ev.uid);
+      const a = (await SB.from('check_answers').select('name, status').eq('check_id', c.id).eq('uid', uid).maybeSingle()).data;
+      const n = first(a?.name) || 'Qualcuno';
+      if (ev.status !== 'help') {
+        if (uid === c.from_uid) return 0;
+        return push([c.from_uid], { title: `✅ ${n} sta bene`, body: `Ha risposto al tuo appello (${(c.answered || 0)} su ${(c.recipients || []).length}).`, data: { type: 'check', checkId: c.id }, quiet: { title: `${n} ha risposto`, body: 'Apri Vicina.' } });
+      }
+      // chiede aiuto: lo sanno chi ha lanciato l'appello e chi, tra i destinatari, conosce questa persona
+      const [l, g] = await Promise.all([
+        SB.from('links').select('uids').contains('uids', [uid]),
+        SB.from('groups').select('member_uids').contains('member_uids', [uid])
+      ]);
+      const known = new Set<string>([...(l.data || []).flatMap((x: any) => x.uids), ...(g.data || []).flatMap((x: any) => x.member_uids)]);
+      const to = [c.from_uid, ...(c.recipients || [])].filter((x: string) => x !== uid && (x === c.from_uid || known.has(x)));
+      return push(to, { title: `🆘 ${n} ha bisogno di aiuto`, body: 'Ha risposto all\'appello. Tocca per vedere dov\'è.', data: { type: 'check', checkId: c.id }, sos: true, quiet: { title: `${n} ti cerca`, body: 'Apri Vicina adesso.' } });
+    }
+    case 'check_remind': {
+      const c = await one('checks', ev.id); if (!c) return;
+      const { data } = await SB.from('check_answers').select('uid').eq('check_id', c.id);
+      const done = new Set((data || []).map((x: any) => x.uid));
+      return push((c.recipients || []).filter((x: string) => !done.has(x)), { title: `⏳ ${first(c.from_name)} aspetta la tua risposta`, body: 'Stai bene? Rispondi con un tocco.', data: { type: 'check', checkId: c.id }, sos: true, quiet: { title: `${first(c.from_name)} ti cerca`, body: 'Apri Vicina e rispondi.' } });
     }
     case 'msg': {
       const m = await one('messages', ev.id); if (!m) return;

@@ -438,3 +438,26 @@ Android propone da solo il volto se è configurato, altrimenti l'impronta). Si p
 Alla fine della configurazione guidata l'app propone di creare il codice. **SOS e 112 restano sempre usabili dalla schermata di blocco.**
 Codice dimenticato: si esce dall'account e si rientra con email e password. Permessi aggiunti da `scripts/patch-native.mjs`:
 `USE_BIOMETRIC` (Android) e `NSFaceIDUsageDescription` (iPhone).
+
+## Appello «State tutti bene?» (2.1)
+Pulsante viola in Home, sotto l'SOS: **tienilo premuto** (si accendono i sei punti della cerchia e partono le onde),
+scegli il motivo (terremoto, alluvione, incendio, maltempo, blackout, emergenza in città, serata) oppure aspetta 5 secondi.
+L'appello arriva a **tutta la cerchia** (partner, amici, gruppi non silenziati) con una notifica urgente.
+- Chi lo riceve vede una schermata a tutto schermo con **«Sto bene»** e **«Ho bisogno di aiuto»**; la risposta porta con sé la posizione.
+- Chi ha lanciato l'appello vede dal vivo: anello con le risposte, chi sta bene, chi chiede aiuto (in rosso, sulla mappa, con indicazioni e chat)
+  e chi non ha ancora risposto; può **sollecitare** chi tace (al massimo ogni 2 minuti) e **chiudere** l'appello.
+- Privacy: le risposte con la posizione le vede chi ha lanciato l'appello; gli altri vedono solo quelle delle persone che conoscono (e i totali).
+- Chi chiede aiuto avvisa anche chi lo conosce tra i destinatari, e può mandare subito l'SOS completo.
+- Gli appelli si chiudono da soli dopo 24 ore e spariscono dopo 7 giorni.
+
+**Da fare su Supabase (una volta):**
+1. SQL Editor → esegui `supabase/aggiornamento-appello.sql` (è già dentro `installa.sql` e `schema.sql` per le installazioni nuove).
+2. Edge Functions → `vicina` → incolla il nuovo `supabase/functions/vicina/index.ts` → Deploy (Verify JWT spento come prima).
+Finché non lo fai, il resto dell'app funziona ma l'appello dà errore all'invio.
+
+Test del database: `supabase/test/test_appello.py` (dopo aver caricato schema + aggiornamento sul PostgreSQL locale).
+
+## Animazioni (2.1)
+Pillola che scorre nella barra delle schede, tocchi «a molla» su pulsanti e schede, fogli che si chiudono scivolando
+e si possono **trascinare giù**, finestre che entrano con un rimbalzo, blocchi che entrano in sequenza al cambio scheda,
+badge che spuntano, SOS con anello che si riempie, bagliore crescente, tremito finale e onda d'urto.

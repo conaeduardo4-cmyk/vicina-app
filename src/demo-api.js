@@ -8,7 +8,7 @@ export function createDemoApi() {
   const PEOPLE = [['u_giulia', 'Giulia Rossi', '+39 333 111 2222'], ['u_marco', 'Marco Bianchi', '+39 347 555 0101'], ['u_sara', 'Sara Neri', ''], ['u_luca', 'Luca Verdi', '+39 320 987 6543']];
   let pi = 0; const nextPerson = () => PEOPLE[pi++ % PEOPLE.length];
 
-  const db = { user: null, links: [], groups: [], sos: [], chats: {}, email: '' };
+  const db = { user: null, links: [], groups: [], sos: [], checks: [], chats: {}, email: '' };
   let authCb = null, h = null; const chatCbs = {};
   const me = () => db.user && `${db.user.name} ${db.user.surname}`;
   const emit = () => {
@@ -18,6 +18,15 @@ export function createDemoApi() {
     h.groups(db.groups.map(g => ({ ...g, members: { ...g.members }, requests: { ...g.requests } })));
     h.sosIn(db.sos.filter(s => s.active && s.recipients.includes('me')).map(s => ({ ...s })));
     h.sosMine(db.sos.filter(s => s.active && s.from === 'me').map(s => ({ ...s })));
+    h.checks?.(db.checks.filter(c => c.active).map(c => ({ ...c, answers: JSON.parse(JSON.stringify(c.answers)) })));
+  };
+  const nameOf = uid => PEOPLE.find(p => p[0] === uid)?.[1] || 'Contatto';
+  const countChk = c => { c.answered = Object.keys(c.answers).filter(u => u !== c.from).length; c.helps = Object.values(c.answers).filter(a => a.status === 'help').length; };
+  const answerAs = (c, uid, status, note = '', k = 1) => {
+    if (!c.active) return;
+    const base = c.lat != null ? [c.lat, c.lng] : [45.4642, 9.19];
+    c.answers[uid] = { status, name: nameOf(uid), note, lat: base[0] + (Math.random() - .5) * .02 * k, lng: base[1] + (Math.random() - .5) * .03 * k, acc: 20, at: Date.now() };
+    countChk(c); emit();
   };
   const emitChat = id => chatCbs[id]?.((db.chats[id] || []).slice());
   const push = (cid, m) => { (db.chats[cid] ||= []).push({ id: rnd(), at: Date.now(), ...m }); emitChat(cid); };
@@ -124,7 +133,46 @@ export function createDemoApi() {
       const s = db.sos.find(x => x.id === sosId); s.active = false; s.liveUntil = Math.min(s.liveUntil || 0, Date.now()); s.chats.forEach(c => push(c, { type: 'safe', from: 'me', fromName: me(), sosId })); emit(); return { ok: true };
     },
     async ackSos({ sosId }) { const s = db.sos.find(x => x.id === sosId); s.acks.me = me(); emit(); return { ok: true }; },
-    async deleteAccount() { Object.assign(db, { user: null, links: [], groups: [], sos: [], chats: {} }); return { ok: true }; }
+    // Appello «State tutti bene?»: nella demo i contatti rispondono da soli, uno chiede aiuto, uno tace finché non lo solleciti
+    async sendCheck({ id, reason, note, lat, lng }) {
+      await wait(600);
+      const rec = new Set();
+      db.links.forEach(l => l.uids.forEach(u => u !== 'me' && rec.add(u)));
+      db.groups.filter(g => !db.user.mutedGroups.includes(g.id)).forEach(g => g.memberUids.forEach(u => u !== 'me' && rec.add(u)));
+      if (!rec.size) throw err('failed-precondition', 'Aggiungi prima qualcuno alla cerchia');
+      db.checks.forEach(c => { if (c.from === 'me') c.active = false; });
+      const c = { id, from: 'me', fromName: me(), reason: reason || 'altro', note: note || '', recipients: [...rec], lat, lng, answered: 0, helps: 0, active: true, at: Date.now(), remindedAt: 0, answers: {} };
+      c.answers.me = { status: 'ok', name: me(), note: '', lat, lng, acc: 15, at: Date.now() };
+      db.checks.push(c); emit();
+      const r = [...rec];
+      r.forEach((u, i) => {
+        if (i === r.length - 1 && r.length > 2) { c.silent = u; return; }             // l'ultimo non risponde
+        setTimeout(() => answerAs(c, u, i === 1 ? 'help' : 'ok', i === 1 ? 'Sono bloccato in macchina, strada chiusa' : ''), 2500 + i * 2200);
+      });
+      return { recipients: rec.size };
+    },
+    async answerCheck({ id, status, note, lat, lng, acc }) {
+      const c = db.checks.find(x => x.id === id); if (!c || !c.active) throw err('failed-precondition', 'L\'appello è già stato chiuso');
+      c.answers.me = { status, name: me(), note: note || '', lat: lat ?? c.answers.me?.lat, lng: lng ?? c.answers.me?.lng, acc, at: Date.now() };
+      countChk(c); emit(); return { ok: true };
+    },
+    async remindCheck({ id }) {
+      const c = db.checks.find(x => x.id === id);
+      if (c.remindedAt > Date.now() - 120000) throw err('failed-precondition', 'Hai appena mandato un sollecito: aspetta un paio di minuti');
+      c.remindedAt = Date.now(); const waiting = c.recipients.filter(u => !c.answers[u]).length;
+      if (c.silent) setTimeout(() => answerAs(c, c.silent, 'ok'), 3000);
+      emit(); return { waiting };
+    },
+    async closeCheck({ id }) { const c = db.checks.find(x => x.id === id); if (c) c.active = false; emit(); return { ok: true }; },
+    // solo demo: simula un appello ricevuto da Giulia
+    async demoIncomingCheck() {
+      const l = db.links[0]; if (!l) return null;
+      const uid = l.uids.find(x => x !== 'me');
+      const c = { id: 'c_' + rnd() + rnd(), from: uid, fromName: nameOf(uid), reason: 'terremoto', note: 'Avete sentito la scossa? Ditemi che state bene', recipients: ['me'], lat: 45.47, lng: 9.2, answered: 0, helps: 0, active: true, at: Date.now(), remindedAt: 0, answers: {} };
+      c.answers[uid] = { status: 'ok', name: nameOf(uid), note: '', lat: 45.47, lng: 9.2, acc: 12, at: Date.now() };
+      db.checks.push(c); emit(); return c.id;
+    },
+    async deleteAccount() { Object.assign(db, { user: null, links: [], groups: [], sos: [], checks: [], chats: {} }); return { ok: true }; }
   };
 
   const liveH = {};

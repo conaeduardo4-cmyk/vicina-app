@@ -6,6 +6,7 @@ import { createMore } from './tools-more.js';
 import { createMore2 } from './tools-more2.js';
 import { createMore3 } from './tools-more3.js';
 import { createLock } from './lock.js';
+import { createAppello } from './appello.js';
 import { createDisguise } from './disguise.js';
 import { qrSvg, openScanner, inviteLink, parseInvite } from './qr.js';
 export function boot(api, native) {
@@ -22,7 +23,7 @@ export function boot(api, native) {
     ? `<div class="av ${cls}" style="background:linear-gradient(145deg,#9C8CFF,#5B4BD6)">${I('group')}</div>`
     : `<div class="av ${cls}${avUrl(uid) ? ' ph' : ''}" style="background:${col(n)}">${esc(initials(n))}${avUrl(uid) ? `<img src="${esc(avUrl(uid))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  let tools = null, extra = null, lock = null, lockAfter = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
+  let tools = null, extra = null, lock = null, lockAfter = null, appello = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
   const dz = createDisguise({ native, api });
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   const hhmm = ms => ms ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -148,7 +149,7 @@ export function boot(api, native) {
       document.body.classList.toggle('native-glass', on);
       sysSwitches(on);
       if (!on) { if (glass.last !== 'off') { glass.last = 'off'; glass.iconsSent = false; native.vx.setGlassBar?.({ on: false }); } glassObs?.disconnect(); glassObs = null; return; }
-      const nav = $('#nav'), busy = ['#scrim', '#ov-tool', '#ov-in', '#ov-send', '#lock'].some(x => $(x)?.classList.contains('on'));
+      const nav = $('#nav'), busy = ['#scrim', '#ov-tool', '#ov-in', '#ov-send', '#lock', '#ov-chk', '#ov-chkin'].some(x => $(x)?.classList.contains('on'));
       // mai durante il caricamento, l'animazione d'apertura o la schermata del codice
       const ib = $('#intro'), introOn = !!ib && !ib.classList.contains('out') && !ib.classList.contains('out-fast');
       const visible = !!nav && !nav.hidden && !busy && !introOn && curScreen !== 's-load' && !$('#dlg-scrim')?.classList.contains('on');
@@ -203,12 +204,28 @@ export function boot(api, native) {
     $$('.screen').forEach(s => s.classList.toggle('on', s.id === id));
     $('#nav').hidden = !$('#' + id).classList.contains('tabbed') && id !== 's-active';
     $$('#nav button').forEach(b => b.classList.toggle('on', TABS[b.dataset.tab] === id || (id === 's-active' && b.dataset.tab === 'home')));
+    navPill();
     if (reduceMotion || prev === id) return;
     const pa = ORDER.indexOf(prev === 's-active' ? 's-home' : prev), pb = ORDER.indexOf(id === 's-active' ? 's-home' : id);
     const cls = how || (pa >= 0 && pb >= 0 ? (pb > pa ? 'in-r' : pb < pa ? 'in-l' : 'in-f') : 'in-f');
-    const el = $('#' + id); el.classList.remove('in-r', 'in-l', 'in-f', 'in-push', 'in-pop', 'in-up');
+    const el = $('#' + id); el.classList.remove('in-r', 'in-l', 'in-f', 'in-push', 'in-pop', 'in-up', 'stg');
     void el.offsetWidth; el.classList.add(cls);
+    if (el.classList.contains('tabbed')) { el.classList.add('stg'); clearTimeout(el._stg); el._stg = setTimeout(() => el.classList.remove('stg'), 800); }   // i blocchi entrano uno dopo l'altro
   }
+  // barra in basso: la «pillola» scorre con una molla fino alla scheda scelta
+  function navPill() {
+    const nav = $('#nav'); if (!nav || nav.hidden) return;
+    let pill = nav.querySelector('.nav-pill'); if (!pill) { pill = document.createElement('span'); pill.className = 'nav-pill'; nav.prepend(pill); }
+    const b = nav.querySelector('button.on'); if (!b) { pill.style.opacity = 0; return; }
+    requestAnimationFrame(() => {
+      const nb = nav.getBoundingClientRect(), r = b.getBoundingClientRect(); if (!r.width) return;
+      const first = !pill.style.width; if (first) pill.style.transition = 'none';
+      pill.style.width = r.width + 'px'; pill.style.height = r.height + 'px'; pill.style.borderRadius = getComputedStyle(b).borderRadius;
+      pill.style.transform = `translate(${r.left - nb.left}px, ${r.top - nb.top}px)`; pill.style.opacity = 1;
+      if (first) requestAnimationFrame(() => (pill.style.transition = ''));
+    });
+  }
+  window.addEventListener('resize', () => navPill());
   function tab(t, how) {
     st.tab = t; st.open = null;
     if (t === 'home' && st.sosMine) { rActive(); return show('s-active', how); }
@@ -305,17 +322,17 @@ export function boot(api, native) {
     $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
     $('#sos-wrap').classList.toggle('off', !n);
     $('#sos-hint').textContent = n ? 'Tieni premuto' : 'Aggiungi qualcuno';
-    homeMap(); tools?.rWalk();
+    homeMap(); tools?.rWalk(); appello?.refresh();
   }
 
   /* ================= SOS: pressione prolungata ================= */
   const HOLD = 1500; let raf, t0 = 0, holding = false, sending = false;
   const sos = $('#sos'), prog = $('#prog');
-  const resetHold = () => { holding = false; cancelAnimationFrame(raf); sos.classList.remove('hold'); prog.style.transition = 'width .25s'; prog.style.width = '0%'; $('#sos-hint').textContent = canSos() ? 'Tieni premuto' : 'Aggiungi qualcuno'; };
+  const resetHold = () => { holding = false; cancelAnimationFrame(raf); sos.classList.remove('hold'); sos.style.setProperty('--p', 0); prog.style.transition = 'width .25s'; prog.style.width = '0%'; $('#sos-hint').textContent = canSos() ? 'Tieni premuto' : 'Aggiungi qualcuno'; };
   function holdLoop() {
-    const p = Math.min((performance.now() - t0) / HOLD, 1); prog.style.width = (p * 100) + '%';
+    const p = Math.min((performance.now() - t0) / HOLD, 1); prog.style.width = (p * 100) + '%'; sos.style.setProperty('--p', p.toFixed(3));
     if (p > 0.05) $('#sos-hint').textContent = 'Continua…';
-    if (p >= 1) { resetHold(); native.haptic('heavy'); trigger(); } else raf = requestAnimationFrame(holdLoop);
+    if (p >= 1) { resetHold(); native.haptic('heavy'); sos.classList.remove('fire'); void sos.offsetWidth; sos.classList.add('fire'); setTimeout(() => sos.classList.remove('fire'), 800); trigger(); } else raf = requestAnimationFrame(holdLoop);
   }
   sos.addEventListener('pointerdown', e => {
     if (sending) return; e.preventDefault();
@@ -627,7 +644,7 @@ export function boot(api, native) {
     if (ph.dataset.k !== key) { ph.dataset.k = key; ph.innerHTML = photoGrid(s.photos); }
     hydrate($('#ov-in'));
   }
-  function closeIncoming() { $('#ov-in').classList.remove('on'); st.shownIn = null; clearInterval(inTimer); }
+  function closeIncoming() { $('#ov-in').classList.remove('on'); st.shownIn = null; clearInterval(inTimer); setTimeout(() => appello?.checkIncoming(), 400); }
 
   /* ================= mappa (posizione live di chi chiede aiuto) ================= */
   let mapApi = null, mapLoading = null, mapFailed = false, mapTimer = null, myPosAt = 0;
@@ -1131,8 +1148,32 @@ export function boot(api, native) {
   $('#g-view').addEventListener('touchend', e => { if (gx == null) return; const d = e.changedTouches[0].clientX - gx; gx = null; if (Math.abs(d) > 50) guideGo(gi + (d < 0 ? 1 : -1)); });
 
   /* ================= sheet e dialoghi ================= */
-  const openSheet = (h, key) => { curSheet = key || null; $('#sheet').innerHTML = '<div class="grab"></div>' + h; $('#scrim').classList.add('on'); };
-  const closeSheet = () => { $('#scrim').classList.remove('on'); curSheet = null; clearInterval(inviteTimer); };
+  // fogli e finestre si chiudono con un'animazione: tolgo subito «on» (lo stato) e tengo «closing» solo per la grafica
+  const fadeOut = el => { if (!el || !el.classList.contains('on')) return; el.classList.remove('on'); if (reduceMotion) return; el.classList.add('closing'); clearTimeout(el._ct); el._ct = setTimeout(() => el.classList.remove('closing'), 240); };
+  const openSheet = (h, key) => { curSheet = key || null; const sc = $('#scrim'); clearTimeout(sc._ct); sc.classList.remove('closing'); $('#sheet').style.transform = ''; $('#sheet').innerHTML = '<div class="grab"></div>' + h; sc.classList.add('on'); };
+  const closeSheet = () => { fadeOut($('#scrim')); curSheet = null; clearInterval(inviteTimer); };
+  // trascina il foglio verso il basso per chiuderlo
+  (() => {
+    const sh = $('#sheet'); let y0 = null, dy = 0, drag = false, t0 = 0;
+    sh.addEventListener('pointerdown', e => {
+      if (e.target.closest('input,textarea,select,button,a,[data-a],.map,canvas') && !e.target.closest('.grab')) return;
+      if (sh.scrollTop > 0) return;
+      y0 = e.clientY; dy = 0; drag = false; t0 = performance.now();
+    });
+    sh.addEventListener('pointermove', e => {
+      if (y0 == null) return; dy = e.clientY - y0;
+      if (!drag && dy > 10) { drag = true; sh.classList.add('dragging'); try { sh.setPointerCapture(e.pointerId); } catch {} }
+      if (drag) sh.style.transform = `translateY(${Math.max(0, dy)}px)`;
+    });
+    const end = () => {
+      if (y0 == null) return; const fast = dy / Math.max(1, performance.now() - t0) > 0.6; y0 = null;
+      sh.classList.remove('dragging');
+      if (!drag) return; drag = false;
+      if (dy > 110 || (fast && dy > 40)) { closeSheet(); setTimeout(() => (sh.style.transform = ''), 260); }
+      else sh.style.transform = '';
+    };
+    sh.addEventListener('pointerup', end); sh.addEventListener('pointercancel', end);
+  })();
   $('#scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeSheet(); });
   let dlgResolve;
   function dialog({ title, text, ok = 'OK', cancel = 'Annulla', danger = false }) {
@@ -1144,12 +1185,12 @@ export function boot(api, native) {
   }
   function webDialog({ title, text, ok, cancel, danger }) {
     $('#dlg').innerHTML = `<h3>${esc(title)}</h3><p>${esc(text)}</p><div class="row2"><button class="btn ghost" data-dlg="0">${esc(cancel)}</button><button class="btn ${danger ? 'danger' : ''}" data-dlg="1">${esc(ok)}</button></div>`;
-    $('#dlg-scrim').classList.add('on');
+    { const d = $('#dlg-scrim'); clearTimeout(d._ct); d.classList.remove('closing'); d.classList.add('on'); }
     return new Promise(r => { dlgResolve = r; });
   }
   $('#dlg-scrim').addEventListener('click', e => {
     const b = e.target.closest('[data-dlg]'); if (!b && e.target.id !== 'dlg-scrim') return;
-    $('#dlg-scrim').classList.remove('on'); dlgResolve?.(b?.dataset.dlg === '1'); dlgResolve = null;
+    fadeOut($('#dlg-scrim')); dlgResolve?.(b?.dataset.dlg === '1'); dlgResolve = null;
   });
 
   const sheetAdd = () => openSheet(`<h2>Aggiungi alla cerchia</h2><p class="sub">Ogni collegamento richiede il consenso di entrambi.</p>${addOptions()}`, 'add');
@@ -1345,7 +1386,20 @@ export function boot(api, native) {
     logout: () => api.signOut().catch(() => {}),
     refresh: () => rMe(),
     afterOffer: () => { const f = lockAfter; lockAfter = null; f?.(); },
-    onUnlock: () => { intro.start(); if (glass.supported) syncGlass(true); }
+    onUnlock: () => { intro.start(); if (glass.supported) syncGlass(true); setTimeout(() => appello?.checkIncoming(), 600); }
+  });
+  if (api.demo) window.__vicinaDemo = api;   // solo modalità demo: per provare l'appello ricevuto
+  // Appello «State tutti bene?» (appello.js)
+  appello = createAppello({
+    $, I, esc, toast, native, api, AV, hhmm, wait, errMsg, dialog: o => dialog(o),
+    uid: () => st.uid, myName: () => `${st.p?.name || ''} ${st.p?.surname || ''}`.trim() || 'Tu', myPos: () => st.myPos || null,
+    canCheck: () => recipients().size > 0, recipientsCount: () => recipients().size, addPeople: () => sheetAdd(),
+    openSheet: (h, k) => openSheet(h, k), closeSheet: () => closeSheet(), curSheet: () => curSheet, quiet: () => !!prefs.quiet,
+    nameOf: u => st.links.find(l => l.other === u)?.otherName || st.groups.flatMap(g => g.members).find(m => m.uid === u)?.name || '',
+    chatWith: u => st.links.find(l => l.other === u)?.id || '', openChat: id => openThread(id), avatar: u => avUrl(u),
+    wake: () => intro.done(true), refresh: () => rHome(),
+    busy: () => !!(sending || st.sosMine || $('#ov-in').classList.contains('on') || $('#ov-send').classList.contains('on') || lock?.locked?.() || !st.p || $('#s-setup').classList.contains('on')),
+    sos: () => { if (st.sosMine || sending) return; if (!canSos()) return toast('Aggiungi qualcuno alla cerchia: in pericolo chiama il 112'); trigger(); }
   });
   // blocco dell'app: la schermata del codice compare per prima, prima ancora del video di apertura
   if (intro.lockedAtBoot && lock.enabled()) lock.show('start'); else intro.start();
@@ -1392,6 +1446,7 @@ export function boot(api, native) {
     const a = t.dataset.a, id = t.dataset.id;
     try {
       if (lock && await lock.handle(a, t)) return;
+      if (appello && await appello.handle(a, t)) return;
       if (await tools.handle(a, t)) return;
       switch (a) {
         case 'wel-start': ls.set('seen', '1'); authMode('up'); show('s-auth'); break;
@@ -1614,6 +1669,7 @@ export function boot(api, native) {
           req: Object.entries(g.requests || {}).map(([uid, name]) => ({ uid, name })) }));
         syncChats(); render(); refreshSheet(); loadAvatars(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
       },
+      checks: list => appello?.set(list),
       sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); if (st.sosIn.some(s => !(s.from in st.av))) loadAvatars(true); checkIncoming(); rChats(); rBadge(); rMap(); if (st.open) rThread(); },
       sosMine: list => {
         const was = !!st.sosMine; st.sosMine = list.filter(s => Date.now() - s.at < 12 * 36e5).sort((a, b) => b.at - a.at)[0] || null;
@@ -1631,7 +1687,7 @@ export function boot(api, native) {
   function stopData() {
     unwatch?.(); unwatch = null; linksLoaded = false; Object.values(chatUn).forEach(f => f()); chatUn = {};
     Object.assign(st, { uid: null, email: '', p: null, links: [], groups: [], muted: [], threads: {}, sosIn: [], sosMine: null, av: {}, open: null, dismissed: new Set(), shownIn: null });
-    closeSheet(); closeIncoming(); $('#ov-send').classList.remove('on');
+    closeSheet(); closeIncoming(); $('#ov-send').classList.remove('on'); appello?.reset();
   }
 
   /* ================= push ================= */
@@ -1644,6 +1700,7 @@ export function boot(api, native) {
         onTap: data => {
           intro.done(true);
           if (!data) return;
+          if (data.type === 'check' && data.checkId) { const go = (n = 0) => { if (!appello?.open(data.checkId) && n < 8) setTimeout(() => go(n + 1), 700); }; go(); return; }
           if (data.type === 'sos' && data.sosId) { st.dismissed.delete(data.sosId); const s = st.sosIn.find(x => x.id === data.sosId); if (s) showIncoming(s); }
           else if (data.chatId) setTimeout(() => openThread(data.chatId), 300);
         }
@@ -1657,6 +1714,7 @@ export function boot(api, native) {
     if ($('#dlg-scrim').classList.contains('on')) { $('#dlg-scrim').click(); return true; }
     if ($('#scrim').classList.contains('on')) { closeSheet(); return true; }
     if ($('#ov-in').classList.contains('on')) { st.dismissed.add(st.shownIn); closeIncoming(); return true; }
+    if (appello?.back()) return true;
     if ($('#s-ai').classList.contains('on')) { tab(st.tab || 'home', 'in-pop'); return true; }
     if ($('#s-guide').classList.contains('on')) { if (gi > 0) guideGo(gi - 1); else closeGuide(); return true; }
     if ($('#s-thread').classList.contains('on')) { $('[data-a="thread-back"]').click(); return true; }

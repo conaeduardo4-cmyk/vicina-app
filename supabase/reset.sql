@@ -12,7 +12,7 @@ declare r record;
 begin
   -- 1) pulizia automatica programmata (se pg_cron è attivo)
   if to_regclass('cron.job') is not null then
-    execute 'select cron.unschedule(jobid) from cron.job where jobname = ''vicina-cleanup''';
+    execute 'select cron.unschedule(jobid) from cron.job where jobname in (''vicina-cleanup'', ''vicina-appelli'')';
   end if;
 
   -- 2) trigger su auth.users creati da altri tentativi/modelli (es. "handle_new_user" che scrive in profiles):
@@ -29,7 +29,7 @@ begin
   -- 3) tabelle / viste con i nomi di Vicina (qualunque tipo siano)
   for r in
     select c.relname, c.relkind from pg_class c join pg_namespace n on n.oid = c.relnamespace
-     where n.nspname = 'public' and c.relname in ('messages', 'sos', 'links', 'groups', 'profiles')
+     where n.nspname = 'public' and c.relname in ('check_answers', 'checks', 'messages', 'sos', 'links', 'groups', 'profiles')
   loop
     execute format('drop %s if exists public.%I cascade',
       case r.relkind when 'v' then 'view' when 'm' then 'materialized view' when 'f' then 'foreign table' else 'table' end, r.relname);
@@ -41,7 +41,7 @@ begin
     select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.proname in ('save_token', 'set_muted', 'create_invite', 'redeem_invite', 'remove_link',
        'create_group', 'decide_join', 'remove_member', 'delete_group', 'send_sos', 'attach_sos_photos', 'ack_sos',
-       'resolve_sos', 'delete_account', 'ping', 'handle_new_user', 'ai_take_quota', 'update_sos_location', 'stop_sos_live', 'attach_sos_audio')
+       'resolve_sos', 'delete_account', 'ping', 'handle_new_user', 'ai_take_quota', 'update_sos_location', 'stop_sos_live', 'attach_sos_audio', 'send_check', 'answer_check', 'remind_check', 'close_check')
   loop
     execute format('drop function if exists %s cascade', r.sig);
   end loop;
