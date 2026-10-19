@@ -74,7 +74,7 @@ export function createDisguise({ native, api, onChange }) {
     if (!fromUser) return;
     // icona, scorciatoie, widget, canale notifiche, notifiche dal server
     let icon = true;
-    try { await native.vx.setIcon(on ? 'blue' : 'default'); } catch { icon = false; }
+    try { await native.vx.setIcon(on ? 'blue' : 'default'); } catch { icon = false; retryIcon(); }
     native.vx.updateWidget(on);
     native.vx.channels(on);
     api.setDiscreet?.(on);
@@ -90,6 +90,19 @@ export function createDisguise({ native, api, onChange }) {
       const want = on ? 'blue' : 'default';
       if (cur.name !== want) await native.vx.setIcon(want);
     } catch (e) { console.warn('icona', e); }
+  }
+  // se iPhone rifiuta il cambio (succede soprattutto tornando all'icona normale) riproviamo da soli per un minuto
+  let retryT = null;
+  function retryIcon(n = 0) {
+    clearTimeout(retryT);
+    if (n >= 12) return;
+    retryT = setTimeout(async () => {
+      if (document.visibilityState !== 'visible') return retryIcon(n);
+      try {
+        const cur = await native.vx.getIcon();
+        if (cur?.supported && cur.name !== (on ? 'blue' : 'default')) { await native.vx.setIcon(on ? 'blue' : 'default'); }
+      } catch { retryIcon(n + 1); }
+    }, 4000);
   }
   setTimeout(syncIcon, 2500);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(syncIcon, 800); });

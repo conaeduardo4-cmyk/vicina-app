@@ -50,24 +50,29 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         let target: String? = call.getString("name") == "blue" ? "AppIconBlue" : nil
         DispatchQueue.main.async {
             guard UIApplication.shared.supportsAlternateIcons else { call.reject("Icone alternative non supportate"); return }
-            self.applyIcon(target, attempt: 0, call: call)
+            // piccolo ritardo: subito dopo un tocco o un avviso iOS rifiuta spesso il cambio
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { self.applyIcon(target, attempt: 0, call: call) }
         }
     }
 
-    // iOS a volte rifiuta il cambio («Resource temporarily unavailable»), soprattutto tornando all'icona normale:
-    // riproviamo qualche volta e verifichiamo che l'icona sia davvero quella giusta.
+    // iOS rifiuta spesso il ritorno all'icona normale («Resource temporarily unavailable»), soprattutto se l'icona
+    // è stata cambiata da poco: c'è un tempo di attesa. Riproviamo più a lungo, con pause crescenti, e solo ad app attiva
+    // e senza avvisi aperti. La prima volta la chiamata parte SEMPRE (anche se iOS dice che l'icona è già quella giusta),
+    // così compare il popup di sistema «Hai cambiato l'icona».
     private func applyIcon(_ target: String?, attempt: Int, call: CAPPluginCall) {
-        if UIApplication.shared.alternateIconName == target { call.resolve(["name": target == nil ? "default" : "blue"]); return }
-        guard UIApplication.shared.applicationState == .active else {
-            if attempt < 8 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { self.applyIcon(target, attempt: attempt + 1, call: call) } }
+        let name = target == nil ? "default" : "blue"
+        if attempt > 0 && UIApplication.shared.alternateIconName == target { call.resolve(["name": name]); return }
+        let busy = UIApplication.shared.applicationState != .active || (bridge?.viewController?.presentedViewController is UIAlertController)
+        if busy {
+            if attempt < 20 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { self.applyIcon(target, attempt: attempt + 1, call: call) } }
             else { call.reject("App non attiva") }
             return
         }
         UIApplication.shared.setAlternateIconName(target) { error in
             DispatchQueue.main.async {
-                if error == nil && UIApplication.shared.alternateIconName == target { call.resolve(["name": target == nil ? "default" : "blue"]); return }
-                if attempt < 4 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.applyIcon(target, attempt: attempt + 1, call: call) }
+                if error == nil && UIApplication.shared.alternateIconName == target { call.resolve(["name": name]); return }
+                if attempt < 9 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6 + 0.4 * Double(attempt)) { self.applyIcon(target, attempt: attempt + 1, call: call) }
                 } else {
                     call.reject(error?.localizedDescription ?? "Icona non cambiata")
                 }
