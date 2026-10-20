@@ -1948,8 +1948,17 @@ export function boot(api, native) {
       afterAuth(p);
     } catch (e) { console.warn('accesso', e); toast('Accesso non completato: ' + (e?.message || errMsg(e))); show('s-auth'); }
   });
-  function afterAuth(p) {
+  async function afterAuth(p) {
+    // copia locale del profilo: se il server lo perde (es. database azzerato), lo ricreo da solo senza rifare la registrazione
+    const meKey = 'me:' + st.uid;
+    if (!p) {
+      try {
+        const c = JSON.parse(ls.get(meKey) || 'null');
+        if (c?.name && c?.surname && c?.dob && c?.gender) { await api.createProfile(st.uid, c); p = await api.getProfile(st.uid); }
+      } catch (e) { console.warn('ripristino profilo', e); }
+    }
     if (!p) { draft = { gender: null }; return setup(1); }
+    try { ls.set(meKey, JSON.stringify({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '' })); } catch {}
     st.p = pick(p); startData();
     if (ls.get('permAsked')) registerPush();
     setTimeout(() => { tools.restore(); extra.restore(); }, 600);
