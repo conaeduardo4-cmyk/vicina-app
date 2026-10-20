@@ -65,7 +65,7 @@ export function createMore(ctx, base, extra) {
     c.width = w; c.height = h;
     c.getContext('2d').drawImage(v, (v.videoWidth - w) / 2, (v.videoHeight - h) / 2, w, h, 0, 0, w, h);
     const url = c.toDataURL('image/jpeg', 0.88);
-    native.shareImages([url], 'Foto Vicina del ' + new Date().toLocaleString('it-IT')).then(ok => ok || toast('Condivisione non disponibile'));
+    native.shareImages([url], 'Foto Vicina del ' + new Date().toLocaleString(globalThis.vLoc || 'it-IT')).then(ok => ok || toast('Condivisione non disponibile'));
   }
 
   /* ---------- codice rosso: avviso discreto ---------- */
@@ -127,7 +127,7 @@ export function createMore(ctx, base, extra) {
   /* ---------- auto parcheggiata ---------- */
   function sheetCar() {
     const c = load('parked', null);
-    openSheet(`<h2>Dov'è la mia auto</h2><p class="sub">${c ? `Salvata ${new Date(c.at).toLocaleString('it-IT', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}${c.note ? ' · ' + esc(c.note) : ''}` : 'Salva il punto dove hai parcheggiato: al ritorno ti ci porto, anche al buio in un parcheggio enorme.'}</p>
+    openSheet(`<h2>Dov'è la mia auto</h2><p class="sub">${c ? `Salvata ${new Date(c.at).toLocaleString(globalThis.vLoc || 'it-IT', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}${c.note ? ' · ' + esc(c.note) : ''}` : 'Salva il punto dove hai parcheggiato: al ritorno ti ci porto, anche al buio in un parcheggio enorme.'}</p>
       ${c ? `<button class="btn red" data-a="x-url" data-u="${esc(dirUrl(c, 'walk'))}">${I('send')}Portami all'auto</button>` : ''}
       <label class="field"><span>Nota (piano, colonna, colore…)</span><input id="pk-note" maxlength="60" placeholder="Piano -2, colonna B7"></label>
       <button class="btn ${c ? 'ghost' : ''}" data-a="park-save">${I('pin')}${c ? 'Salva di nuovo qui' : 'Ho parcheggiato qui'}</button>`, 'park');
@@ -316,7 +316,7 @@ export function createMore(ctx, base, extra) {
         const s = { name: $('#st-name').value.trim(), addr: $('#st-addr').value.trim(), room: $('#st-room').value.trim(), until: $('#st-until').value };
         if (!s.name && !s.addr) return toast('Scrivi almeno il posto o l\'indirizzo'), true;
         save('stay', s);
-        const n = await send(`🏨 Dormo qui: ${[s.name, s.addr].filter(Boolean).join(', ')}${s.room ? ', stanza ' + s.room : ''}${s.until ? ', fino al ' + new Date(s.until).toLocaleDateString('it-IT') : ''}.`);
+        const n = await send(`🏨 Dormo qui: ${[s.name, s.addr].filter(Boolean).join(', ')}${s.room ? ', stanza ' + s.room : ''}${s.until ? ', fino al ' + new Date(s.until).toLocaleDateString(globalThis.vLoc || 'it-IT') : ''}.`);
         closeSheet(); toast(n ? 'Inviato alla cerchia' : 'Salvato'); return true;
       }
       case 'route': closeSheet(); sheetRoute(); return true;
@@ -329,7 +329,7 @@ export function createMore(ctx, base, extra) {
         closeSheet(); toast(n ? 'Percorso inviato alla cerchia' : 'Parti pure'); open(dirUrl(to, m)); return true;
       }
       case 'places': closeSheet(); sheetPlaces(); return true;
-      case 'place-set': { const p = await pos(); if (!p) return true; const pl = load('places', {}); pl[t.dataset.k] = { lat: p.lat, lng: p.lng, label: 'Salvato ' + new Date().toLocaleDateString('it-IT') }; save('places', pl); toast('Luogo salvato'); sheetPlaces(); return true; }
+      case 'place-set': { const p = await pos(); if (!p) return true; const pl = load('places', {}); pl[t.dataset.k] = { lat: p.lat, lng: p.lng, label: 'Salvato ' + new Date().toLocaleDateString(globalThis.vLoc || 'it-IT') }; save('places', pl); toast('Luogo salvato'); sheetPlaces(); return true; }
       case 'place-arrived': { const n = await send(`✅ Sono arrivat${sx()}: ${t.dataset.t}.`); toast(n ? 'Avvisata la cerchia' : 'Nessuna chat'); return true; }
       case 'checkin': checkin(); return true;
       case 'redcode-send': redCode(); return true;
@@ -353,7 +353,7 @@ export function createMore(ctx, base, extra) {
         else toast('Piano salvato'); return true;
       }
       case 'coords': sheetCoords(); return true;
-      case 'coords-say': native.vx.speak(t.dataset.t.replace(/\./g, ' virgola '), 'it-IT'); return true;
+      case 'coords-say': native.vx.speak(t.dataset.t.replace(/\./g, ' virgola '), 'it-IT-x'); return true;
       case 'simulate': simulate(); return true;
       case 'stolen': closeSheet(); guide('Telefono rubato o perso', 'Da un altro telefono o da un computer, subito.', [
         'Non inseguire il ladro: la tua sicurezza viene prima.',

@@ -15,6 +15,7 @@
         android:textSize="28sp"
         android:textStyle="bold" />
     <TextView
+        android:id="@+id/vicina_call_sub"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="chiama"

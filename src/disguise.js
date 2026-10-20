@@ -23,7 +23,9 @@ export function createDisguise({ native, api, onChange }) {
   const orig = new WeakMap();
   const conv = t => MAP.reduce((s, [r, v]) => s.replace(r, v), t);
   const skip = n => { const el = n.nodeType === 1 ? n : n.parentElement; return !el || !!el.closest(SKIP); };
+  const foreign = () => globalThis.vLang && globalThis.vLang !== 'it';   // in altre lingue ci pensa i18n.js
   function fixText(n) {
+    if (foreign()) return;
     if (skip(n)) return;
     const o = orig.has(n) ? orig.get(n) : n.nodeValue;
     if (!orig.has(n)) orig.set(n, o);
@@ -31,6 +33,7 @@ export function createDisguise({ native, api, onChange }) {
     if (n.nodeValue !== want) n.nodeValue = want;
   }
   function fixAttrs(el) {
+    if (foreign()) return;
     if (el.closest?.(SKIP)) return;
     for (const a of ['aria-label', 'placeholder', 'title']) {
       if (!el.hasAttribute?.(a)) continue;

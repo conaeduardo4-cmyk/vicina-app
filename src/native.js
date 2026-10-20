@@ -268,7 +268,7 @@ export const native = !isNative ? webNative : {
     stopSpeaking: () => VN.stopSpeaking().catch(() => webNative.vx.stopSpeaking()),
     openSettings: () => VN.openSettings().catch(() => {}),
     setShortcuts: items => VN.setShortcuts({ items }).catch(() => {}),
-    updateWidget: discreet => VN.updateWidget({ discreet }).catch(() => {}),
+    updateWidget: discreet => VN.updateWidget({ discreet, lang: globalThis.vLang || 'it' }).catch(() => {}),
     // Android: il nome del canale delle notifiche urgenti si vede nelle impostazioni del telefono
     async channels(discreet) {
       if (Capacitor.getPlatform() !== 'android') return;

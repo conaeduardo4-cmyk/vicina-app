@@ -31,6 +31,7 @@
 <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></symbol>
 <symbol id="i-qr" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2zM16 16h2v2h-2z"/></symbol>
 <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
 <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></symbol>
 <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5M8 7h7"/></symbol>
@@ -74,6 +75,7 @@
 
   <!-- Benvenuto -->
   <section class="screen" id="s-wel">
+    <button class="wel-lang" data-a="lang-sheet" aria-label="Lingua"><svg class="i"><use href="#i-globe"/></svg><span id="wel-lang"></span></button>
     <div class="wel-hero">
       <div class="wel-logo"><span class="wel-ring"></span><span class="wel-ring b"></span><div class="logo"><svg class="i"><use href="#i-shield"/></svg></div></div>
       <h1 class="wel-title">Qualcuno c'è.<br><span>Sempre.</span></h1>
@@ -134,6 +136,7 @@
         <span class="sos-n" id="sos-n"></span>
       </button>
     </div>
+    <div class="sosin-bar" id="sosin-bar" hidden></div>
     <!-- Appello «State tutti bene?»: tieni premuto e chiedi a tutta la cerchia come sta -->
     <button id="chk-btn" class="chk-btn" aria-label="Appello: tieni premuto per chiedere a tutta la cerchia se state bene">
       <span class="chk-fill"></span><span class="chk-deco"></span>
@@ -183,6 +186,7 @@
         <div class="act-live" id="a-live"></div>
       </section>
       <div class="act-list" id="a-info"></div>
+      <div class="cx-act" id="a-centrale"></div>
       <div class="vcard" id="a-voice" aria-live="polite"></div>
     </div>
     <div class="foot">

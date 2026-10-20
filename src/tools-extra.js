@@ -191,7 +191,7 @@ export function createExtra(ctx, base) {
   }
   const dateInfo = () => {
     const who = ($('#dt-who')?.value || '').trim(), where = ($('#dt-where')?.value || '').trim(), at = Date.parse($('#dt-at')?.value || '') || Date.now();
-    const when = new Date(at).toLocaleString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    const when = new Date(at).toLocaleString(globalThis.vLoc || 'it-IT', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
     return { who, where, at, when, text: `📅 Ho un appuntamento ${when}${where ? ' a ' + where : ''}${who ? ' con ' + who : ''}. Se non mi senti entro un paio d'ore, chiamami.` };
   };
   function ics({ who, where, at }) {
@@ -270,7 +270,7 @@ export function createExtra(ctx, base) {
     inp.onchange = () => {
       const f = inp.files?.[0]; if (!f) return;
       lastVideo = f;
-      openSheet(`<h2>Video registrato</h2><p class="sub">${Math.round(f.size / 1048576 * 10) / 10} MB · ${new Date().toLocaleString('it-IT')}. Salvalo o mandalo subito: è una prova.</p>
+      openSheet(`<h2>Video registrato</h2><p class="sub">${Math.round(f.size / 1048576 * 10) / 10} MB · ${new Date().toLocaleString(globalThis.vLoc || 'it-IT')}. Salvalo o mandalo subito: è una prova.</p>
         <video class="proof-img" src="${URL.createObjectURL(f)}" controls playsinline></video>
         <button class="btn" data-a="video-share">${I('share')}Salva o condividi</button>`, 'video');
     };
@@ -303,7 +303,7 @@ export function createExtra(ctx, base) {
     closeSheet();
     const notes = [['Lista spesa', 'latte, pane, mele, caffè, detersivo'], ['Idee regali', 'libro di cucina, sciarpa blu'], ['Da fare', 'chiamare il dentista, pagare bolletta'], ['Ricetta torta', '3 uova, 200 g farina, 150 g zucchero…'], ['Film da vedere', '']];
     showOv('cover', `<div class="cv-top"><b id="cv-title">Note</b><span>${notes.length} note</span></div>
-      <div class="cv-list">${notes.map(([t, s]) => `<div class="cv-note"><b>${t}</b><span>${new Date(Date.now() - Math.random() * 6e8).toLocaleDateString('it-IT')} · ${s || 'Nessun testo aggiuntivo'}</span></div>`).join('')}</div>
+      <div class="cv-list">${notes.map(([t, s]) => `<div class="cv-note"><b>${t}</b><span>${new Date(Date.now() - Math.random() * 6e8).toLocaleDateString(globalThis.vLoc || 'it-IT')} · ${s || 'Nessun testo aggiuntivo'}</span></div>`).join('')}</div>
       <p class="cv-hint" id="cv-hint">Per tornare a Vicina tocca 3 volte «Note»</p>`, () => {});
     setTimeout(() => $('#cv-hint')?.classList.add('gone'), 3000);
     $('#cv-title').onclick = () => { const n = Date.now(); coverTaps = coverTaps.filter(x => n - x < 1200); coverTaps.push(n); if (coverTaps.length >= 3) { coverTaps = []; closeOv(); } };

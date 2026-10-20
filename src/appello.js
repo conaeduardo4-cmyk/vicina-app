@@ -186,7 +186,7 @@ export function createAppello(ctx) {
     const chat = ctx.chatWith(x.uid);
     return `<div class="ap-row ${st || 'wait'}" style="--i:${x.i}">
       ${AV(x.name, null, 'sm', x.uid)}
-      <div class="fl"><b>${esc(x.name)}</b><span>${esc(meta)}</span>${x.a?.note ? `<span class="chk-note">«${esc(x.a.note)}»</span>` : ''}</div>
+      <div class="fl"><b>${esc(x.name)}</b><span>${esc(meta)}</span>${x.a?.note ? `<span class="chk-note" translate="no">«${esc(x.a.note)}»</span>` : ''}</div>
       <div class="chk-acts">${tag}
         <div class="chk-mini">${x.a?.lat != null && x.uid !== uid() ? `<button class="iconbtn sm" data-a="chk-nav" data-u="${x.uid}" aria-label="Indicazioni per ${esc(x.name)}">${I('send')}</button>` : ''}${chat && x.uid !== uid() ? `<button class="iconbtn sm" data-a="chk-chat" data-c="${chat}" aria-label="Scrivi a ${esc(x.name)}">${I('chat')}</button>` : ''}</div>
       </div></div>`;
@@ -218,7 +218,7 @@ export function createAppello(ctx) {
           <div class="cs wait"><b>${s.wait}</b><span>in attesa</span></div>
         </div>
       </div>
-      ${c.note ? `<p class="chk-quote">«${esc(c.note)}»<span>— ${esc(first(c.fromName))}</span></p>` : ''}
+      ${c.note ? `<p class="chk-quote"><span translate="no">«${esc(c.note)}»</span><span>— ${esc(first(c.fromName))}</span></p>` : ''}
       ${helps.length ? `<div class="chk-alert">${I('alert')}<div class="fl"><b>${helps.map(x => esc(first(x.name))).join(', ')} ${helps.length === 1 ? 'ha' : 'hanno'} bisogno di aiuto</b><span>Chiama, scrivi o raggiungi: la posizione è sulla mappa.</span></div></div>` : ''}
       <div class="chk-map" id="chk-map"><span class="chk-map-e">${I('pin')}Le posizioni compaiono quando le persone rispondono</span></div>
       <div class="chk-my">
@@ -266,7 +266,7 @@ export function createAppello(ctx) {
         <div class="chk-orb big">${Array.from({ length: DOTS }, (_, i) => `<i class="chk-dot on" style="--k:${i}"></i>`).join('')}${AV(c.fromName, null, 'chkin-av', c.from)}</div>
         <span class="chk-k">Appello · ${esc(RN[c.reason] || 'Altro')}</span>
         <h1>${esc(first(c.fromName))} chiede:<br>state tutti bene?</h1>
-        ${c.note ? `<p class="chkin-note">«${esc(c.note)}»</p>` : ''}
+        ${c.note ? `<p class="chkin-note" translate="no">«${esc(c.note)}»</p>` : ''}
         <p class="chkin-when">${esc(ago(c.at))} · ${esc(hhmm(c.at))}</p>
       </div>
       <div class="chkin-acts">

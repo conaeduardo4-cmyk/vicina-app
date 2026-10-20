@@ -7,6 +7,9 @@ import { createMore2 } from './tools-more2.js';
 import { createMore3 } from './tools-more3.js';
 import { createLock } from './lock.js';
 import { createAppello } from './appello.js';
+import { createCentrale } from './centrale.js';
+import { createInterprete } from './interprete.js';
+import { LANGS, setLang, current as curLang } from './i18n.js';
 import { createDisguise } from './disguise.js';
 import { qrSvg, openScanner, inviteLink, parseInvite } from './qr.js';
 export function boot(api, native) {
@@ -23,19 +26,19 @@ export function boot(api, native) {
     ? `<div class="av ${cls}" style="background:linear-gradient(145deg,#9C8CFF,#5B4BD6)">${I('group')}</div>`
     : `<div class="av ${cls}${avUrl(uid) ? ' ph' : ''}" style="background:${col(n)}">${esc(initials(n))}${avUrl(uid) ? `<img src="${esc(avUrl(uid))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  let tools = null, extra = null, lock = null, lockAfter = null, appello = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
+  let tools = null, extra = null, lock = null, lockAfter = null, appello = null, centrale = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
   const dz = createDisguise({ native, api });
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
-  const hhmm = ms => ms ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
+  const hhmm = ms => ms ? new Date(ms).toLocaleTimeString(globalThis.vLoc || 'it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
   const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'adesso' : m < 60 ? `${m} min fa` : `${Math.floor(m / 60)} h fa`; };
-  const when = ms => { if (!ms) return ''; const d = new Date(ms), n = new Date(); return d.toDateString() === n.toDateString() ? hhmm(ms) : d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }); };
+  const when = ms => { if (!ms) return ''; const d = new Date(ms), n = new Date(); return d.toDateString() === n.toDateString() ? hhmm(ms) : d.toLocaleDateString(globalThis.vLoc || 'it-IT', { day: 'numeric', month: 'short' }); };
 
   let tt; const webToast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => e.classList.remove('on'), 2800); };
   // con il Liquid Glass attivo i messaggi brevi li mostra iOS in una capsula di vetro (se non riesce, quelli della pagina)
   let glassUi = false;
   const toast = t => {
     if (!glassUi) return webToast(t);
-    native.vx.glassToast(dz.on ? dz.conv(String(t)) : String(t)).then(ok => { if (!ok) webToast(t); });
+    native.vx.glassToast(globalThis.vLang !== 'it' ? globalThis.vT(String(t)) : dz.on ? dz.conv(String(t)) : String(t)).then(ok => { if (!ok) webToast(t); });
   };
   const errMsg = e => {
     const c = e?.code || '';
@@ -53,7 +56,7 @@ export function boot(api, native) {
   };
   let unwatch = null, chatUn = {}, curSheet = null, linksLoaded = false;
   const seen = JSON.parse(ls.get('seenChats') || '{}');
-  const prefs = Object.assign({ live: true, voice: true, typingPreview: true }, (() => { try { return JSON.parse(ls.get('prefs') || '{}'); } catch { return {}; } })());
+  const prefs = Object.assign({ live: true, voice: true, typingPreview: true, diretta: true }, (() => { try { return JSON.parse(ls.get('prefs') || '{}'); } catch { return {}; } })());
   const savePrefs = () => ls.set('prefs', JSON.stringify(prefs));
   // versione dell'app (scritta da GitHub durante la compilazione) e stato degli aggiornamenti
   // (accessi scritti per esteso: Vite li sostituisce con i valori veri durante la compilazione)
@@ -131,6 +134,7 @@ export function boot(api, native) {
     return { done, start, lockedAtBoot };
   })();
 
+  { const w = $('#wel-lang'); if (w) { const LG = LANGS.find(l => l.code === curLang()) || LANGS[0]; w.textContent = LG.flag + ' ' + LG.name; w.setAttribute('translate', 'no'); } }
   /* ================= navigazione ================= */
   const TABS = { home: 's-home', map: 's-map', tools: 's-tools', chat: 's-chat', circle: 's-circle', me: 's-me' };
   // Transizioni: le schede scorrono di lato nell'ordine della barra, le schermate interne entrano da destra ed escono a sinistra.
@@ -160,7 +164,7 @@ export function boot(api, native) {
       if (!glass.icons) { glass.icons = 'wait'; glassIcons().then(ic => { glass.icons = ic; glass.last = ''; syncGlass(true); }); }
       const key = JSON.stringify(o) + (glass.icons && glass.icons !== 'wait' && !glass.iconsSent ? '+ic' : '');
       if (key === glass.last) return; glass.last = key;
-      if (glass.icons && glass.icons !== 'wait' && !glass.iconsSent) { o.icons = glass.icons; glass.iconsSent = true; }
+      if (glass.icons && glass.icons !== 'wait' && !glass.iconsSent) { o.icons = glass.icons; o.titles = Object.fromEntries($$('#nav button[data-tab]').map(b => [b.dataset.tab, b.querySelector('span')?.textContent || ''])); glass.iconsSent = true; }
       native.vx.setGlassBar?.(o).then(r => { if (r && r.active === false) { glass.supported = false; glass.last = ''; document.body.classList.remove('native-glass'); } });
       if (!glassObs) {   // la barra segue da sola schermate, fogli e badge
         glassObs = new MutationObserver(ms => { if (ms.some(m => m.type === 'childList')) sysSwitches(true); syncGlass(); });
@@ -406,7 +410,7 @@ export function boot(api, native) {
         } else stp(n, 'fail');
       }
       Object.assign(lastSms, { links, imgs });
-      if (res && prefs.autoAudio) autoAudio(sosId);
+      if (res && prefs.autoAudio && prefs.diretta === false) autoAudio(sosId);   // con la diretta l'audio lo registra già la Centrale
       if (sms.length) {
         if (autoSms) { if (links.length) { const r = await smsDeliver('Aggiornamento con le foto.\n' + smsText(pos, links)); stp(5, r === 'sent' ? 'done' : 'wait'); } else stp(5, 'done'); }
         else if (!silent) { stp(5, 'wait'); await wait(500); end(); await smsDeliver(smsText(pos, links), { auto: false }); }
@@ -466,7 +470,7 @@ export function boot(api, native) {
       + (others ? `<div class="row"><div class="av more">+${others}</div><div class="fl"><b>${ackNames.length ? 'Gli altri' : 'La tua cerchia'}</b><span>Avvisati · in attesa di risposta</span></div></div>` : '')
       + (smsOn().length ? `<div class="row sms-act"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>${smsOn().length} ${smsOn().length === 1 ? 'contatto' : 'contatti'} via SMS</b><span>Senza app · posizione e link alle foto</span></div></div>
         <div class="row2 sms-btns"><button class="btn ghost sm" data-a="sms-resend">${I('sms')}Rimanda SMS</button>${lastSms.imgs.length ? `<button class="btn ghost sm" data-a="sms-photos">${I('camera')}Invia le foto</button>` : ''}</div>` : '');
-    rVoice(s);
+    rVoice(s); centrale?.renderActive();
     clearInterval(activeTimer); activeTimer = setInterval(() => {
       if (!st.sosMine) return clearInterval(activeTimer);
       const l = $('#a-live-left'); if (l) l.textContent = 'Posizione live · ' + liveAge(st.sosMine);
@@ -543,8 +547,9 @@ export function boot(api, native) {
     if (voice.rec || voice.busy || !st.sosMine) return;
     if (st.sosMine.audio || voice.sentFor === st.sosMine.id) return toast('Il messaggio vocale è già stato inviato');
     voice.busy = true;
+    centrale?.suspend(true);
     try { voice.rec = await native.startRecording(); }
-    catch (e) { voice.busy = false; if (e?.code === 'mic-blocked') return micBlocked(); return toast('Serve il permesso del microfono per il vocale'); }
+    catch (e) { voice.busy = false; centrale?.suspend(false); if (e?.code === 'mic-blocked') return micBlocked(); return toast('Serve il permesso del microfono per il vocale'); }
     voice.busy = false; voice.t0 = Date.now(); native.haptic('medium'); rVoice();
     clearInterval(voice.timer); voice.timer = setInterval(() => {
       const ms = Date.now() - voice.t0, el = $('#v-time');
@@ -555,12 +560,12 @@ export function boot(api, native) {
   function voiceCancel() {
     if (!voice.rec) return;
     try { voice.rec.cancel ? voice.rec.cancel() : voice.rec.stop(); } catch {}
-    voice.rec = null; clearInterval(voice.timer); rVoice(); toast('Vocale annullato');
+    voice.rec = null; clearInterval(voice.timer); rVoice(); toast('Vocale annullato'); centrale?.suspend(false);
   }
   async function voiceSend() {
     if (!voice.rec) return;
     const rec = voice.rec, sosId = st.sosMine?.id; voice.rec = null; clearInterval(voice.timer);
-    const out = await rec.stop();
+    const out = await rec.stop(); centrale?.suspend(false);
     if (!out || out.ms < 900 || !out.blob.size) { rVoice(); return toast('Vocale troppo corto: riprova parlando un po\' di più'); }
     voice.up = true; rVoice();
     const path = `sos/${st.uid}/${sosId}/voice.${out.ext}`;
@@ -614,6 +619,7 @@ export function boot(api, native) {
           <div id="in-map"></div>
           <div id="in-audio"></div>
           <div id="in-photos"></div>
+          <div id="in-centrale" class="cx-in"></div>
         </div>
       </div>
       <div class="foot">
@@ -622,6 +628,7 @@ export function boot(api, native) {
         <div class="row2"><a class="btn ghost" href="tel:112">${I('phone')}112</a><button class="btn ghost" data-a="in-chat" data-id="${s.id}">${I('chat')}Chat</button></div>
       </div>`;
       ov.classList.add('on');
+      centrale?.openRx(s);
       if (first) native.vibrate([400, 200, 400, 200, 400]);
     }
     updIncoming(s);
@@ -644,7 +651,23 @@ export function boot(api, native) {
     if (ph.dataset.k !== key) { ph.dataset.k = key; ph.innerHTML = photoGrid(s.photos); }
     hydrate($('#ov-in'));
   }
-  function closeIncoming() { $('#ov-in').classList.remove('on'); st.shownIn = null; clearInterval(inTimer); setTimeout(() => appello?.checkIncoming(), 400); }
+  // striscia in Home: SOS ricevuti ancora aperti (per tornare alla Centrale dopo aver chiuso la schermata)
+  async function sheetMyProofs() {
+    openSheet(`<h2>Prove dei miei SOS</h2><p class="sub">Gli SOS degli ultimi 7 giorni. Per ognuno puoi verificare la catena delle prove e creare il PDF per la denuncia.</p><div id="mp-list" class="card"><div class="row"><div class="fl"><span>Carico…</span></div></div></div>`, 'my-proofs');
+    try {
+      const l = await api.mySos();
+      const el = $('#mp-list'); if (!el) return;
+      el.innerHTML = l.length ? l.map(s => `<button class="row" data-a="cx-proof" data-id="${esc(s.id)}"><i class="ic-dot ${s.active ? 'red' : 'gray'}">${I('shield')}</i><div class="fl"><b>SOS del ${esc(new Date(s.at).toLocaleDateString(globalThis.vLoc || 'it-IT', { day: 'numeric', month: 'long' }))} alle ${hhmm(s.at)}</b><span>${s.active ? 'In corso' : 'Chiuso'} · ${s.recipients.length} ${s.recipients.length === 1 ? 'persona avvisata' : 'persone avvisate'}</span></div>${I('chev', 'chev')}</button>`).join('')
+        : `<div class="row"><div class="fl"><b>Nessun SOS</b><span>Qui compariranno gli SOS che invii</span></div></div>`;
+    } catch (e) { const el = $('#mp-list'); if (el) el.innerHTML = `<div class="row"><div class="fl"><span>${esc(errMsg(e))}</span></div></div>`; }
+  }
+  function rSosBar() {
+    const el = $('#sosin-bar'); if (!el) return;
+    const l = st.sosIn.filter(s => s.active !== false && s.id !== st.shownIn).sort((a, b) => b.at - a.at);
+    el.hidden = !l.length;
+    el.innerHTML = l.map(s => { const h = s.helpers?.[st.uid]; return `<button class="sosin-strip" data-a="cx-open" data-id="${s.id}">${AV(s.fromName, null, 'sm', s.from)}<div class="fl"><b>${esc(s.fromName.split(' ')[0])} ha chiesto aiuto</b><span>${h?.role === 'coming' ? 'Stai arrivando · ' : ''}SOS ${ago(s.at)} · apri la Centrale</span></div><span class="pill">Apri</span></button>`; }).join('');
+  }
+  function closeIncoming() { $('#ov-in').classList.remove('on'); st.shownIn = null; clearInterval(inTimer); centrale?.closeRx(false); rSosBar(); setTimeout(() => appello?.checkIncoming(), 400); }
 
   /* ================= mappa (posizione live di chi chiede aiuto) ================= */
   let mapApi = null, mapLoading = null, mapFailed = false, mapTimer = null, myPosAt = 0;
@@ -658,6 +681,7 @@ export function boot(api, native) {
       locAt: s.locAt || s.at, at: s.at, live: s.active !== false, stale: Date.now() - (s.locAt || s.at) > 3 * 60e3, label: s.fromName.split(' ')[0], chats: s.chats, src: s, img: avUrl(s.from)
     }));
     const m = st.sosMine;
+    if (centrale) out.push(...centrale.helperPins());
     if (m && m.lat != null) out.push({ id: m.id, name: 'Tu', ini: 'TU', lat: m.lat, lng: m.lng, acc: m.acc, track: m.track || [], audio: m.audio, locAt: m.locAt || m.at, at: m.at, live: true, mine: true, label: 'Il tuo SOS', img: avUrl(st.uid) });
     return out;
   }
@@ -772,7 +796,7 @@ export function boot(api, native) {
     const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n; if (glass.supported) syncGlass();
     const hb = $('#h-badge'); if (hb) { hb.hidden = !n; hb.textContent = n > 9 ? '9+' : n; }
   }
-  const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw">${esc(m.text)}</span>`;
+  const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw" translate="no">${esc(m.text)}</span>`;
   function rChats() {
     const cs = convs().map(c => ({ ...c, last: (st.threads[c.id] || []).slice(-1)[0] })).sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
     const live = st.sosIn.filter(s => Date.now() - s.at < 12 * 36e5);
@@ -799,7 +823,7 @@ export function boot(api, native) {
     }
     if (m.type === 'safe') return `<div class="msg safe ${cls}">${I('check')} <b>${mine ? 'Hai' : esc(m.fromName) + ' ha'}</b> chiuso l'SOS: ${mine ? 'sei' : 'è'} al sicuro. ${hhmm(m.at)}</div>`;
     const who = !mine && cid && st.groups.some(g => g.id === cid) ? `<span class="who">${esc(nameIn(cid, m.from) || 'Ex membro')}</span>` : '';
-    return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<span class="raw">${esc(m.text)}</span>${t}</div>`;
+    return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<span class="raw" translate="no">${esc(m.text)}</span>${t}</div>`;
   }
   /* chat dal vivo: chi scrive (con anteprima), chi è online, letture */
   const cl = { h: null, id: null, typing: {}, reads: {}, online: [], sentAt: 0, readSent: 0, count: 0, tmr: null };
@@ -1039,15 +1063,19 @@ export function boot(api, native) {
   function rMe() {
     if (!st.p) return;
     const p = st.p, full = p.name + ' ' + p.surname, pc = permCount();
+    const LG = LANGS.find(l => l.code === curLang()) || LANGS[0];
     $('#m-body').innerHTML = `
       <div class="card me-card"><button class="row" data-a="avatar" aria-label="Foto profilo"><span class="av-edit">${AV(full, null, '', st.uid)}<i>${I('camera')}</i></span><div class="fl"><b>${esc(full)}</b><span>${esc(st.email)}</span><span class="av-hint">${avUrl(st.uid) ? 'Cambia foto profilo' : 'Aggiungi una foto profilo'}</span></div>${I('chev', 'chev')}</button>
         <button class="row" data-a="phone"><i class="ic-dot green">${I('phone')}</i><div class="fl"><b>Telefono</b><span>${p.phone ? esc(p.phone) : 'Aggiungi: chi ti aiuta potrà chiamarti'}</span></div>${I('chev', 'chev')}</button></div>
+      <div class="card lang-card"><button class="row" data-a="lang-sheet"><i class="ic-dot blue">${I('globe')}</i><div class="fl"><b>Lingua</b><span translate="no">${LG.flag} ${esc(LG.name)}</span></div>${I('chev', 'chev')}</button></div>
       <div class="label">SOS</div><div class="card">
         <div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Sempre attiva dopo l'SOS, finché non tocchi «Sono al sicuro»</span></div></div>
+        ${toggleRow('diretta', 'camera', 'red', 'Diretta durante l\'SOS', 'Chi ti aiuta sente l\'audio e vede la fotocamera dal vivo; tutto viene salvato come prova')}
         ${toggleRow('voice', 'mic', 'amber', 'Messaggio vocale', 'Dopo l\'SOS puoi registrarne uno (facoltativo)')}
         ${toggleRow('shake', 'alert', 'violet', 'Scuoti per SOS', 'Scuoti forte il telefono: dopo 5 secondi parte l\'SOS (con l\'app aperta)')}
         ${toggleRow('quiet', 'eye', 'gray', 'SOS discreto', 'Niente vibrazioni e flash mentre l\'SOS parte')}
-        ${toggleRow('autoAudio', 'mic', 'red', 'Registra audio dopo l\'SOS', 'Dopo le foto registra 30 secondi di quello che succede intorno e lo manda alla cerchia')}
+        ${prefs.diretta === false ? toggleRow('autoAudio', 'mic', 'red', 'Registra audio dopo l\'SOS', 'Dopo le foto registra 30 secondi di quello che succede intorno e lo manda alla cerchia') : ''}
+        <button class="row" data-a="my-proofs"><i class="ic-dot violet">${I('shield')}</i><div class="fl wrap"><b>Prove dei miei SOS</b><span>Audio, foto e posizioni certificate · PDF per la denuncia</span></div>${I('chev', 'chev')}</button>
       </div>
       <div class="label">Privacy</div><div class="card">
         ${toggleRow('disguise', 'eye', 'blue', prefs.disguise ? 'Tema celeste' : 'Anonimizza l\'app', prefs.disguise ? 'Attivo: icona e colori celesti. Spegnilo per tornare al tema normale' : 'Icona celeste, colori blu e nessuna parola «SOS»: se qualcuno guarda il telefono non capisce a cosa serve')}
@@ -1178,7 +1206,7 @@ export function boot(api, native) {
   let dlgResolve;
   function dialog({ title, text, ok = 'OK', cancel = 'Annulla', danger = false }) {
     if (glassUi) {   // Liquid Glass: avviso di sistema di iOS
-      const c = v => dz.on ? dz.conv(String(v ?? '')) : String(v ?? '');
+      const c = v => globalThis.vLang !== 'it' ? globalThis.vT(String(v ?? '')) : dz.on ? dz.conv(String(v ?? '')) : String(v ?? '');
       return native.vx.glassAlert({ title: c(title), text: c(text), ok: c(ok), cancel: c(cancel), danger }).then(r => r === null ? webDialog({ title, text, ok, cancel, danger }) : r);
     }
     return webDialog({ title, text, ok, cancel, danger });
@@ -1282,11 +1310,11 @@ export function boot(api, native) {
         <div class="chips">${AI_CHIPS.map(c => `<button class="chip" data-a="ai-chip" data-q="${esc(c)}">${esc(c)}</button>`).join('')}</div></div>`;
       return;
     }
-    box.innerHTML = aiMsgs.map(m => m.role === 'user' ? `<div class="msg me">${esc(m.text)}</div>`
+    box.innerHTML = aiMsgs.map(m => m.role === 'user' ? `<div class="msg me" translate="no">${esc(m.text)}</div>`
       : m.role === 'danger' ? `<div class="msg danger"><b>Se sei in pericolo adesso, non aspettare la risposta:</b> tieni premuto SOS o chiama il 112. Per violenza o stalking c'è anche il 1522, gratis e attivo 24 ore su 24.<div class="row2"><button class="btn red" data-a="ai-sos">${I('alert')}Vai all'SOS</button><a class="btn ghost" href="tel:112">${I('phone')}112</a></div></div>`
       : m.role === 'err' ? `<div class="msg err">${mdLite(m.text)}<button class="chip" data-a="ai-diag">Verifica collegamento</button></div>`
       : m.role === 'local' ? `<div class="msg bot"><span class="ai-tag">Guida integrata</span>${mdLite(m.text)}</div>`
-      : `<div class="msg bot">${mdLite(m.text)}</div>`).join('')
+      : `<div class="msg bot" translate="no">${mdLite(m.text)}</div>`).join('')
       + (aiBusy ? `<div class="msg bot"><span class="typing"><i></i><i></i><i></i></span></div>` : '')
       + (aiLeft != null && aiLeft <= 5 ? `<div class="ai-left">Messaggi rimasti oggi: ${aiLeft}</div>` : '');
     box.scrollTop = 1e9;
@@ -1401,6 +1429,30 @@ export function boot(api, native) {
     busy: () => !!(sending || st.sosMine || $('#ov-in').classList.contains('on') || $('#ov-send').classList.contains('on') || lock?.locked?.() || !st.p || $('#s-setup').classList.contains('on')),
     sos: () => { if (st.sosMine || sending) return; if (!canSos()) return toast('Aggiungi qualcuno alla cerchia: in pericolo chiama il 112'); trigger(); }
   });
+  // Interprete d'emergenza (interprete.js): frasi pronte in italiano lette ad alta voce
+  tools.setExtra(createInterprete({ $, I, esc, toast, native, openSheet: (h, k) => openSheet(h, k), closeSheet: () => closeSheet(), showOv: (...a) => tools.h.showOv(...a), closeOv: () => tools.h.closeOv() }));
+  // Centrale di soccorso (centrale.js): diretta, walkie-talkie, soccorritori, scheda 112, prove
+  centrale = createCentrale({
+    $, I, esc, toast, native, api, AV, hhmm, wait, errMsg, dialog: o => dialog(o),
+    uid: () => st.uid, myName: () => `${st.p?.name || ''} ${st.p?.surname || ''}`.trim() || 'Io', myPhone: () => st.p?.phone || '',
+    myPos: () => st.myPos || null, getPos: () => native.getPos().catch(() => null), sosMine: () => st.sosMine, sosIn: () => st.sosIn,
+    sosById: id => api.mySos?.().then(l => l.find(x => x.id === id)).catch(() => null),
+    prefs: () => prefs, quiet: () => !!prefs.quiet, avatar: u => avUrl(u), medical: () => tools?.medicalLine() || '',
+    openSheet: (h, k) => openSheet(h, k), closeSheet: () => closeSheet(), mapRefresh: () => { rMap(); if (homeApi) homeApi.setData({ me: st.myPos, people: mapPeople() }); },
+    reverse: (lat, lng) => reverseAddr(lat, lng),
+    firstAudio: (sosId, path) => { if (st.sosMine?.id === sosId && !st.sosMine.audio && voice.sentFor !== sosId) api.call('attachSosAudio', { sosId, path }).then(() => { voice.sentFor = sosId; rVoice(); }).catch(() => {}); }
+  });
+  // indirizzo da coordinate (Photon, dati OpenStreetMap): per la scheda del 112
+  async function reverseAddr(lat, lng) {
+    const ctl = new AbortController(); const tt = setTimeout(() => ctl.abort(), 5000);
+    try {
+      const r = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}&lang=it&limit=1`, { signal: ctl.signal });
+      const f = (await r.json())?.features?.[0]?.properties; if (!f) return '';
+      const street = [f.street || (f.type === 'street' ? f.name : ''), f.housenumber].filter(Boolean).join(' ');
+      const place = f.name && f.name !== f.street && f.type !== 'street' && f.type !== 'house' ? f.name : '';
+      return [place, street, [f.postcode, f.city || f.town || f.village || f.county].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    } catch { return ''; } finally { clearTimeout(tt); }
+  }
   // blocco dell'app: la schermata del codice compare per prima, prima ancora del video di apertura
   if (intro.lockedAtBoot && lock.enabled()) lock.show('start'); else intro.start();
   tools.setExtra(createMore3({
@@ -1447,6 +1499,7 @@ export function boot(api, native) {
     try {
       if (lock && await lock.handle(a, t)) return;
       if (appello && await appello.handle(a, t)) return;
+      if (centrale && await centrale.handle(a, t)) return;
       if (await tools.handle(a, t)) return;
       switch (a) {
         case 'wel-start': ls.set('seen', '1'); authMode('up'); show('s-auth'); break;
@@ -1583,6 +1636,10 @@ export function boot(api, native) {
         case 'active-chat': { const c = st.sosMine?.chats?.[0]; if (c) openThread(c); break; }
         case 'in-close': st.dismissed.add(st.shownIn); closeIncoming(); rChats(); break;
         case 'in-open': { const s = st.sosIn.find(x => x.id === id); if (s) { st.dismissed.delete(id); showIncoming(s); } break; }
+        case 'cx-open': { const s = st.sosIn.find(x => x.id === id); if (s) { st.dismissed.delete(id); showIncoming(s); } break; }
+        case 'my-proofs': sheetMyProofs(); break;
+        case 'lang-sheet': openSheet(`<h2>Lingua</h2><p class="sub">Tutta l'app cambia lingua: schermate, strumenti, avvisi e notifiche.</p><div class="card lang-list" translate="no">${LANGS.map(l => `<button class="row${l.code === curLang() ? ' on' : ''}" data-a="lang-set" data-l="${l.code}"><span class="lang-flag">${l.flag}</span><div class="fl"><b>${esc(l.name)}</b></div>${l.code === curLang() ? I('check', 'lang-ok') : ''}</button>`).join('')}</div>`, 'lang'); break;
+        case 'lang-set': { const c = t.dataset.l; if (c === curLang()) { closeSheet(); break; } prefs.lang = c; savePrefs(); if (st.uid) await api.setLang?.(c).catch(() => {}); setLang(c); break; }
         case 'in-ack': await busy(t, async () => { await api.call('ackSos', { sosId: id }); st.dismissed.add(id); closeIncoming(); toast('Abbiamo avvisato che te ne occupi tu'); }); break;
         case 'in-chat': { const s = st.sosIn.find(x => x.id === id); st.dismissed.add(id); closeIncoming(); const c = s?.chats?.find(c => convs().some(x => x.id === c)); if (c) openThread(c); else tab('chat'); break; }
         case 'ai': closeSheet(); openAI(); break;
@@ -1647,6 +1704,7 @@ export function boot(api, native) {
   function startData() {
     if (unwatch) return;
     loadAvatars(true); clearInterval(avIv); avIv = setInterval(() => st.uid && loadAvatars(true), 5 * 60e3);
+    api.setLang?.(curLang());   // le notifiche push arrivano nella lingua dell'app
     unwatch = api.watch(st.uid, {
       user: d => { st.muted = d?.mutedGroups || []; if (d) st.p = { ...st.p, ...pick(d) }; render(); },
       links: ls_ => {
@@ -1670,9 +1728,11 @@ export function boot(api, native) {
         syncChats(); render(); refreshSheet(); loadAvatars(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
       },
       checks: list => appello?.set(list),
-      sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); if (st.sosIn.some(s => !(s.from in st.av))) loadAvatars(true); checkIncoming(); rChats(); rBadge(); rMap(); if (st.open) rThread(); },
+      sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); if (centrale?.rxId()) { if (st.sosIn.some(s => s.id === centrale.rxId())) centrale.renderRx(); else centrale.closeRx(true); } rSosBar(); if (st.sosIn.some(s => !(s.from in st.av))) loadAvatars(true); checkIncoming(); rChats(); rBadge(); rMap(); if (st.open) rThread(); },
       sosMine: list => {
         const was = !!st.sosMine; st.sosMine = list.filter(s => Date.now() - s.at < 12 * 36e5).sort((a, b) => b.at - a.at)[0] || null;
+        if (st.sosMine) { const go = () => { if (!st.sosMine) return; if (sending) return setTimeout(go, 600); centrale?.onMine(st.sosMine, { silent: silentSos }); }; go(); }
+        else centrale?.onMine(null);
         if (st.sosMine) { intro.done(true); if (live.sosId !== st.sosMine.id) startLive(st.sosMine.id, st.sosMine.liveUntil || st.sosMine.at + 12 * 36e5); rActive(); if (!sending && !silentSos && ['s-home', 's-active'].some(s => $('#' + s).classList.contains('on'))) show('s-active'); }
         else { silentSos = false; if (live.sosId) stopLive(false); if (was && $('#s-active').classList.contains('on')) tab('home'); }
         rMap();
@@ -1687,7 +1747,7 @@ export function boot(api, native) {
   function stopData() {
     unwatch?.(); unwatch = null; linksLoaded = false; Object.values(chatUn).forEach(f => f()); chatUn = {};
     Object.assign(st, { uid: null, email: '', p: null, links: [], groups: [], muted: [], threads: {}, sosIn: [], sosMine: null, av: {}, open: null, dismissed: new Set(), shownIn: null });
-    closeSheet(); closeIncoming(); $('#ov-send').classList.remove('on'); appello?.reset();
+    closeSheet(); closeIncoming(); $('#ov-send').classList.remove('on'); appello?.reset(); centrale?.reset();
   }
 
   /* ================= push ================= */
@@ -1809,7 +1869,7 @@ export function boot(api, native) {
     if (upd.checking) h = `<h2>Aggiornamenti</h2><p class="sub">Controllo se c'è una nuova versione…</p><div class="upd-bar"><i class="indet"></i></div>`;
     else if (upd.err) h = `<h2>Aggiornamenti</h2><p class="sub">${esc(upd.err)}</p><p class="note">Versione installata: ${esc(c.version)}</p><button class="btn" data-a="upd-check">Riprova</button>`;
     else if (!updNewer()) h = `<h2>Sei aggiornat${st.p?.gender === 'm' ? 'o' : 'a'}</h2><p class="sub">Hai già l'ultima versione di Vicina.</p>
-      <div class="card upd-ver"><div class="row"><i class="ic-dot green">${I('check')}</i><div class="fl"><b>Versione ${esc(c.version)}</b><span>${l?.date ? 'Ultima pubblicata il ' + new Date(l.date).toLocaleDateString('it-IT') : 'Installata'}</span></div></div></div>
+      <div class="card upd-ver"><div class="row"><i class="ic-dot green">${I('check')}</i><div class="fl"><b>Versione ${esc(c.version)}</b><span>${l?.date ? 'Ultima pubblicata il ' + new Date(l.date).toLocaleDateString(globalThis.vLoc || 'it-IT') : 'Installata'}</span></div></div></div>
       <button class="btn ghost" data-a="upd-check">Controlla di nuovo</button>`;
     else if (android) {
       const a = l.android || {};
@@ -1900,4 +1960,5 @@ export function boot(api, native) {
   }
   // tema anonimo salvato: si applica subito, già dalla prima schermata
   dz.apply(!!prefs.disguise);
+  native.vx?.updateWidget?.(!!prefs.disguise);   // widget e testi di sistema nella lingua dell'app
 }

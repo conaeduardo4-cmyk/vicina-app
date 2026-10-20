@@ -11,6 +11,14 @@ unless group.files.any? { |f| f.path == 'VicinaNative.swift' }
   ref = group.new_reference('VicinaNative.swift')
   target.add_file_references([ref])
 end
+# testi dei permessi tradotti (InfoPlist.strings in <lingua>.lproj, creati da patch-native.mjs)
+langs = Dir.glob('ios/App/App/*.lproj/InfoPlist.strings').map { |f| File.basename(File.dirname(f), '.lproj') }
+unless langs.empty? || group.children.any? { |c| c.display_name == 'InfoPlist.strings' }
+  vg = group.new_variant_group('InfoPlist.strings')
+  langs.each { |l| r = vg.new_reference("#{l}.lproj/InfoPlist.strings"); r.name = l; r.last_known_file_type = 'text.plist.strings' }
+  target.resources_build_phase.add_file_reference(vg)
+end
+proj.root_object.known_regions = (proj.root_object.known_regions + langs + ['Base']).uniq
 target.build_configurations.each do |c|
   c.build_settings['ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES'] = 'AppIconBlue'
   c.build_settings['ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS'] = 'YES'

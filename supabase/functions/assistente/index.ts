@@ -31,6 +31,19 @@ const MODELS: Record<string, string[]> = {
 const LIMIT = Math.max(1, Number(env('AI_DAILY_LIMIT', '40')) || 40);
 const BUDGET_MS = 45000;                // tempo massimo totale per una risposta
 const FUORI_TEMA = "Questa domanda non c'entra con Vicina. Posso aiutarti solo con l'uso dell'app e con la tua sicurezza personale.";
+// lingua dell'app di chi scrive: l'assistente risponde in quella lingua
+const LINGUE: Record<string, [string, string]> = {
+  it: ['italiano', FUORI_TEMA],
+  en: ['English (inglese)', "This question isn't about Vicina. I can only help you with using the app and with your personal safety."],
+  es: ['español (spagnolo)', 'Esta pregunta no tiene que ver con Vicina. Solo puedo ayudarte con el uso de la app y con tu seguridad personal.'],
+  fr: ['français (francese)', "Cette question ne concerne pas Vicina. Je peux seulement t'aider à utiliser l'appli et pour ta sécurité personnelle."],
+  de: ['Deutsch (tedesco)', 'Diese Frage hat nichts mit Vicina zu tun. Ich kann dir nur bei der Nutzung der App und bei deiner persönlichen Sicherheit helfen.'],
+  pt: ['português (portoghese)', 'Esta pergunta não tem a ver com o Vicina. Só posso ajudar-te com a utilização da app e com a tua segurança pessoal.'],
+  ar: ['العربية (arabo)', 'هذا السؤال لا يتعلق بتطبيق Vicina. يمكنني مساعدتك فقط في استخدام التطبيق وفي سلامتك الشخصية.'],
+  uk: ['українська (ucraino)', 'Це питання не стосується Vicina. Я можу допомогти лише з користуванням застосунком і з твоєю особистою безпекою.'],
+  ro: ['română (rumeno)', 'Această întrebare nu are legătură cu Vicina. Te pot ajuta doar cu folosirea aplicației și cu siguranța ta personală.'],
+  sq: ['shqip (albanese)', 'Kjo pyetje nuk ka lidhje me Vicina. Mund të të ndihmoj vetëm me përdorimin e aplikacionit dhe me sigurinë tënde personale.']
+};
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -56,9 +69,9 @@ COME FUNZIONA L'APP VICINA (usa queste informazioni per rispondere sulle funzion
 - Limiti noti: per scattare le foto l'app deve essere aperta in primo piano; senza internet l'SOS non parte e l'app propone di chiamare il 112.
 `;
 
-function regole(nome: string, genere: string) {
+function regole(nome: string, genere: string, lingua = 'italiano') {
   return `Sei l'Assistente di Vicina, un'app italiana di sicurezza personale (SOS alla propria cerchia di persone fidate).
-Parli SEMPRE in italiano, in modo caldo, chiaro e breve (di norma 2-6 frasi o un elenco corto). ${nome ? `L'utente si chiama ${nome}` : ''}${genere === 'f' ? ' (usa il femminile)' : genere === 'm' ? ' (usa il maschile)' : ''}.
+Parli SEMPRE in ${lingua} (la lingua scelta nell'app, anche se l'utente scrive in un'altra lingua), in modo caldo, chiaro e breve (di norma 2-6 frasi o un elenco corto). ${nome ? `L'utente si chiama ${nome}` : ''}${genere === 'f' ? ' (usa il femminile)' : genere === 'm' ? ' (usa il maschile)' : ''}.
 
 REGOLE DI SICUREZZA, da rispettare sempre:
 1. Se l'utente dice o fa capire di essere in pericolo ADESSO (seguita/o, minacciata/o, aggressione, ferite, malore, violenza in corso): rispondi per prima cosa, in una riga, di chiamare subito il 112 o di tenere premuto il pulsante SOS di Vicina. Solo dopo, pochissimi consigli pratici immediati (andare in un luogo affollato e illuminato, entrare in un negozio o bar, restare al telefono con qualcuno). Niente testi lunghi.
@@ -87,7 +100,7 @@ Deno.serve(async req => {
   if (!uid) return json({ error: 'Sessione scaduta: esci e accedi di nuovo per usare l\'assistente.', code: 'auth' }, 401);
 
   // 2) messaggi (ultimi 12, testo limitato)
-  let body: { messages?: Msg[]; diag?: boolean } = {};
+  let body: { messages?: Msg[]; diag?: boolean; lang?: string } = {};
   try { body = await req.json(); } catch { /* vuoto */ }
   if (body.diag) return json(await diagnose(true));
   const msgs: Turn[] = (Array.isArray(body.messages) ? body.messages : [])
@@ -110,13 +123,14 @@ Deno.serve(async req => {
 
   // 5) IA
   if (!PROVIDERS.length) return json({ error: "L'assistente non è configurato sul server: manca la chiave (GROQ_API_KEY, GEMINI_API_KEY o OPENROUTER_API_KEY).", code: 'config' }, 503);
-  const { reply, errors } = await ask(regole(p?.name || '', p?.gender || ''), msgs);
+  const LG = LINGUE[String(body.lang || 'it')] || LINGUE.it;
+  const { reply, errors } = await ask(regole(p?.name || '', p?.gender || '', LG[0]), msgs);
   if (!reply) {
     console.error('assistente: nessun fornitore ha risposto', errors);
     return json({ error: "L'assistente non risponde in questo momento. Riprova tra un minuto. In emergenza usa il pulsante SOS o chiama il 112.", code: 'providers', detail: errors.slice(-3) }, 502);
   }
   let out = reply;
-  if (/^\W*FUORI[_ ]TEMA\W*$/i.test(out) || (/FUORI[_ ]TEMA/i.test(out) && out.length < 40)) out = FUORI_TEMA;
+  if (/^\W*FUORI[_ ]TEMA\W*$/i.test(out) || (/FUORI[_ ]TEMA/i.test(out) && out.length < 40)) out = LG[1];
   return json({ reply: out, left });
 });
 

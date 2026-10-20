@@ -211,6 +211,10 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
             guard let box = self.tabBox else { call.resolve(["active": false]); return }
             hostVC.view.bringSubviewToFront(box)
             tc.tintColor = self.glassTint
+            // nomi delle schede nella lingua dell'app
+            if let titles = call.getObject("titles") {
+                for (i, t) in self.glassTabs.enumerated() { if let s = titles[t.0] as? String, !s.isEmpty { tc.items?[i].title = s } }
+            }
             // le stesse icone della barra dell'app (PNG 84×84 = 28pt @3x), colorate da iOS
             if let icons = call.getObject("icons") {
                 for (i, t) in self.glassTabs.enumerated() {
@@ -323,8 +327,8 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
     }
     @objc func bioAuth(_ call: CAPPluginCall) {
         let ctx = LAContext()
-        ctx.localizedFallbackTitle = "Usa il codice"
-        ctx.localizedCancelTitle = "Annulla"
+        ctx.localizedFallbackTitle = call.getString("fallback") ?? "Usa il codice"
+        ctx.localizedCancelTitle = call.getString("cancel") ?? "Annulla"
         ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: call.getString("reason") ?? "Sblocca Vicina") { ok, err in
             let code = (err as? LAError)?.code
             DispatchQueue.main.async { call.resolve(["ok": ok, "reason": code == .userFallback ? "code" : (err?.localizedDescription ?? "")]) }
@@ -372,8 +376,13 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    // su iPhone il widget non c'è (serve un'estensione separata)
-    @objc func updateWidget(_ call: CAPPluginCall) { call.resolve() }
+    // lingua scelta in Vicina: iOS la usa dal prossimo avvio per i testi di sistema dell'app (permessi, Impostazioni)
+    @objc func updateWidget(_ call: CAPPluginCall) {
+        if let l = call.getString("lang"), !l.isEmpty, (UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first ?? "") != l {
+            UserDefaults.standard.set([l], forKey: "AppleLanguages")
+        }
+        call.resolve()
+    }
 
     // link vicina:// arrivato da un'azione rapida prima che l'app fosse pronta
     @objc func pendingUrl(_ call: CAPPluginCall) {

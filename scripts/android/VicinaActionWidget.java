@@ -50,8 +50,8 @@ public class VicinaActionWidget extends AppWidgetProvider {
         for (int id : ids) {
             RemoteViews v = new RemoteViews(c.getPackageName(), res(c, "vicina_action_widget", "layout"));
             int root = res(c, "vicina_aw_root", "id"), title = res(c, "vicina_aw_title", "id"), sub = res(c, "vicina_aw_sub", "id");
-            v.setTextViewText(title, discreet ? k[3] : k[1]);
-            v.setTextViewText(sub, discreet ? "tocca" : k[2]);
+            v.setTextViewText(title, VicinaWidget.L(c, discreet ? k[3] : k[1]));
+            v.setTextViewText(sub, VicinaWidget.L(c, discreet ? "tocca" : k[2]));
             int color = "1".equals(k[6]) ? 0xFF1A1200 : 0xFFFFFFFF;
             v.setTextColor(title, color);
             v.setTextColor(sub, color);
@@ -66,8 +66,9 @@ public class VicinaActionWidget extends AppWidgetProvider {
         boolean discreet = c.getSharedPreferences(VicinaWidget.PREFS, Context.MODE_PRIVATE).getBoolean("discreet", false);
         for (int id : ids) {
             RemoteViews v = new RemoteViews(c.getPackageName(), res(c, "vicina_panel_widget", "layout"));
-            v.setTextViewText(res(c, "vicina_p1", "id"), discreet ? "Segnale" : "SOS");
-            v.setTextViewText(res(c, "vicina_p3", "id"), discreet ? "Suono" : "Sirena");
+            v.setTextViewText(res(c, "vicina_p1", "id"), VicinaWidget.L(c, discreet ? "Segnale" : "SOS"));
+            v.setTextViewText(res(c, "vicina_p3", "id"), VicinaWidget.L(c, discreet ? "Suono" : "Sirena"));
+            v.setTextViewText(res(c, "vicina_p4", "id"), VicinaWidget.L(c, "Torcia"));
             v.setInt(res(c, "vicina_p1", "id"), "setBackgroundResource", res(c, "vicina_aw_" + (discreet ? "blue" : "red"), "drawable"));
             v.setOnClickPendingIntent(res(c, "vicina_p1", "id"), link(c, "vicina://sos-widget", 301));
             Intent dial = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:112"));

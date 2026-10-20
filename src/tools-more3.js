@@ -285,7 +285,7 @@ export function createMore3(ctx, base, extra) {
       case 'x3-qt-go': quickTimer(Number(t.dataset.m)); return true;
       case 'x3-qt-more': quickTimer.add?.(60); toast('+1 minuto'); return true;
       case 'x3-burst': burst(); return true;
-      case 'x3-burst-share': if (burstImgs.length && !(await native.shareImages(burstImgs, 'Foto del ' + new Date().toLocaleString('it-IT')))) toast('Condivisione non disponibile'); return true;
+      case 'x3-burst-share': if (burstImgs.length && !(await native.shareImages(burstImgs, 'Foto del ' + new Date().toLocaleString(globalThis.vLoc || 'it-IT')))) toast('Condivisione non disponibile'); return true;
       case 'x3-fakevideo': fakeVideo(); return true;
       case 'x3-word': safeWord(); return true;
       case 'x3-word-send': {

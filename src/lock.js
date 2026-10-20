@@ -71,7 +71,8 @@ export function createLock(ctx) {
     if (unlocking || !locked() || !bio.available || !cfg()?.bio) return;
     unlocking = true;
     try {
-      const r = await native.vx.bioAuth({ reason: 'Sblocca Vicina' });
+      const tt = s => (globalThis.vT ? globalThis.vT(s) : s);
+      const r = await native.vx.bioAuth({ reason: tt('Sblocca Vicina'), fallback: tt('Usa il codice'), cancel: tt('Annulla') });
       if (r?.ok) { fails = 0; hide(); }
     } catch {}
     unlocking = false;

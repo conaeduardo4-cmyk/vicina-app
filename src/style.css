@@ -1846,3 +1846,144 @@ html.dz nav .nav-pill{background:linear-gradient(180deg,rgba(86,168,255,.24),rgb
 @keyframes sosshock{from{transform:scale(1);opacity:1}to{transform:scale(7);opacity:0}}
 
 @media (prefers-reduced-motion: reduce){.screen.stg>*,.sheet,.dialog,.badge:not([hidden]),#sos.fire::after{animation:none!important}nav .nav-pill,.toast{transition:none}}
+
+/* ===================================================================
+   CENTRALE DI SOCCORSO (3.0): diretta, walkie-talkie, soccorritori, scheda 112, prove
+   =================================================================== */
+.cx-act{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.cx-act:empty{display:none}
+.cx-card{position:relative;display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:22px;background:var(--s1);border:1px solid var(--line)}
+.cx-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cx-live{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:99px;background:var(--s2);color:var(--sub);font-size:11px;font-weight:850;letter-spacing:.08em}
+.cx-live i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.cx-live.on{background:var(--red);color:#fff}.cx-live.on i{animation:blink 1s infinite}
+.cx-eyes{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--sub);font-weight:600}
+.cx-eyes .i{width:16px;height:16px}
+.cx-self-w{position:relative;height:150px;border-radius:16px;overflow:hidden;background:#000}
+.cx-self-w.off{display:none}
+.cx-self-w video,.cx-self{width:100%;height:100%;object-fit:cover;display:block}
+.cx-note{font-size:12.5px;color:var(--sub);line-height:1.4}
+.cx-btns{display:flex;gap:8px;flex-wrap:wrap}
+.cx-btns .btn{flex:1;min-width:0}
+.cx-sec{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:4px}
+.cx-sec b{font-size:15px}.cx-sec span{font-size:12px;color:var(--sub);text-align:right}
+.cx-helpers .tag .i{width:12px;height:12px;margin-right:3px;vertical-align:-1px}
+.tag.blue{background:var(--bluebg);color:var(--blue)}.tag.violet{background:var(--violetbg);color:var(--violet)}.tag.gray{background:var(--s2);color:var(--sub)}
+.cx-feed{display:flex;flex-direction:column;gap:6px}
+.cx-msg{align-self:flex-start;max-width:86%;display:flex;flex-direction:column;gap:2px;padding:9px 12px;border-radius:16px 16px 16px 6px;background:var(--s2)}
+.cx-msg.me{align-self:flex-end;border-radius:16px 16px 6px 16px;background:rgba(77,163,255,.18)}
+.cx-msg b{font-size:11.5px;color:var(--sub)}.cx-msg span{font-size:14.5px;line-height:1.35}.cx-msg i{font-style:normal;font-size:10.5px;color:var(--mute);align-self:flex-end}
+.cx-play{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:99px;background:rgba(255,255,255,.08);font-weight:650;font-size:13px;color:var(--ink)}
+.cx-play .i{width:15px;height:15px}
+.cx-quick{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.cx-quick::-webkit-scrollbar{display:none}
+.cx-quick button{flex:none;padding:8px 12px;border-radius:99px;background:var(--s2);border:1px solid var(--line2);color:var(--ink);font-size:13px;font-weight:600;white-space:nowrap;transition:transform .3s var(--spring,ease)}
+.cx-quick button:active{transform:scale(.94)}
+.cx-tools .btn{min-width:0}
+/* chi aiuta: diretta */
+.cx-in{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+.cx-in:empty{display:none}
+.cx-view{position:relative;height:210px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 50% 40%,#1b1f2a,#07080b)}
+.cx-view img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}
+.cx-view.on img{opacity:1}
+.cx-view-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--sub);font-size:13px}
+.cx-view.on .cx-view-ph{display:none}
+.cx-view .cx-live{position:absolute;top:10px;left:10px;display:none}
+.cx-view.on .cx-live{display:inline-flex}
+.cx-view-age{position:absolute;top:13px;right:12px;font-size:11px;color:rgba(255,255,255,.75);text-shadow:0 1px 4px #000}
+.cx-listen{position:absolute;left:10px;bottom:10px;display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:99px;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#fff;font-weight:700;font-size:13.5px}
+.cx-listen.on{background:var(--green);color:#04210f}
+.cx-listen .i{width:17px;height:17px}
+.cx-roles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cx-role{display:flex;align-items:center;gap:8px;padding:12px;border-radius:16px;background:var(--s1);border:1.5px solid var(--line2);color:var(--ink);font-weight:700;font-size:13.5px;text-align:left;transition:transform .35s var(--spring,ease),background .25s,border-color .25s}
+.cx-role:active{transform:scale(.95)}
+.cx-role .i{width:19px;height:19px;flex:none}
+.cx-role.on.blue{background:var(--bluebg);border-color:var(--blue);color:var(--blue)}
+.cx-role.on.red{background:var(--redbg);border-color:var(--red2);color:var(--red2)}
+.cx-role.on.violet{background:var(--violetbg);border-color:var(--violet);color:var(--violet)}
+.cx-role.on.green{background:var(--greenbg);border-color:var(--green);color:var(--green)}
+.cx-talk{display:flex;flex-direction:column;gap:8px}
+.cx-ptt{display:flex;align-items:center;justify-content:center;gap:10px;height:58px;border-radius:20px;background:linear-gradient(135deg,#1F6FE0,#4DA3FF);color:#fff;font-weight:800;font-size:16px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .3s var(--spring,ease),box-shadow .3s}
+.cx-ptt .i{width:22px;height:22px}
+.cx-ptt.rec{transform:scale(.97);background:linear-gradient(135deg,#C8102E,#FF4D5E);box-shadow:0 0 0 6px rgba(255,77,94,.2),0 0 0 14px rgba(255,77,94,.08);animation:chkhelp 1s infinite}
+.cx-ptt.rec span::after{content:' · ti sentono quando lasci'}
+.cx-type{display:flex;align-items:center;gap:6px;padding:4px 4px 4px 14px;border-radius:18px;background:var(--s1);border:1px solid var(--line2)}
+.cx-type input{flex:1;min-width:0;background:none;border:0;color:var(--ink);font-size:15px;height:42px;outline:none}
+/* scheda 112 */
+.cx-112{display:flex;flex-direction:column;gap:12px}
+.cx-sits{display:flex;flex-wrap:wrap;gap:6px}
+.cx-sits button{padding:8px 12px;border-radius:99px;background:var(--s2);border:1px solid var(--line2);color:var(--ink);font-size:13px;font-weight:600}
+.cx-sits button.on{background:var(--redbg);border-color:var(--red2);color:var(--red2)}
+.cx-script{padding:16px;border-radius:18px;background:#fff;color:#111;font-size:17px;line-height:1.5;font-weight:550}
+.cx-load{color:var(--sub);font-size:14px}
+.cx-script .cx-load{color:#666}
+.cx-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.cx-nums a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:14px;background:var(--s2);color:var(--ink);text-align:center;text-decoration:none}
+.cx-nums b{font-size:18px;font-weight:850}.cx-nums span{font-size:10.5px;color:var(--sub);line-height:1.2}
+/* prove */
+.cx-proof{display:flex;flex-direction:column;gap:12px}
+.cx-ver{display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px}
+.cx-ver.ok{background:var(--greenbg);color:var(--green)}.cx-ver.bad{background:var(--redbg);color:var(--red2)}
+.cx-ver .i{width:26px;height:26px}.cx-ver .fl{display:flex;flex-direction:column}.cx-ver b{font-size:15.5px}.cx-ver span{font-size:12.5px;opacity:.85}
+.cx-counts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.cx-counts span{display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:14px;background:var(--s2);font-size:11.5px;color:var(--sub)}
+.cx-counts b{font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
+.cx-hash{font-size:12px;color:var(--sub)}
+.cx-hash code{display:block;margin-top:4px;padding:8px 10px;border-radius:10px;background:var(--s2);color:var(--ink);font-size:11px;word-break:break-all;font-family:ui-monospace,Menlo,monospace}
+/* striscia SOS ricevuto in Home */
+.sosin-bar{display:flex;flex-direction:column;gap:8px}
+.sosin-strip{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:20px;text-align:left;color:#fff;background:linear-gradient(135deg,#8E0A1D,#E8192C);box-shadow:0 12px 30px -12px rgba(232,25,44,.7);animation:chkslide .5s var(--out,ease) both}
+.sosin-strip .fl{flex:1;min-width:0;display:flex;flex-direction:column}.sosin-strip b{font-size:15px}.sosin-strip .fl span{font-size:12.5px;opacity:.85}
+.sosin-strip .pill{background:#fff;color:var(--red);font-weight:800;padding:7px 12px;border-radius:99px;font-size:12.5px}
+/* soccorritori sulla mappa */
+.pin-sos.helper .pin-head{background:#1F6FE0}.pin-sos.helper .pin-ring{border-color:#4DA3FF}
+
+/* ===================================================================
+   UI 3.0 · ritocchi: profondità più leggibile, righe più comode, Home più ordinata
+   =================================================================== */
+.card,.tile,.cx-card,.chk-list{background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 60%),var(--s1);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 10px 30px -18px rgba(0,0,0,.8)}
+.card .row,.card button.row{min-height:58px}
+.card .row .fl>span{line-height:1.35}
+.label{margin:24px 4px 10px}
+/* Home: assistente più compatto, così SOS e Appello restano in primo piano */
+#s-home>.ai-card{min-height:62px;padding:10px 14px;border-radius:20px}
+#s-home>.ai-card .ai-ic{width:40px;height:40px;border-radius:13px}
+#s-home>.ai-card .ai-txt b{font-size:16px}
+#s-home .home-h .title{letter-spacing:-.035em}
+#h-eye{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border-radius:99px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+#h-eye.ok{background:rgba(61,220,132,.1);border-color:rgba(61,220,132,.25);color:#7CEBAF}
+/* pulsanti: altezza minima comoda e testo che non si spezza male */
+.btn{min-height:48px}
+.btn.sm{min-height:40px}
+.btn .i{flex:none}
+/* intestazioni delle schede più coerenti */
+.hh .eyebrow{letter-spacing:.14em}
+/* contrasto un po' più alto per i testi secondari */
+:root{--sub:#A6A6B0}
+html[dir="rtl"] body{direction:rtl}
+.cx-tr-h{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin-bottom:-4px}
+.cx-script-tr{padding:12px 14px;border-radius:14px;background:var(--s2);font-size:14.5px;line-height:1.45;color:var(--ink)}
+/* interprete d'emergenza */
+.ip{display:flex;flex-direction:column;gap:12px}
+.ip-seg{margin:0}
+.ip-list{display:flex;flex-direction:column;gap:6px}
+.ip-row{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;column-gap:10px;align-items:center;padding:12px 14px;border-radius:16px;background:var(--s1);border:1px solid var(--line);text-align:start;color:var(--ink)}
+.ip-row b{font-size:15.5px;font-weight:700}.ip-row span{grid-row:2;font-size:13px;color:var(--sub)}
+.ip-row .i{grid-row:1/3;grid-column:2;width:20px;height:20px;color:var(--blue)}
+.ip-row.ask b{color:var(--ink)}
+.ip-big{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px 22px calc(var(--sab) + 24px);text-align:center;background:#fff;color:#0b0b10;min-height:100%}
+.ip-big>b{font-size:clamp(34px,10vw,56px);line-height:1.12;font-weight:850;letter-spacing:-.02em}
+.ip-big>span{font-size:18px;color:#555}
+.ip-big .ip-x{position:absolute;top:calc(var(--sat) + 12px);right:14px;color:#0b0b10;background:#eee}
+.ip-acts{display:flex;flex-direction:column;gap:8px;width:100%;max-width:340px;margin-top:10px}
+.ip-big .btn.ghost{color:#0b0b10;border-color:#ddd;background:#f3f3f5}
+/* lingua */
+.wel-lang{position:absolute;top:calc(var(--sat) + 14px);right:16px;z-index:3;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid var(--line2);color:var(--ink);font-size:13px;font-weight:650}
+html[dir="rtl"] .wel-lang{right:auto;left:16px}
+.wel-lang .i{width:17px;height:17px}
+#s-wel{position:relative}
+.lang-list .row{gap:14px}
+.lang-flag{font-size:24px;line-height:1;width:32px;text-align:center}
+.lang-list .row.on b{color:var(--blue)}
+.lang-ok{width:20px;height:20px;color:var(--blue)}
+.lang-card{margin-top:12px}

@@ -9,9 +9,28 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.widget.RemoteViews;
+import java.io.InputStream;
+import org.json.JSONObject;
 
 public class VicinaWidget extends AppWidgetProvider {
     public static final String PREFS = "vicina_widget";
+    private static JSONObject words = null;
+
+    // testi dei widget nella lingua dell'app (scelta in Vicina) o, se non c'è, in quella del telefono
+    public static String L(Context c, String it) {
+        try {
+            String lang = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("lang", null);
+            if (lang == null) lang = java.util.Locale.getDefault().getLanguage();
+            if (lang == null || "it".equals(lang)) return it;
+            if (words == null) {
+                InputStream is = c.getAssets().open("vicina_widgets.json");
+                byte[] b = new byte[is.available()]; int n = is.read(b); is.close();
+                words = new JSONObject(new String(b, 0, Math.max(0, n), "UTF-8"));
+            }
+            JSONObject o = words.optJSONObject(it);
+            return o == null ? it : o.optString(lang, it);
+        } catch (Exception e) { return it; }
+    }
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
@@ -29,8 +48,8 @@ public class VicinaWidget extends AppWidgetProvider {
         int bgBlue = context.getResources().getIdentifier("vicina_widget_bg_blue", "drawable", context.getPackageName());
         for (int id : ids) {
             RemoteViews v = new RemoteViews(context.getPackageName(), layout);
-            v.setTextViewText(text, discreet ? "Vicina" : "SOS");
-            v.setTextViewText(sub, discreet ? "tocca" : "tocca per avvisare");
+            v.setTextViewText(text, discreet ? "Vicina" : L(context, "SOS"));
+            v.setTextViewText(sub, L(context, discreet ? "tocca" : "tocca per avvisare"));
             v.setInt(root, "setBackgroundResource", discreet ? bgBlue : bgRed);
             Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse("vicina://sos-widget"));
             i.setPackage(context.getPackageName());

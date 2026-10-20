@@ -43,7 +43,7 @@ export function createDemoApi() {
     setTimeout(() => {
       const l = db.links[0]; if (!l) return;
       const uid = l.uids.find(x => x !== 'me'), p = PEOPLE.find(x => x[0] === uid);
-      const s = { id: 's_' + rnd(), from: uid, fromName: p[1], fromPhone: p[2], lat: 45.4642, lng: 9.19, acc: 18, photos: [], at: Date.now(), locAt: Date.now(), liveUntil: Date.now() + 12 * 36e5, track: [], audio: null, active: true, acks: {}, recipients: ['me'], chats: [l.id] };
+      const s = { id: 's_' + rnd(), from: uid, fromName: p[1], fromPhone: p[2], lat: 45.4642, lng: 9.19, acc: 18, photos: [], at: Date.now(), locAt: Date.now(), liveUntil: Date.now() + 12 * 36e5, track: [], audio: null, active: true, acks: {}, helpers: {}, recipients: ['me'], chats: [l.id] };
       db.sos.push(s); push(l.id, { type: 'sos', from: uid, fromName: p[1], sosId: s.id, lat: s.lat, lng: s.lng, photos: [] }); emit();
       setTimeout(() => { s.photos = ['demo/back.jpg', 'demo/front.jpg']; emit(); }, 2500);
       setTimeout(() => { s.audio = 'demo/voice.webm'; emit(); }, 6000);
@@ -108,7 +108,7 @@ export function createDemoApi() {
       db.groups.filter(g => !db.user.mutedGroups.includes(g.id)).forEach(g => { chats.push(g.id); g.memberUids.forEach(u => u !== 'me' && rec.add(u)); });
       if (!rec.size) throw err('failed-precondition', 'Aggiungi prima qualcuno da avvisare');
       const liveUntil = Date.now() + 12 * 36e5;
-      const s = { id: sosId, from: 'me', fromName: me(), fromPhone: db.user.phone, lat, lng, acc, photos: [], at: Date.now(), locAt: Date.now(), liveUntil, track: [], audio: null, active: true, acks: {}, recipients: [...rec], chats };
+      const s = { id: sosId, from: 'me', fromName: me(), fromPhone: db.user.phone, lat, lng, acc, photos: [], at: Date.now(), locAt: Date.now(), liveUntil, track: [], audio: null, active: true, acks: {}, helpers: {}, recipients: [...rec], chats };
       db.sos.push(s); chats.forEach(c => push(c, { type: 'sos', from: 'me', fromName: me(), sosId, lat, lng, photos: [] })); emit();
       setTimeout(() => { const first = [...rec][0]; const n = PEOPLE.find(p => p[0] === first)?.[1] || 'Contatto'; s.acks[first] = n; emit(); push(chats[0], { type: 'text', from: first, text: 'Ho visto! Ti chiamo subito, sto arrivando.' }); }, 5000);
       return { recipients: rec.size, liveUntil };
@@ -132,6 +132,18 @@ export function createDemoApi() {
     async resolveSos({ sosId }) {
       const s = db.sos.find(x => x.id === sosId); s.active = false; s.liveUntil = Math.min(s.liveUntil || 0, Date.now()); s.chats.forEach(c => push(c, { type: 'safe', from: 'me', fromName: me(), sosId })); emit(); return { ok: true };
     },
+    // Centrale di soccorso (demo)
+    async sosHelp({ sosId, role, lat, lng, eta }) {
+      const s = db.sos.find(x => x.id === sosId); if (!s || !s.active) throw err('failed-precondition', 'L\'SOS è già stato chiuso');
+      s.helpers = { ...s.helpers, me: { name: me(), role, at: Date.now(), lat, lng, eta } }; if (role !== 'none') s.acks.me = me(); emit(); return { ok: true };
+    },
+    async addEvidence({ sosId, kind, path, sha, note, lat, lng }) {
+      const list = (evid[sosId] ||= []), prev = list.length ? list[list.length - 1].chain : sosId, at = Date.now();
+      const chain = await sha256hex(`${prev}|${list.length + 1}|${kind}|${path || ''}|${sha || ''}|${lat ?? ''},${lng ?? ''}|${new Date(at).toISOString()}`);
+      list.push({ seq: list.length + 1, kind, path: path || null, sha: sha || null, note: note || null, lat: lat ?? null, lng: lng ?? null, at, chain });
+      return { seq: list.length, chain, at };
+    },
+    async verifyEvidence({ sosId }) { const l = evid[sosId] || []; return { ok: true, count: l.length, last: l.length ? l[l.length - 1].chain : sosId, firstBad: null }; },
     async ackSos({ sosId }) { const s = db.sos.find(x => x.id === sosId); s.acks.me = me(); emit(); return { ok: true }; },
     // Appello «State tutti bene?»: nella demo i contatti rispondono da soli, uno chiede aiuto, uno tace finché non lo solleciti
     async sendCheck({ id, reason, note, lat, lng }) {
@@ -176,6 +188,33 @@ export function createDemoApi() {
   };
 
   const liveH = {};
+  const evid = {};
+  const sha256hex = async t => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map(b => b.toString(16).padStart(2, '0')).join('');
+  // Diretta (demo): chi è in pericolo «trasmette» fotogrammi finti; chi aiuta arriva sulla mappa e scrive
+  const demoFrame = n => {
+    const c = document.createElement('canvas'); c.width = 320; c.height = 240; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 320, 240); g.addColorStop(0, '#1c2433'); g.addColorStop(1, '#0b0d12'); x.fillStyle = g; x.fillRect(0, 0, 320, 240);
+    x.fillStyle = 'rgba(255,255,255,.08)'; for (let i = 0; i < 6; i++) x.fillRect(((n * 9 + i * 60) % 380) - 40, 150 + (i % 2) * 20, 30, 90);
+    x.fillStyle = '#fff'; x.font = '600 16px system-ui'; x.fillText('Diretta (demo)', 14, 26); x.font = '12px system-ui'; x.fillText(new Date().toLocaleTimeString(globalThis.vLoc || 'it-IT'), 14, 44);
+    x.fillStyle = '#ff3b4e'; x.beginPath(); x.arc(300, 20, 6 + (n % 2) * 2, 0, 7); x.fill();
+    return c.toDataURL('image/jpeg', .6).split(',')[1];
+  };
+  function demoLive(sosId, h) {
+    const timers = [];
+    const s = db.sos.find(x => x.id === sosId); if (!s) return () => {};
+    if (s.from === 'me') {          // il mio SOS: Giulia guarda, arriva e mi scrive
+      const u = s.recipients[0], n = PEOPLE.find(p => p[0] === u)?.[1] || 'Contatto';
+      timers.push(setTimeout(() => h.presence?.([{ uid: u, name: n, role: 'watch' }]), 1500));
+      timers.push(setTimeout(() => { s.helpers[u] = { name: n, role: 'coming', at: Date.now(), lat: (s.lat ?? 45.46) + .01, lng: (s.lng ?? 9.19) + .008, eta: 6 }; s.acks[u] = n; emit(); h.presence?.([{ uid: u, name: n, role: 'coming' }]); }, 3500));
+      timers.push(setTimeout(() => h.text?.({ uid: u, name: n, text: 'Sto arrivando, resta dove sei. Ti sento.', at: Date.now() }), 5500));
+      let k = 0; timers.push(setInterval(() => { const x = s.helpers[u]; if (!x || x.role !== 'coming') return; k++; x.lat -= .0012; x.lng -= .001; x.eta = Math.max(1, 6 - Math.floor(k / 2)); x.at = Date.now(); h.pos?.({ uid: u, name: n, lat: x.lat, lng: x.lng, eta: x.eta, at: Date.now() }); if (k === 9) { x.role = 'arrived'; emit(); } }, 2000));
+    } else {                        // SOS ricevuto: vedo la sua diretta
+      let n = 0; timers.push(setInterval(() => h.frame?.({ uid: s.from, name: s.fromName, img: demoFrame(n++), at: Date.now() }), 1500));
+      timers.push(setTimeout(() => h.text?.({ uid: s.from, name: s.fromName, text: 'Sono vicino al parco, c\'è una persona che mi segue', at: Date.now() }), 4000));
+      timers.push(setTimeout(() => h.presence?.([{ uid: s.from, name: s.fromName, role: 'victim' }]), 800));
+    }
+    return () => timers.forEach(t => { clearTimeout(t); clearInterval(t); });
+  }
   return {
     demo: true, version: 'demo',
     onAuth(cb) { authCb = cb; setTimeout(() => cb(null), 400); return () => {}; },
@@ -206,6 +245,7 @@ export function createDemoApi() {
     chatLive(id, me, hh) { liveH[id] = hh; setTimeout(() => hh.presence?.(['p']), 300); return { typing() {}, read() {}, close() { delete liveH[id]; } }; },
     async markRead() {},
     async setDiscreet() {},
+    async setLang() {},
     async getReads() { return {}; },
     async askAI(messages) {
       await wait(1100);
@@ -223,6 +263,10 @@ export function createDemoApi() {
     async call(name, data = {}) { await wait(250); if (!fns[name]) throw err('not-found', 'Funzione inesistente'); return fns[name](data); },
     async uploadAudio(p, blob) { await wait(300); photos[p] = URL.createObjectURL(blob); },
     async photoUrl(p) { if (p === 'demo/voice.webm') return fakeVoice(); if (p.startsWith('demo/')) return fakePhoto(p.includes('back') ? 'back' : 'front'); if (photos[p]) return photos[p]; throw err('not-found', 'x'); },
+    async mySos() { return db.sos.filter(s => s.from === 'me').sort((a, b) => b.at - a.at).map(s => ({ ...s })); },
+    async evidence(sosId) { return (evid[sosId] || []).slice(); },
+    async uploadBlob(p, blob) { await wait(150); photos[p] = URL.createObjectURL(blob); },
+    liveChannel(sosId, me_, h) { setTimeout(() => h.ready?.(), 200); const stop = demoLive(sosId, h); return { send() {}, role() {}, close: stop }; },
     async uploadPhoto(p, dataUrl) { await wait(300); photos[p] = dataUrl; },
     // foto profilo (demo: restano in memoria). Giulia ha una foto di prova per vedere come appare agli altri
     async setAvatar(uid, dataUrl) { await wait(400); avatars.me = dataUrl; db.user.avatar = dataUrl; emit(); return dataUrl; },

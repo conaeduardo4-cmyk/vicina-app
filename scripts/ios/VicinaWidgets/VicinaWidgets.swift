@@ -29,16 +29,24 @@ struct VAction {
 
 private func rgb(_ r: Double, _ g: Double, _ b: Double) -> Color { Color(red: r / 255, green: g / 255, blue: b / 255) }
 
+// testi nella lingua del telefono (dizionario inserito da scripts/patch-native.mjs da scripts/l10n/widgets.json)
+let WL: [String: [String: String]] = /*WL*/[:]
+func L(_ it: String) -> String {
+    let lang = String((Locale.preferredLanguages.first ?? "it").prefix(2))
+    if lang == "it" { return it }
+    return WL[it]?[lang] ?? it
+}
+
 enum VA {
-    static let sos = VAction(kind: "VicinaSOS", title: "SOS", sub: "Tocca per avvisare", short: "SOS", url: "vicina://sos-widget", symbol: "exclamationmark.triangle.fill", c1: rgb(232, 25, 44), c2: rgb(255, 77, 94), dark: false)
-    static let call = VAction(kind: "Vicina112", title: "Chiama 112", sub: "Emergenza", short: "112", url: "vicina://call112", symbol: "phone.fill", c1: rgb(255, 255, 255), c2: rgb(240, 240, 244), dark: true)
-    static let panic = VAction(kind: "VicinaPanico", title: "Panico", sub: "Sirena, flash, avviso", short: "Panico", url: "vicina://panic", symbol: "exclamationmark.octagon.fill", c1: rgb(120, 6, 18), c2: rgb(232, 25, 44), dark: false)
-    static let siren = VAction(kind: "VicinaSirena", title: "Sirena", sub: "Suono fortissimo", short: "Sirena", url: "vicina://siren", symbol: "speaker.wave.3.fill", c1: rgb(255, 160, 40), c2: rgb(255, 196, 90), dark: true)
-    static let fake = VAction(kind: "VicinaChiamata", title: "Finta chiamata", sub: "Ti chiamano tra poco", short: "Chiamata", url: "vicina://fake", symbol: "phone.arrow.down.left.fill", c1: rgb(30, 160, 90), c2: rgb(61, 220, 132), dark: false)
-    static let walk = VAction(kind: "VicinaAccompagnami", title: "Accompagnami", sub: "Timer di sicurezza", short: "Timer", url: "vicina://walk", symbol: "figure.walk", c1: rgb(98, 82, 214), c2: rgb(156, 140, 255), dark: false)
-    static let home = VAction(kind: "VicinaCasa", title: "Portami a casa", sub: "Strada + Accompagnami", short: "Casa", url: "vicina://home", symbol: "house.fill", c1: rgb(30, 110, 220), c2: rgb(77, 163, 255), dark: false)
-    static let ok = VAction(kind: "VicinaStoBene", title: "Sto bene", sub: "Lo dice alla cerchia", short: "Ok", url: "vicina://ok", symbol: "checkmark.circle.fill", c1: rgb(20, 120, 70), c2: rgb(61, 220, 132), dark: false)
-    static let torch = VAction(kind: "VicinaTorcia", title: "Torcia", sub: "Accendi il flash", short: "Torcia", url: "vicina://torch", symbol: "flashlight.on.fill", c1: rgb(40, 40, 46), c2: rgb(70, 70, 80), dark: false)
+    static let sos = VAction(kind: "VicinaSOS", title: L("SOS"), sub: L("Tocca per avvisare"), short: L("SOS"), url: "vicina://sos-widget", symbol: "exclamationmark.triangle.fill", c1: rgb(232, 25, 44), c2: rgb(255, 77, 94), dark: false)
+    static let call = VAction(kind: "Vicina112", title: L("Chiama 112"), sub: L("Emergenza"), short: L("112"), url: "vicina://call112", symbol: "phone.fill", c1: rgb(255, 255, 255), c2: rgb(240, 240, 244), dark: true)
+    static let panic = VAction(kind: "VicinaPanico", title: L("Panico"), sub: L("Sirena, flash, avviso"), short: L("Panico"), url: "vicina://panic", symbol: "exclamationmark.octagon.fill", c1: rgb(120, 6, 18), c2: rgb(232, 25, 44), dark: false)
+    static let siren = VAction(kind: "VicinaSirena", title: L("Sirena"), sub: L("Suono fortissimo"), short: L("Sirena"), url: "vicina://siren", symbol: "speaker.wave.3.fill", c1: rgb(255, 160, 40), c2: rgb(255, 196, 90), dark: true)
+    static let fake = VAction(kind: "VicinaChiamata", title: L("Finta chiamata"), sub: L("Ti chiamano tra poco"), short: L("Chiamata"), url: "vicina://fake", symbol: "phone.arrow.down.left.fill", c1: rgb(30, 160, 90), c2: rgb(61, 220, 132), dark: false)
+    static let walk = VAction(kind: "VicinaAccompagnami", title: L("Accompagnami"), sub: L("Timer di sicurezza"), short: L("Timer"), url: "vicina://walk", symbol: "figure.walk", c1: rgb(98, 82, 214), c2: rgb(156, 140, 255), dark: false)
+    static let home = VAction(kind: "VicinaCasa", title: L("Portami a casa"), sub: L("Strada + Accompagnami"), short: L("Casa"), url: "vicina://home", symbol: "house.fill", c1: rgb(30, 110, 220), c2: rgb(77, 163, 255), dark: false)
+    static let ok = VAction(kind: "VicinaStoBene", title: L("Sto bene"), sub: L("Lo dice alla cerchia"), short: L("Ok"), url: "vicina://ok", symbol: "checkmark.circle.fill", c1: rgb(20, 120, 70), c2: rgb(61, 220, 132), dark: false)
+    static let torch = VAction(kind: "VicinaTorcia", title: L("Torcia"), sub: L("Accendi il flash"), short: L("Torcia"), url: "vicina://torch", symbol: "flashlight.on.fill", c1: rgb(40, 40, 46), c2: rgb(70, 70, 80), dark: false)
 }
 
 extension View {
@@ -117,15 +125,15 @@ private func actionConfig(_ a: VAction, _ desc: String) -> some WidgetConfigurat
         .supportedFamilies(smallFamilies())
 }
 
-struct SosWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.sos, "Un tocco: 3 secondi per annullare, poi parte l'SOS alla tua cerchia.") } }
-struct CallWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.call, "Un tocco per chiamare il numero unico di emergenza.") } }
-struct PanicWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.panic, "Sirena, flash e avviso alla cerchia, tutto insieme.") } }
-struct SirenWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.siren, "Fa partire la sirena a tutto volume.") } }
-struct FakeWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.fake, "Una chiamata finta per allontanarti.") } }
-struct WalkWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.walk, "Avvia Accompagnami: se non arrivi, parte l'SOS.") } }
-struct HomeWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.home, "Strada verso casa e Accompagnami in un tocco.") } }
-struct OkWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.ok, "Manda «Sto bene» a tutta la cerchia.") } }
-struct TorchWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.torch, "Accende o spegne la torcia.") } }
+struct SosWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.sos, L("Un tocco: 3 secondi per annullare, poi parte l'SOS alla tua cerchia.")) } }
+struct CallWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.call, L("Un tocco per chiamare il numero unico di emergenza.")) } }
+struct PanicWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.panic, L("Sirena, flash e avviso alla cerchia, tutto insieme.")) } }
+struct SirenWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.siren, L("Fa partire la sirena a tutto volume.")) } }
+struct FakeWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.fake, L("Una chiamata finta per allontanarti.")) } }
+struct WalkWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.walk, L("Avvia Accompagnami: se non arrivi, parte l'SOS.")) } }
+struct HomeWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.home, L("Strada verso casa e Accompagnami in un tocco.")) } }
+struct OkWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.ok, L("Manda «Sto bene» a tutta la cerchia.")) } }
+struct TorchWidget: Widget { var body: some WidgetConfiguration { actionConfig(VA.torch, L("Accende o spegne la torcia.")) } }
 
 // ---------- pannello rapido: 4 tasti in un widget medio ----------
 struct PanelView: View {
@@ -158,8 +166,8 @@ struct PanelView: View {
 struct PanelWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "VicinaPannello", provider: VicinaProvider()) { _ in PanelView() }
-            .configurationDisplayName("Pannello rapido")
-            .description("SOS, 112, sirena e torcia in un solo widget.")
+            .configurationDisplayName(L("Pannello rapido"))
+            .description(L("SOS, 112, sirena e torcia in un solo widget."))
             .supportedFamilies([.systemMedium])
     }
 }

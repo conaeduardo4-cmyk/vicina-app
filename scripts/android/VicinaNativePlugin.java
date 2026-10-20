@@ -212,7 +212,7 @@ public class VicinaNativePlugin extends Plugin {
             try {
                 BiometricPrompt.Builder b = new BiometricPrompt.Builder(getActivity()).setTitle("Vicina").setSubtitle(reason);
                 if (Build.VERSION.SDK_INT >= 30) b.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK);
-                b.setNegativeButton("Usa il codice", getContext().getMainExecutor(), (d, w) -> {
+                b.setNegativeButton(call.getString("fallback", "Usa il codice"), getContext().getMainExecutor(), (d, w) -> {
                     if (done.compareAndSet(false, true)) { JSObject r = new JSObject(); r.put("ok", false); r.put("reason", "code"); call.resolve(r); }
                 });
                 b.build().authenticate(new CancellationSignal(), getContext().getMainExecutor(), new BiometricPrompt.AuthenticationCallback() {
@@ -275,7 +275,14 @@ public class VicinaNativePlugin extends Plugin {
     public void updateWidget(PluginCall call) {
         boolean discreet = Boolean.TRUE.equals(call.getBoolean("discreet", false));
         SharedPreferences p = getContext().getSharedPreferences(VicinaWidget.PREFS, Context.MODE_PRIVATE);
-        p.edit().putBoolean("discreet", discreet).apply();
+        String lang = call.getString("lang", null);
+        SharedPreferences.Editor ed = p.edit().putBoolean("discreet", discreet);
+        if (lang != null) ed.putString("lang", lang);
+        ed.apply();
+        // Android 13+: anche il sistema usa la lingua scelta in Vicina (impostazioni dell'app, widget)
+        if (lang != null && Build.VERSION.SDK_INT >= 33) {
+            try { android.app.LocaleManager lm = getContext().getSystemService(android.app.LocaleManager.class); if (lm != null) lm.setApplicationLocales(new android.os.LocaleList(java.util.Locale.forLanguageTag(lang))); } catch (Exception ignored) { }
+        }
         try {
             AppWidgetManager wm = AppWidgetManager.getInstance(getContext());
             int[] ids = wm.getAppWidgetIds(new ComponentName(getContext(), VicinaWidget.class));

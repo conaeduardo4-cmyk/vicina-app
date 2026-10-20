@@ -17,6 +17,8 @@ public class VicinaCallWidget extends AppWidgetProvider {
         int root = context.getResources().getIdentifier("vicina_call_root", "id", context.getPackageName());
         for (int id : ids) {
             RemoteViews v = new RemoteViews(context.getPackageName(), layout);
+            int sub = context.getResources().getIdentifier("vicina_call_sub", "id", context.getPackageName());
+            if (sub != 0) v.setTextViewText(sub, VicinaWidget.L(context, "chiama"));
             Intent i = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:112"));
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PendingIntent pi = PendingIntent.getActivity(context, 112, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

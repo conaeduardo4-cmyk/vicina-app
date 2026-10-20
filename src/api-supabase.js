@@ -28,7 +28,7 @@ export function createApi(env) {
   const ms = t => (t ? Date.parse(t) : Date.now());
   const sos = x => ({
     id: x.id, from: x.from_uid, fromName: x.from_name, fromPhone: x.from_phone || '', lat: x.lat, lng: x.lng, acc: x.acc,
-    photos: x.photos || [], at: ms(x.created_at), active: x.active, locAt: x.loc_at ? Date.parse(x.loc_at) : null, liveUntil: x.live_until ? Date.parse(x.live_until) : null, track: x.track || [], audio: x.audio || null, acks: x.acks || {}, recipients: x.recipients || [], chats: x.chats || []
+    photos: x.photos || [], at: ms(x.created_at), active: x.active, locAt: x.loc_at ? Date.parse(x.loc_at) : null, liveUntil: x.live_until ? Date.parse(x.live_until) : null, track: x.track || [], audio: x.audio || null, acks: x.acks || {}, helpers: x.helpers || {}, recipients: x.recipients || [], chats: x.chats || []
   });
   const chk = (c, ans) => ({
     id: c.id, from: c.from_uid, fromName: c.from_name, reason: c.reason, note: c.note || '', recipients: c.recipients || [], lat: c.lat, lng: c.lng,
@@ -63,7 +63,11 @@ export function createApi(env) {
     sendCheck: d => ['send_check', { p_id: d.id, p_reason: d.reason || 'altro', p_note: d.note || null, p_lat: d.lat ?? null, p_lng: d.lng ?? null }],
     answerCheck: d => ['answer_check', { p_id: d.id, p_status: d.status, p_note: d.note || null, p_lat: d.lat ?? null, p_lng: d.lng ?? null, p_acc: d.acc ?? null }],
     remindCheck: d => ['remind_check', { p_id: d.id }],
-    closeCheck: d => ['close_check', { p_id: d.id }]
+    closeCheck: d => ['close_check', { p_id: d.id }],
+    // Centrale di soccorso
+    sosHelp: d => ['sos_help', { p_sos_id: d.sosId, p_role: d.role, p_lat: d.lat ?? null, p_lng: d.lng ?? null, p_eta: d.eta ?? null }],
+    addEvidence: d => ['add_evidence', { p_sos_id: d.sosId, p_kind: d.kind, p_path: d.path || null, p_sha: d.sha || null, p_note: d.note || null, p_lat: d.lat ?? null, p_lng: d.lng ?? null }],
+    verifyEvidence: d => ['verify_evidence', { p_sos_id: d.sosId }]
   };
 
   // aggiornamenti in tempo reale: a ogni modifica si ricarica la lista (le regole RLS filtrano cosa vedi)
@@ -170,6 +174,7 @@ export function createApi(env) {
       const send = (event, payload) => ch.send({ type: 'broadcast', event, payload: { uid: me.uid, name: me.name, ...payload } }).catch(() => {});
       return { typing: text => send('typing', { text: String(text || '').slice(0, 160), at: Date.now() }), read: at => send('read', { at }), close: () => sb.removeChannel(ch) };
     },
+    async setLang(code) { try { await sb.rpc('set_lang', { p_lang: code }); } catch {} },
     async setDiscreet(on) { try { await sb.rpc('set_discreet', { p_on: !!on }); } catch {} },
     async markRead(id) { try { await sb.rpc('mark_read', { p_chat_id: id }); } catch {} },
     async getReads(id) {
@@ -181,7 +186,7 @@ export function createApi(env) {
     async askAI(messages) {
       const once = async () => {
         await sb.auth.getSession();                      // rinnova il token se è scaduto
-        const call = sb.functions.invoke('assistente', { body: { messages } });
+        const call = sb.functions.invoke('assistente', { body: { messages, lang: globalThis.vLang || 'it' } });
         const tmo = new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'timeout' })), 50000));
         const { data, error } = await Promise.race([call, tmo]);
         if (error) {
@@ -251,6 +256,34 @@ export function createApi(env) {
       const { data, error } = await sb.rpc('circle_avatars');
       if (error) return {};            // server non ancora aggiornato (aggiornamento-foto-profilo.sql): nessuna foto, nessun errore
       return Object.fromEntries((data || []).map(r => [r.uid, avatarUrl(r.uid, r.avatar)]));
+    },
+    // i miei SOS degli ultimi 7 giorni (anche chiusi): per le prove e il PDF
+    async mySos() {
+      const { data: { user } } = await sb.auth.getUser();
+      const { data, error } = await sb.from('sos').select('*').eq('from_uid', user?.id).order('created_at', { ascending: false }).limit(15);
+      if (error) throw rerr(error); return data.map(sos);
+    },
+    // prove certificate dell'SOS (in ordine)
+    async evidence(sosId) {
+      const { data, error } = await sb.from('sos_evidence').select('*').eq('sos_id', sosId).order('seq');
+      if (error) throw rerr(error);
+      return data.map(e => ({ seq: e.seq, kind: e.kind, path: e.path, sha: e.sha, note: e.note, lat: e.lat, lng: e.lng, at: Date.parse(e.at), chain: e.chain }));
+    },
+    async uploadBlob(p, blob, mime) {
+      const { error } = await sb.storage.from('sos').upload(p.replace(/^sos\//, ''), blob, { contentType: mime, upsert: false });
+      if (error && !dup(error)) throw rerr(error);
+    },
+    // Diretta SOS: canale in tempo reale (niente database) per audio, fotogrammi, walkie-talkie e posizione di chi arriva
+    liveChannel(sosId, me, h) {
+      const ch = sb.channel('diretta-' + sosId, { config: { broadcast: { self: false, ack: false }, presence: { key: me.uid } } });
+      for (const ev of ['audio', 'frame', 'talk', 'text', 'pos', 'state']) ch.on('broadcast', { event: ev }, ({ payload }) => payload?.uid !== me.uid && h[ev]?.(payload));
+      ch.on('presence', { event: 'sync' }, () => { try { h.presence?.(Object.entries(ch.presenceState()).filter(([k]) => k !== me.uid).map(([k, v]) => ({ uid: k, ...(v?.[0] || {}) }))); } catch {} })
+        .subscribe(async st => { if (st === 'SUBSCRIBED') { try { await ch.track({ name: me.name, role: me.role || 'watch', at: Date.now() }); } catch {} h.ready?.(); } });
+      return {
+        send: (event, payload) => ch.send({ type: 'broadcast', event, payload: { uid: me.uid, name: me.name, at: Date.now(), ...payload } }).catch(() => {}),
+        role: r => ch.track({ name: me.name, role: r, at: Date.now() }).catch(() => {}),
+        close: () => sb.removeChannel(ch)
+      };
     },
     async uploadPhoto(p, dataUrl) {
       const blob = await (await fetch(dataUrl)).blob();

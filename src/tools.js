@@ -564,7 +564,7 @@ export function createTools(ctx) {
       c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
       const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
       const fs = Math.max(14, Math.round(c.width / 38)), pad = fs * 0.7, d = new Date();
-      const lines = [d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) + '  ' + d.toLocaleTimeString('it-IT'),
+      const lines = [d.toLocaleDateString(globalThis.vLoc || 'it-IT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) + '  ' + d.toLocaleTimeString(globalThis.vLoc || 'it-IT'),
         pos ? `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}  ±${Math.max(5, Math.round(pos.acc || 0))} m` : 'Posizione non disponibile'];
       const h = lines.length * fs * 1.35 + pad * 2;
       g.fillStyle = 'rgba(0,0,0,.62)'; g.fillRect(0, c.height - h, c.width, h);
@@ -596,7 +596,7 @@ export function createTools(ctx) {
     if (!res?.blob?.size) return toast('Registrazione vuota');
     const d = new Date(), name = `vicina-audio-${d.toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${res.ext}`;
     lastAudio = { blob: res.blob, name };
-    openSheet(`<h2>Registrazione salvata</h2><p class="sub">${Math.round(res.ms / 1000)} secondi · ${d.toLocaleString('it-IT')}. Salvala in File o mandala a chi vuoi.</p>
+    openSheet(`<h2>Registrazione salvata</h2><p class="sub">${Math.round(res.ms / 1000)} secondi · ${d.toLocaleString(globalThis.vLoc || 'it-IT')}. Salvala in File o mandala a chi vuoi.</p>
       <audio controls src="${URL.createObjectURL(res.blob)}" class="proof-audio"></audio>
       <button class="btn" data-a="audio-share">${I('share')}Salva o condividi</button>`, 'audio');
   }
@@ -608,7 +608,7 @@ export function createTools(ctx) {
     const l = diary().sort((a, b) => b.at - a.at);
     openSheet(`<h2>Diario</h2><p class="sub">Annota episodi di molestie, stalking o minacce: data, luogo e cosa è successo. Resta solo sul telefono e puoi esportarlo per una denuncia.</p>
       <button class="btn" data-a="diary-new">${I('plus')}Nuovo episodio</button>
-      ${l.length ? `<div class="card diary-list">${l.map(e => `<div class="row diary-row"><div class="fl wrap"><b>${new Date(e.at).toLocaleString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${e.place ? ' · ' + esc(e.place) : ''}</b><span>${esc(e.text)}</span></div><button class="iconbtn sm" data-a="diary-del" data-id="${e.id}" aria-label="Elimina">${I('trash')}</button></div>`).join('')}</div>
+      ${l.length ? `<div class="card diary-list">${l.map(e => `<div class="row diary-row"><div class="fl wrap"><b>${new Date(e.at).toLocaleString(globalThis.vLoc || 'it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}${e.place ? ' · ' + esc(e.place) : ''}</b><span>${esc(e.text)}</span></div><button class="iconbtn sm" data-a="diary-del" data-id="${e.id}" aria-label="Elimina">${I('trash')}</button></div>`).join('')}</div>
       <button class="btn ghost" data-a="diary-export">${I('share')}Esporta tutto</button>` : '<p class="note">Ancora nessun episodio.</p>'}`, 'diary');
   }
   function sheetDiaryNew(pre = '') {
@@ -684,7 +684,7 @@ export function createTools(ctx) {
     const f = $('#tool-find');
     f?.addEventListener('input', () => {
       const q = f.value.trim().toLowerCase(); let n = 0;
-      $('#tool-groups').querySelectorAll('.tool').forEach(b => { const ok = !q || b.dataset.find.includes(q); b.hidden = !ok; if (ok) n++; });
+      $('#tool-groups').querySelectorAll('.tool').forEach(b => { const ok = !q || (b.dataset.find + ' ' + b.textContent.toLowerCase()).includes(q); b.hidden = !ok; if (ok) n++; });
       $('#tool-groups').querySelectorAll('.tool-group').forEach(g => { g.hidden = ![...g.querySelectorAll('.tool')].some(b => !b.hidden); });
       $('#tool-none').hidden = n > 0;
     });
@@ -709,7 +709,7 @@ export function createTools(ctx) {
     const body = el.querySelector('#tl-body'), find = el.querySelector('#tl-find');
     find.addEventListener('input', () => {
       const q = find.value.trim().toLowerCase(); let k = 0;
-      body.querySelectorAll('.tool,.tl-big').forEach(b => { const ok = !q || (b.dataset.find || '').includes(q); b.hidden = !ok; if (ok && b.classList.contains('tool')) k++; });
+      body.querySelectorAll('.tool,.tl-big').forEach(b => { const ok = !q || ((b.dataset.find || '') + ' ' + b.textContent.toLowerCase()).includes(q); b.hidden = !ok; if (ok && b.classList.contains('tool')) k++; });
       body.querySelectorAll('.tl-sec').forEach(sct => { sct.hidden = ![...sct.querySelectorAll('.tool,.tl-big')].some(b => !b.hidden); });
       el.querySelector('#tl-none').hidden = k > 0 || !q;
     });
@@ -783,7 +783,7 @@ export function createTools(ctx) {
       case 'fa-list': sheetFA(); return true;
       case 'cpr': cpr(); return true;
       case 'stopwatch': stopwatch(); return true;
-      case 'note-time': { const e = $('#noted'); if (e) e.textContent = 'Sintomi iniziati alle ' + new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) + ': dillo al 112.'; native.haptic('light'); return true; }
+      case 'note-time': { const e = $('#noted'); if (e) e.textContent = 'Sintomi iniziati alle ' + new Date().toLocaleTimeString(globalThis.vLoc || 'it-IT', { hour: '2-digit', minute: '2-digit' }) + ': dillo al 112.'; native.haptic('light'); return true; }
       case 'em': closeSheet(); t.dataset.k ? sheetEMItem(t.dataset.k) : sheetEM(); return true;
       case 'em-list': sheetEM(); return true;
       case 'photo': photoProof(); return true;
@@ -805,7 +805,7 @@ export function createTools(ctx) {
       case 'diary-del': { ls.set(DK(), JSON.stringify(diary().filter(e => e.id !== t.dataset.id))); sheetDiary(); toast('Episodio eliminato'); return true; }
       case 'diary-export': {
         const p = profile() || {};
-        const txt = `DIARIO EPISODI – ${p.name || ''} ${p.surname || ''}\nEsportato il ${new Date().toLocaleString('it-IT')}\n\n` + diary().sort((a, b) => a.at - b.at).map((e, i) => `${i + 1}. ${new Date(e.at).toLocaleString('it-IT')}${e.place ? ' – ' + e.place : ''}\n${e.text}`).join('\n\n');
+        const txt = `DIARIO EPISODI – ${p.name || ''} ${p.surname || ''}\nEsportato il ${new Date().toLocaleString(globalThis.vLoc || 'it-IT')}\n\n` + diary().sort((a, b) => a.at - b.at).map((e, i) => `${i + 1}. ${new Date(e.at).toLocaleString(globalThis.vLoc || 'it-IT')}${e.place ? ' – ' + e.place : ''}\n${e.text}`).join('\n\n');
         await native.share({ title: 'Diario episodi', text: txt }); return true;
       }
       case 'compass': compass(); return true;

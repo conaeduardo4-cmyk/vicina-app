@@ -3,6 +3,7 @@ import './style.css';
 import './style-dz.css';
 import { boot } from './app.js';
 import { native } from './native.js';
+import { init as i18nInit, t, locale } from './i18n.js';
 
 const env = import.meta.env;
 // sicurezza: lo splash nativo non deve mai restare bloccato
@@ -19,6 +20,9 @@ const rescue = e => {
 setTimeout(() => { if (document.querySelector('#s-load.on') && !document.querySelector('.screen.on:not(#s-load)')) rescue(new Error('avvio lento')); }, 15000);
 (async () => {
   try {
+  await i18nInit();   // lingua prima di tutto: le schermate nascono già tradotte
+  // voce: i testi letti ad alta voce seguono la lingua dell'app ('it-IT-x' = resta in italiano, es. scheda per il 112)
+  { const sp = native.vx?.speak?.bind(native.vx); if (sp) native.vx.speak = (text, l) => l === 'it-IT-x' ? sp(text, 'it-IT') : sp(t(text), !l || l === 'it-IT' ? locale() : l); }
   if (env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY) {
     const { createApi } = await import('./api-supabase.js');
     boot(createApi(env), native);

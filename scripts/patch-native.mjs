@@ -72,6 +72,19 @@ if (fs.existsSync(man)) {
   }
   // risorse: icona celeste (modalità anonima) e widget
   copyDir('scripts/android/res', 'android/app/src/main/res');
+  // testi dei widget nelle 10 lingue: JSON nelle assets + nomi dei widget (elenco widget di Android) in values-xx
+  fs.mkdirSync('android/app/src/main/assets', { recursive: true });
+  fs.copyFileSync('scripts/l10n/widgets.json', 'android/app/src/main/assets/vicina_widgets.json');
+  {
+    const W = JSON.parse(read('scripts/l10n/widgets.json'));
+    const NAMES = { vicina_w_panic: 'Panico', vicina_w_siren: 'Sirena', vicina_w_fake: 'Finta chiamata', vicina_w_walk: 'Accompagnami', vicina_w_home: 'Portami a casa', vicina_w_ok: 'Sto bene', vicina_w_torch: 'Torcia', vicina_w_panel: 'Pannello rapido', vicina_w_call: 'Chiama 112', vicina_w_sos: 'SOS' };
+    const x = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/'/g, "\\'").replace(/"/g, '\\"');
+    const xmlFor = l => '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n' + Object.entries(NAMES).map(([k, it]) => `    <string name="${k}">${x(l === 'it' ? it : (W[it]?.[l] || it))}</string>`).join('\n') + '\n</resources>\n';
+    for (const l of ['it', 'en', 'es', 'fr', 'de', 'pt', 'ar', 'uk', 'ro', 'sq']) {
+      const dir = `android/app/src/main/res/values${l === 'it' ? '' : '-' + (l === 'uk' ? 'uk' : l)}`;
+      fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(`${dir}/vicina_widget_names.xml`, xmlFor(l));
+    }
+  }
   {
     let x = read(man);
     // icona alternativa: l'app si apre da due "alias" (normale / celeste), ne è attivo uno alla volta
@@ -100,7 +113,7 @@ if (fs.existsSync(man)) {
             </intent-filter>`);
     // widget nella schermata Home
     // altri widget a tasto singolo + pannello rapido
-    const AW = [['Panic', 'Panico'], ['Siren', 'Sirena'], ['Fake', 'Finta chiamata'], ['Walk', 'Accompagnami'], ['Home', 'Portami a casa'], ['Ok', 'Sto bene'], ['Torch', 'Torcia'], ['Panel', 'Pannello rapido']];
+    const AW = [['Panic', '@string/vicina_w_panic'], ['Siren', '@string/vicina_w_siren'], ['Fake', '@string/vicina_w_fake'], ['Walk', '@string/vicina_w_walk'], ['Home', '@string/vicina_w_home'], ['Ok', '@string/vicina_w_ok'], ['Torch', '@string/vicina_w_torch'], ['Panel', '@string/vicina_w_panel']];
     for (const [cls, label] of AW) {
       if (x.includes(`.VicinaActionWidget$${cls}"`)) continue;
       x = x.replace('</application>', `    <receiver android:name=".VicinaActionWidget$${cls}" android:exported="false" android:label="${label}">
@@ -112,7 +125,7 @@ if (fs.existsSync(man)) {
     </application>`);
     }
     if (!x.includes('.VicinaCallWidget'))
-      x = x.replace('</application>', `    <receiver android:name=".VicinaCallWidget" android:exported="false" android:label="Chiama 112">
+      x = x.replace('</application>', `    <receiver android:name=".VicinaCallWidget" android:exported="false" android:label="@string/vicina_w_call">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -120,7 +133,7 @@ if (fs.existsSync(man)) {
         </receiver>
     </application>`);
     if (!x.includes('.VicinaWidget"'))
-      x = x.replace('</application>', `    <receiver android:name=".VicinaWidget" android:exported="false" android:label="SOS">
+      x = x.replace('</application>', `    <receiver android:name=".VicinaWidget" android:exported="false" android:label="@string/vicina_w_sos">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -176,6 +189,19 @@ if (fs.existsSync(plist)) {
     if (!s.includes(`<key>${k}</key>`)) s = s.replace(/<\/dict>\s*<\/plist>\s*$/, `\t<key>${k}</key>\n\t${v}\n</dict>\n</plist>\n`);
   // se UIBackgroundModes esisteva già senza "location", lo aggiunge
   s = s.replace(/(<key>UIBackgroundModes<\/key>\s*<array>)([\s\S]*?)(<\/array>)/, (m, a, b, c) => b.includes('<string>location</string>') ? m : a + b + '\t<string>location</string>\n\t' + c);
+  // testi dei permessi aggiornati (diretta audio/video durante l'SOS) anche se c'erano già
+  const IPS = JSON.parse(read('scripts/ios/infoplist-strings.json'));
+  const KEYS = ['NSCameraUsageDescription', 'NSLocationWhenInUseUsageDescription', 'NSLocationAlwaysAndWhenInUseUsageDescription', 'NSMicrophoneUsageDescription', 'NSFaceIDUsageDescription'];
+  const xml = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  KEYS.forEach((k, i) => { s = s.replace(new RegExp(`(<key>${k}</key>\\s*<string>)[\\s\\S]*?(</string>)`), `$1${xml(IPS.it[i])}$2`); });
+  // lingue dell'app: iOS mostra i permessi nella lingua del telefono e permette di scegliere la lingua di Vicina
+  const LG = Object.keys(IPS);
+  if (!s.includes('<key>CFBundleLocalizations</key>')) s = s.replace(/<\/dict>\s*<\/plist>\s*$/, `\t<key>CFBundleLocalizations</key>\n\t<array>\n${LG.map(l => `\t\t<string>${l}</string>`).join('\n')}\n\t</array>\n</dict>\n</plist>\n`);
+  for (const l of LG) {
+    fs.mkdirSync(`ios/App/App/${l}.lproj`, { recursive: true });
+    const q = t => t.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    fs.writeFileSync(`ios/App/App/${l}.lproj/InfoPlist.strings`, KEYS.map((k, i) => `"${k}" = "${q(IPS[l][i])}";`).join('\n') + '\n');
+  }
   fs.writeFileSync(plist, s); log('permessi, posizione in background e microfono');
 
   // link vicina:// (azioni rapide, Comandi, «Tocca il retro»)
@@ -198,6 +224,12 @@ if (fs.existsSync(plist)) {
   if (!fs.existsSync('scripts/ios/NO_WIDGETS')) {
     fs.mkdirSync('ios/App/VicinaWidgets', { recursive: true });
     copyDir('scripts/ios/VicinaWidgets', 'ios/App/VicinaWidgets');
+    { // testi dei widget nelle 10 lingue (dizionario Swift generato da scripts/l10n/widgets.json)
+      const W = JSON.parse(read('scripts/l10n/widgets.json')), q = t => JSON.stringify(t);
+      const lit = '[\n' + Object.entries(W).map(([it, m]) => `    ${q(it)}: [${Object.entries(m).map(([l, v]) => `${q(l)}: ${q(v)}`).join(', ')}]`).join(',\n') + '\n]';
+      const wf = 'ios/App/VicinaWidgets/VicinaWidgets.swift';
+      fs.writeFileSync(wf, read(wf).replace('/*WL*/[:]', lit));
+    }
     try { execSync('ruby scripts/ios-widgets.rb', { stdio: 'inherit' }); log('widget SOS e 112'); }
     catch (e) { console.log('  ! widget iOS non aggiunti: l\'app funziona lo stesso'); }
   }
