@@ -461,3 +461,16 @@ Test del database: `supabase/test/test_appello.py` (dopo aver caricato schema + 
 Pillola che scorre nella barra delle schede, tocchi «a molla» su pulsanti e schede, fogli che si chiudono scivolando
 e si possono **trascinare giù**, finestre che entrano con un rimbalzo, blocchi che entrano in sequenza al cambio scheda,
 badge che spuntano, SOS con anello che si riempie, bagliore crescente, tremito finale e onda d'urto.
+
+## Novità 3.0 · Centrale di soccorso, interprete e lingue
+
+- **Centrale di soccorso**: durante un SOS la cerchia vede e sente la diretta (audio + fotogrammi), parla a walkie-talkie, dice «Sto arrivando» (con tempo stimato), «Chiamo io il 112» o «Seguo da qui». Scheda per il 112 letta in italiano, prove certificate (catena SHA-256 firmata dal server) e PDF per la denuncia.
+- **Interprete d'emergenza**: frasi pronte in 10 lingue, mostrate in grande e lette ad alta voce.
+- **Lingue**: italiano, inglese, spagnolo, francese, tedesco, portoghese, arabo (da destra a sinistra), ucraino, rumeno, albanese. Impostazioni › Lingua. Le notifiche arrivano nella lingua di chi le riceve.
+
+### Passi su Supabase per la 3.0
+1. SQL Editor → esegui `supabase/aggiornamento-centrale.sql` (già incluso in `installa.sql`).
+2. Rideploya le funzioni: `supabase functions deploy vicina` e `supabase functions deploy assistente`.
+3. Database → Replication: controlla che `sos` sia nella pubblicazione realtime (lo fa già lo script).
+
+Le traduzioni si generano con `python3 scripts/i18n/merge.py` dai file `scripts/i18n/tr/*.json`.
