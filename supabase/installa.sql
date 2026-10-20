@@ -12,6 +12,16 @@
 --     crea un nuovo progetto Supabase gratuito solo per Vicina.
 --  Gli account (Authentication → Users) e le foto non vengono toccati.
 -- =====================================================================
+-- 🛑 PROTEZIONE: se il database ha già utenti con profilo, installa.sql si ferma (cancellerebbe cerchie, chat e SOS).
+--    Per AGGIORNARE usa solo i file aggiornamento-*.sql (o ripara.sql).
+--    Per azzerare davvero tutto, scrivi prima nella stessa finestra:  set vicina.azzera = 'si';
+do $$ declare n int := 0; begin
+  if to_regclass('public.profiles') is not null then execute 'select count(*) from public.profiles' into n; end if;
+  if n > 0 and coalesce(current_setting('vicina.azzera', true), '') <> 'si' then
+    raise exception 'STOP: il database contiene già dati di Vicina. Per aggiornare esegui ripara.sql o i file aggiornamento-*.sql, NON installa.sql.';
+  end if;
+end $$;
+
 do $$
 declare r record;
 begin
@@ -1319,5 +1329,63 @@ end $$;
 revoke execute on function public.set_lang(text) from public, anon;
 grant execute on function public.set_lang(text) to authenticated;
 notify pgrst, 'reload schema';
+
+notify pgrst, 'reload schema';
+
+
+-- =====================================================================
+--  Vicina · modalità anonima: notifiche senza la parola «SOS»
+--  Incolla tutto in Supabase → SQL Editor → Run. Si può rilanciare senza danni.
+-- =====================================================================
+alter table public.profiles add column if not exists discreet boolean not null default false;
+
+create or replace function public.set_discreet(p_on boolean) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return; end if;
+  update public.profiles set discreet = coalesce(p_on, false) where id = auth.uid();
+end $$;
+
+revoke all on function public.set_discreet(boolean) from public, anon;
+grant execute on function public.set_discreet(boolean) to authenticated;
+
+-- =====================================================================
+--  Vicina · aggiornamento chat: conferme di lettura (spunte «letto»)
+--  Incolla tutto in Supabase → SQL Editor → Run. Si può rilanciare senza danni.
+--  («Sta scrivendo…» e l'anteprima del testo non hanno bisogno del database:
+--   passano dal tempo reale di Supabase.)
+-- =====================================================================
+
+create table if not exists public.chat_reads (
+  chat_id  uuid not null,
+  uid      uuid not null references auth.users(id) on delete cascade,
+  read_at  timestamptz not null default now(),
+  primary key (chat_id, uid)
+);
+
+alter table public.chat_reads enable row level security;
+
+drop policy if exists "letture: partecipanti" on public.chat_reads;
+create policy "letture: partecipanti" on public.chat_reads for select to authenticated
+  using (private.can_chat(chat_id));
+
+-- segna la chat come letta adesso (solo se fai parte della chat)
+create or replace function public.mark_read(p_chat_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null or not private.can_chat(p_chat_id) then return; end if;
+  insert into public.chat_reads (chat_id, uid, read_at) values (p_chat_id, auth.uid(), now())
+  on conflict (chat_id, uid) do update set read_at = excluded.read_at;
+end $$;
+
+revoke all on function public.mark_read(uuid) from public, anon;
+grant execute on function public.mark_read(uuid) to authenticated;
+grant select on public.chat_reads to authenticated;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.chat_reads;
+exception when duplicate_object then null;
+end $$;
 
 notify pgrst, 'reload schema';

@@ -469,7 +469,7 @@ badge che spuntano, SOS con anello che si riempie, bagliore crescente, tremito f
 - **Lingue**: italiano, inglese, spagnolo, francese, tedesco, portoghese, arabo (da destra a sinistra), ucraino, rumeno, albanese. Impostazioni › Lingua. Le notifiche arrivano nella lingua di chi le riceve.
 
 ### Passi su Supabase per la 3.0
-1. SQL Editor → esegui `supabase/aggiornamento-centrale.sql` (già incluso in `installa.sql`).
+1. SQL Editor → esegui `supabase/ripara.sql` (oppure `aggiornamento-centrale.sql`). ⚠️ **Non usare `installa.sql` su un database già in uso**: azzera cerchie, chat e SOS (ora si blocca da solo se trova dati).
 2. Rideploya le funzioni: `supabase functions deploy vicina` e `supabase functions deploy assistente`.
 3. Database → Replication: controlla che `sos` sia nella pubblicazione realtime (lo fa già lo script).
 
