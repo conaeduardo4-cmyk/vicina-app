@@ -2,8 +2,8 @@ node_modules
 dist
 .env
 # progetti nativi: li genera la pipeline GitHub (npx cap add)
-android/
-ios/
+/android/
+/ios/
 google-services.json
 GoogleService-Info.plist
 *.jks
