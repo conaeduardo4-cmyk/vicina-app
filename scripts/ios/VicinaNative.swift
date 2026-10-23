@@ -127,7 +127,7 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
 
     // ---------- Liquid Glass (iOS 26) ----------
     // Tutto con i componenti di sistema, niente imitazioni:
-    //  - barra delle schede = una vera UITabBar di iOS con tutte e 6 le schede (vetro, bolla che si sposta tra le schede, badge)
+    //  - barra delle schede = una vera UITabBar di iOS con tutte e 5 le schede (vetro, bolla che si sposta tra le schede, badge)
     //  - avvisi e conferme = UIAlertController di iOS
     //  - messaggi brevi = capsula UIGlassEffect
     // Disponibile solo se l'app è compilata con l'SDK di iOS 26 (Xcode 26) e il telefono ha iOS 26 o successivo.
@@ -137,7 +137,7 @@ public class VicinaNativePlugin: CAPPlugin, CAPBridgedPlugin {
     private var glassTint = UIColor(red: 0.91, green: 0.10, blue: 0.17, alpha: 1)
     private let glassTabs: [(String, String, String)] = [
         ("home", "Home", "checkmark.shield"), ("map", "Mappa", "mappin.and.ellipse"), ("tools", "Strumenti", "square.grid.2x2"),
-        ("chat", "Avvisi", "bubble.left"), ("circle", "Cerchia", "person.2"), ("me", "Tu", "person")
+        ("circle", "Cerchia", "person.2"), ("me", "Tu", "person")
     ]
 
     private func glassAvailable() -> Bool {

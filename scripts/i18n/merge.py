@@ -12,6 +12,11 @@ for f in sorted(glob.glob(os.path.join(H, 'tr', '*.json'))):
         k = keys[int(i)]
         for l, v in zip(LANGS, vals):
             if v and v != k: out[l][k] = v
+# testi aggiunti a mano (chiave italiana -> [traduzioni nell'ordine di LANGS])
+for f in sorted(glob.glob(os.path.join(H, 'extra', '*.json'))):
+    for k, vals in json.load(open(f)).items():
+        for l, v in zip(LANGS, vals):
+            if v and v != k and k not in out[l]: out[l][k] = v
 kset = set(keys)
 for l in LANGS:
     d = out[l]

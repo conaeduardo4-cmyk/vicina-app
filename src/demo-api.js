@@ -8,6 +8,7 @@ export function createDemoApi() {
   const PEOPLE = [['u_giulia', 'Giulia Rossi', '+39 333 111 2222'], ['u_marco', 'Marco Bianchi', '+39 347 555 0101'], ['u_sara', 'Sara Neri', ''], ['u_luca', 'Luca Verdi', '+39 320 987 6543']];
   let pi = 0; const nextPerson = () => PEOPLE[pi++ % PEOPLE.length];
 
+  const aiDb = [{ id: 'ai_demo1', title: 'Come si usa il DAE', at: Date.now() - 2 * 864e5, msgs: [{ role: 'user', text: 'Come si usa il defibrillatore?' }, { role: 'model', text: 'Accendilo e segui la voce: ti dice dove mettere le piastre. Intanto chiama il **112**.' }] }];
   const db = { user: null, links: [], groups: [], sos: [], checks: [], chats: {}, email: '' };
   let authCb = null, h = null; const chatCbs = {};
   const me = () => db.user && `${db.user.name} ${db.user.surname}`;
@@ -269,6 +270,30 @@ export function createDemoApi() {
     liveChannel(sosId, me_, h) { setTimeout(() => h.ready?.(), 200); const stop = demoLive(sosId, h); return { send() {}, role() {}, close: stop }; },
     async uploadPhoto(p, dataUrl) { await wait(300); photos[p] = dataUrl; },
     // foto profilo (demo: restano in memoria). Giulia ha una foto di prova per vedere come appare agli altri
+    // 3.1: profilo esteso, allegati in chat, chat dell'assistente salvate (in memoria)
+    async setProfile(d) { await wait(250); Object.assign(db.user, { name: d.name, surname: d.surname, bio: d.bio || '', city: d.city || '', showBday: !!d.showBday }); for (const l of db.links) l.names.me = me(); emit(); },
+    async setBanner(uid, dataUrl) { await wait(300); db.user.banner = dataUrl; emit(); return dataUrl; },
+    async removeBanner() { if (db.user) db.user.banner = ''; emit(); },
+    async circleProfile(uid) {
+      await wait(200);
+      if (uid === 'me') return { uid, name: db.user.name, surname: db.user.surname, bio: db.user.bio || '', city: db.user.city || '', avatar: db.user.avatar || '', banner: db.user.banner || '', phone: db.user.phone || '', bday: db.user.dob?.slice(5) || null, kind: 'me', since: Date.now() };
+      const p = PEOPLE.find(x => x[0] === uid); if (!p) throw err('failed-precondition', 'Profilo non disponibile');
+      const [n, ...sn] = p[1].split(' '), l = db.links.find(x => x.uids.includes(uid));
+      const BIO = { u_giulia: 'Infermiera al Santo Spirito 🩺 · Corro la mattina lungo il Tevere.', u_marco: 'Ingegnere, vivo a Testaccio. Chiamami quando vuoi.', u_sara: 'Studio a Roma Tre.', u_luca: 'Calcetto il giovedì ⚽' };
+      return { uid, name: n, surname: sn.join(' '), bio: BIO[uid] || '', city: 'Roma', avatar: avatars[uid] || '', banner: '', phone: p[2], bday: uid === 'u_giulia' ? '05-14' : null, kind: l?.kind || 'group', since: Date.now() - 40 * 864e5 };
+    },
+    async sendFile(id, uid, f) {
+      await wait(350); const url = URL.createObjectURL(f.blob), path = 'demo/' + rnd() + '-' + (f.name || 'file'); photos[path] = url;
+      push(id, { type: f.type, from: 'me', fromName: me(), file: path, fileName: f.name || '', fileSize: f.size ?? f.blob.size, mime: f.mime || '', dur: f.dur || 0, text: f.text || null });
+    },
+    async sendLoc(id, uid, lat, lng) { await wait(200); push(id, { type: 'loc', from: 'me', fromName: me(), lat, lng }); },
+    async fileUrl(p) { return photos[p] || ''; },
+    async aiChats() { return aiDb.map(c => ({ id: c.id, title: c.title, at: c.at })).sort((a, b) => b.at - a.at); },
+    async aiMessages(id) { return (aiDb.find(c => c.id === id)?.msgs || []).slice(); },
+    async aiNew(title) { const c = { id: 'ai_' + rnd(), title: String(title || '').slice(0, 80), at: Date.now(), msgs: [] }; aiDb.push(c); return c.id; },
+    async aiAdd(id, role, text) { const c = aiDb.find(x => x.id === id); if (c) { c.msgs.push({ role, text, at: Date.now() }); c.at = Date.now(); } },
+    async aiRename(id, title) { const c = aiDb.find(x => x.id === id); if (c) c.title = title; },
+    async aiDelete(id) { const i = aiDb.findIndex(x => x.id === id); if (i >= 0) aiDb.splice(i, 1); },
     async setAvatar(uid, dataUrl) { await wait(400); avatars.me = dataUrl; db.user.avatar = dataUrl; emit(); return dataUrl; },
     async removeAvatar() { delete avatars.me; if (db.user) db.user.avatar = ''; emit(); },
     async circleAvatars() { const ok = new Set(db.links.flatMap(l => l.uids)); return Object.fromEntries(Object.entries({ ...avatars, u_giulia: avatars.u_giulia || (avatars.u_giulia = demoFace('#FF8FA3', '#7A2E5C')) }).filter(([k]) => k === 'me' || ok.has(k))); }

@@ -31,6 +31,9 @@ export function boot(api, native) {
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   const hhmm = ms => ms ? new Date(ms).toLocaleTimeString(globalThis.vLoc || 'it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
   const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'adesso' : m < 60 ? `${m} min fa` : `${Math.floor(m / 60)} h fa`; };
+  const fsize = b => !b ? '' : b < 1024 ? b + ' B' : b < 1048576 ? Math.round(b / 1024) + ' KB' : (b / 1048576).toFixed(1).replace('.', ',') + ' MB';
+  // onda del vocale: sempre uguale per lo stesso messaggio
+  const vnBars = id => { let h = 7; return Array.from({ length: 28 }, (_, i) => { h = (h * 31 + String(id).charCodeAt(i % String(id).length || 0) + i) % 997; return `<i style="height:${4 + h % 18}px"></i>`; }).join(''); };
   const when = ms => { if (!ms) return ''; const d = new Date(ms), n = new Date(); return d.toDateString() === n.toDateString() ? hhmm(ms) : d.toLocaleDateString(globalThis.vLoc || 'it-IT', { day: 'numeric', month: 'short' }); };
 
   let tt; const webToast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => e.classList.remove('on'), 2800); };
@@ -136,9 +139,10 @@ export function boot(api, native) {
 
   { const w = $('#wel-lang'); if (w) { const LG = LANGS.find(l => l.code === curLang()) || LANGS[0]; w.textContent = LG.flag + ' ' + LG.name; w.setAttribute('translate', 'no'); } }
   /* ================= navigazione ================= */
-  const TABS = { home: 's-home', map: 's-map', tools: 's-tools', chat: 's-chat', circle: 's-circle', me: 's-me' };
+  const TABS = { home: 's-home', map: 's-map', tools: 's-tools', circle: 's-circle', me: 's-me', chat: 's-circle' };
+  const TABS_BY_SCREEN = { 's-home': 'home', 's-map': 'map', 's-tools': 'tools', 's-circle': 'circle', 's-me': 'me' };
   // Transizioni: le schede scorrono di lato nell'ordine della barra, le schermate interne entrano da destra ed escono a sinistra.
-  const ORDER = ['s-home', 's-map', 's-tools', 's-chat', 's-circle', 's-me'];
+  const ORDER = ['s-home', 's-map', 's-tools', 's-circle', 's-me'];
   let curScreen = 's-load';
   /* ---------- Liquid Glass nativo (iOS 26+) ----------
      La barra delle schede viene disegnata da iOS con UIGlassEffect (VicinaNative.swift), sopra la pagina.
@@ -160,7 +164,7 @@ export function boot(api, native) {
       const tab = $('#nav button.on')?.dataset.tab || st.tab || 'home';
       const num = el => (el && !el.hidden ? parseInt(el.textContent, 10) || 1 : 0);
       const tint = (getComputedStyle(document.documentElement).getPropertyValue('--red') || '#E8192C').trim();
-      const o = { on: true, visible, tab, badges: { chat: num($('#badge')), map: num($('#map-badge')) }, tint };
+      const o = { on: true, visible, tab, badges: { circle: num($('#badge')), map: num($('#map-badge')) }, tint };
       if (!glass.icons) { glass.icons = 'wait'; glassIcons().then(ic => { glass.icons = ic; glass.last = ''; syncGlass(true); }); }
       const key = JSON.stringify(o) + (glass.icons && glass.icons !== 'wait' && !glass.iconsSent ? '+ic' : '');
       if (key === glass.last) return; glass.last = key;
@@ -320,9 +324,10 @@ export function boot(api, native) {
   function rHome() {
     if (!st.p) return;
     $('#h-name').textContent = 'Ciao, ' + st.p.name;
-    { const n0 = recipients().size + smsOn().length, e = $('#h-eye'); if (e) { e.textContent = n0 ? `Sei ${G().prot} · ${n0} ${n0 === 1 ? 'persona' : 'persone'}` : 'Aggiungi qualcuno alla cerchia'; e.classList.toggle('ok', !!n0); } }
-    $('#h-av').innerHTML = AV(st.p.name + ' ' + st.p.surname, null, '', st.uid);
     const n = recipients().size + smsOn().length;
+    { const e = $('#h-eye'); if (e) { let d; try { d = new Date().toLocaleDateString(curLang(), { weekday: 'long', day: 'numeric', month: 'long' }); } catch { d = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }); } e.textContent = d.charAt(0).toUpperCase() + d.slice(1); e.setAttribute('translate', 'no'); } }
+    { const b = $('#h-av'); b.innerHTML = AV(st.p.name + ' ' + st.p.surname, null, '', st.uid); b.classList.toggle('ok', !!n); b.setAttribute('aria-label', n ? `Il tuo profilo · ${G().prot}, ${n} ${n === 1 ? 'persona' : 'persone'} nella cerchia` : 'Il tuo profilo · aggiungi qualcuno alla cerchia'); }
+    { const mc = $('#mw-circle'); if (mc) { mc.hidden = !n; mc.innerHTML = n ? `<i></i>${n} ${n === 1 ? 'persona ti protegge' : 'persone ti proteggono'}` : ''; } }
     $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
     $('#sos-wrap').classList.toggle('off', !n);
     $('#sos-hint').textContent = n ? 'Tieni premuto' : 'Aggiungi qualcuno';
@@ -796,16 +801,9 @@ export function boot(api, native) {
     const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n; if (glass.supported) syncGlass();
     const hb = $('#h-badge'); if (hb) { hb.hidden = !n; hb.textContent = n > 9 ? '9+' : n; }
   }
-  const preview = m => !m ? '' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw" translate="no">${esc(m.text)}</span>`;
-  function rChats() {
-    const cs = convs().map(c => ({ ...c, last: (st.threads[c.id] || []).slice(-1)[0] })).sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
-    const live = st.sosIn.filter(s => Date.now() - s.at < 12 * 36e5);
-    $('#c-list').innerHTML =
-      (live.length ? live.map(s => `<button class="sos-alert" data-a="in-open" data-id="${s.id}"><span class="deco"></span><span class="hero-av">${esc(initials(s.fromName))}</span><span class="fl"><small>SOS IN CORSO</small><b>${esc(s.fromName)}</b><span>Ha chiesto aiuto ${ago(s.at)}${s.audio ? ' · vocale' : ''}</span></span>${I('chev', 'chev')}</button>`).join('') : '')
-      + (cs.length ? `<div class="label">Conversazioni</div><div class="card">${cs.map(c => { const u = unread(c.id);
-        return `<button class="row" data-a="open" data-id="${c.id}">${AV(c.name, c.k, '', c.uid)}<div class="fl"><b>${esc(c.name)}</b><span>${c.last ? preview(c.last) : esc(c.sub)}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">${c.last ? `<span class="meta" style="margin:0">${when(c.last.at)}</span>` : ''}${u ? `<b class="badge" style="position:static">${u}</b>` : ''}</div></button>`; }).join('')}</div>`
-        : `<div class="empty"><i class="ic-dot violet">${I('chat')}</i><b>Nessuna conversazione</b>Quando aggiungi qualcuno alla tua cerchia, la chat compare qui.<button class="btn" data-a="add">Aggiungi persona</button></div>`);
-  }
+  const preview = m => !m ? '' : m.type === 'image' ? `${m.from === st.uid ? 'Tu: ' : ''}📷 Foto` : m.type === 'file' ? `📎 <span translate="no">${esc(m.fileName || 'File')}</span>` : m.type === 'voice' ? `🎤 Messaggio vocale · ${mmss((m.dur || 0) * 1000)}` : m.type === 'loc' ? '📍 Posizione' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw" translate="no">${esc(m.text)}</span>`;
+  // «Avvisi» non è più una scheda: conversazioni e SOS in arrivo stanno nella Cerchia
+  function rChats() { if (curScreen === 's-circle') rCircle(); }
   const nameIn = (cid, uid) => st.groups.find(g => g.id === cid)?.members.find(m => m.uid === uid)?.name || '';
   // spunte: una = inviato, due verdi = letto
   const TICK1 = '<svg viewBox="0 0 16 12"><path d="M1.5 6.5l3.2 3.2L11 3"/></svg>', TICK2 = '<svg viewBox="0 0 20 12"><path d="M1.5 6.5l3.2 3.2L11 3"/><path d="M8 9.2l.5.5L15 3"/></svg>';
@@ -814,7 +812,7 @@ export function boot(api, native) {
   const isRead = (cid, m) => readers(cid, m.at) >= others(cid);
   function msgHtml(cid, m, cls = '') {
     const mine = m.from === st.uid;
-    const tick = mine && m.type === 'text' ? `<span class="tick ${isRead(cid, m) ? 'r' : ''}" data-at="${m.at}">${isRead(cid, m) ? TICK2 : TICK1}</span>` : '';
+    const tick = mine && m.type !== 'sos' && m.type !== 'safe' ? `<span class="tick ${isRead(cid, m) ? 'r' : ''}" data-at="${m.at}">${isRead(cid, m) ? TICK2 : TICK1}</span>` : '';
     const t = `<div class="t">${hhmm(m.at)}${tick}</div>`;
     if (m.type === 'sos') {
       const sosLive = st.sosIn.find(s => s.id === m.sosId) || (st.sosMine?.id === m.sosId ? st.sosMine : null);
@@ -823,6 +821,16 @@ export function boot(api, native) {
     }
     if (m.type === 'safe') return `<div class="msg safe ${cls}">${I('check')} <b>${mine ? 'Hai' : esc(m.fromName) + ' ha'}</b> chiuso l'SOS: ${mine ? 'sei' : 'è'} al sicuro. ${hhmm(m.at)}</div>`;
     const who = !mine && cid && st.groups.some(g => g.id === cid) ? `<span class="who">${esc(nameIn(cid, m.from) || 'Ex membro')}</span>` : '';
+    const tk = mine ? `<span class="tick ${isRead(cid, m) ? 'r' : ''}" data-at="${m.at}">${isRead(cid, m) ? TICK2 : TICK1}</span>` : '';
+    const tt = `<div class="t">${hhmm(m.at)}${tk}</div>`;
+    const cap = m.text ? `<span class="raw cap" translate="no">${esc(m.text)}</span>` : '';
+    if (m.type === 'image') return `<div class="msg media ${mine ? '' : 'in'} ${cls}">${who}<button class="mimg" data-a="img-open" data-f="${esc(m.file)}" aria-label="Apri la foto"><img data-f="${esc(m.file)}" alt=""></button>${cap}${tt}</div>`;
+    if (m.type === 'file') {
+      const ext = (String(m.fileName).match(/\.([a-z0-9]{1,5})$/i)?.[1] || 'file').toUpperCase().slice(0, 4);
+      return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<button class="mfile" data-a="file-open" data-f="${esc(m.file)}" data-n="${esc(m.fileName)}"><i class="mf-ic">${esc(ext)}</i><span class="fl"><b translate="no">${esc(m.fileName || 'File')}</b><span>${fsize(m.fileSize)}</span></span></button>${cap}${tt}</div>`;
+    }
+    if (m.type === 'voice') return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<div class="vn" data-f="${esc(m.file)}" data-d="${m.dur || 0}"><button class="vn-play" data-a="vn-play" aria-label="Riproduci il messaggio vocale">${I('play')}</button><span class="vn-bars">${vnBars(m.id)}</span><span class="vn-t">${mmss((m.dur || 0) * 1000)}</span></div>${tt}</div>`;
+    if (m.type === 'loc') return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<button class="mloc" data-a="loc-open" data-lat="${m.lat}" data-lng="${m.lng}"><i class="ml-pin">${I('pin')}</i><span class="fl"><b>Posizione</b><span>${Number(m.lat).toFixed(4)}, ${Number(m.lng).toFixed(4)}</span></span>${I('chev', 'chev')}</button>${tt}</div>`;
     return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<span class="raw" translate="no">${esc(m.text)}</span>${t}</div>`;
   }
   /* chat dal vivo: chi scrive (con anteprima), chi è online, letture */
@@ -856,7 +864,7 @@ export function boot(api, native) {
   function rSeen() {   // «Letto alle 09:31» sotto il tuo ultimo messaggio
     const box = $('#msgs'); if (!box) return; box.querySelector('.seen')?.remove();
     const l = st.threads[cl.id] || [], last = l[l.length - 1];
-    if (!last || last.from !== st.uid || last.type !== 'text') return;
+    if (!last || last.from !== st.uid || ['sos', 'safe'].includes(last.type)) return;
     const g = st.groups.find(x => x.id === cl.id), n = readers(cl.id, last.at);
     const txt = g ? (n ? `Letto da ${n} su ${others(cl.id)}` : 'Inviato') : (n ? `Letto alle ${hhmm(Math.max(...Object.entries(cl.reads).filter(([u]) => u !== st.uid).map(([, t]) => t)))}` : 'Inviato');
     const e = document.createElement('div'); e.className = 'seen' + (n ? ' r' : ''); e.textContent = txt;
@@ -889,8 +897,105 @@ export function boot(api, native) {
     st.open = id; show('s-thread', 'in-push');
     $('#t-name').textContent = c.name;
     $('#t-av').innerHTML = AV(c.name, c.k, 'sm', c.uid);
+    $('#att-menu').hidden = true; composeSync();
+    const call = $('#t-call'); call.hidden = true;
+    if (c.uid && api.circleProfile) api.circleProfile(c.uid).then(p => { if (st.open !== id || !p?.phone) return; call.href = 'tel:' + p.phone.replace(/[^+\d]/g, ''); call.hidden = false; }).catch(() => {});
     openLive(id); rTSub(); rThread();
   }
+  /* ---------- chat: allegati, vocali e posizione (3.1) ---------- */
+  const fileCache = {};
+  const fileUrl = async p => (fileCache[p] = fileCache[p] || await api.fileUrl(p));
+  async function hydrateFiles(root) {
+    for (const im of root.querySelectorAll('img[data-f]')) {
+      const p = im.dataset.f; im.removeAttribute('data-f');
+      try { im.src = await fileUrl(p); } catch { im.closest('.mimg')?.classList.add('broken'); }
+    }
+  }
+  const v31Msg = e => e?.code === 'v31-setup' ? 'Il server non è ancora aggiornato: esegui aggiornamento-3.1.sql su Supabase' : errMsg(e);
+  function composeSync() { const has = !!$('#txt').value.trim(); $('#t-send').hidden = !has; $('#t-mic').hidden = has; }
+  $('#txt').addEventListener('input', composeSync);
+  // foto ridimensionate (lato lungo 1600 px) per non pesare sulla rete
+  const shrinkImage = file => new Promise((ok, ko) => {
+    const u = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+      c.toBlob(b => b ? ok(b) : ko(new Error('Immagine non leggibile')), 'image/jpeg', 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); ko(new Error('Immagine non leggibile')); };
+    img.src = u;
+  });
+  async function sendAttachment(file, kind) {
+    const id = st.open; if (!id || !file) return;
+    if (file.size > 15 * 1048576) return toast('File troppo grande (massimo 15 MB)');
+    toast('Invio in corso…');
+    try {
+      if (kind === 'image' && /^image\//.test(file.type) && !/gif|svg/.test(file.type)) {
+        const blob = await shrinkImage(file);
+        await api.sendFile(id, st.uid, { type: 'image', blob, name: (file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg', size: blob.size });
+      } else await api.sendFile(id, st.uid, { type: 'file', blob: file, name: file.name || 'file', mime: file.type || 'application/octet-stream', size: file.size });
+      native.haptic('light');
+    } catch (e) { console.warn('allegato', e); toast(v31Msg(e)); }
+  }
+  function pickFile(accept, kind, capture) {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = accept; if (capture) inp.setAttribute('capture', 'environment');
+    inp.onchange = () => { const f = inp.files?.[0]; if (f) sendAttachment(f, kind === 'auto' ? (/^image\//.test(f.type) ? 'image' : 'file') : kind); };
+    inp.click();
+  }
+  async function attach(k) {
+    $('#att-menu').hidden = true;
+    if (k === 'photo') return pickFile('image/*,video/*', 'auto');
+    if (k === 'camera') return pickFile('image/*', 'image', true);
+    if (k === 'file') return pickFile('*/*', 'file');
+    if (k === 'walk') return tools.handle('walk', $('#att-menu'));
+    if (k === 'loc') {
+      try { const p = await native.getPos(); await api.sendLoc(st.open, st.uid, p.lat, p.lng); native.haptic('light'); }
+      catch (e) { toast(e?.code ? v31Msg(e) : 'Posizione non disponibile: controlla il GPS'); }
+    }
+  }
+  // vocale: tieni premuto il microfono, rilascia per inviare, trascina a sinistra per annullare
+  const vn = { rec: null, t0: 0, x0: 0, timer: null, cancel: false };
+  const micBtn = $('#t-mic');
+  micBtn.addEventListener('pointerdown', async e => {
+    if (vn.rec || !st.open) return; e.preventDefault(); vn.x0 = e.clientX; vn.cancel = false;
+    try { micBtn.setPointerCapture?.(e.pointerId); } catch {}
+    try { vn.rec = await native.startRecording(); } catch (x) { if (x?.code === 'mic-blocked') return micBlocked(); return toast('Serve il permesso del microfono per il vocale'); }
+    vn.t0 = Date.now(); native.haptic('medium'); $('#rec-bar').hidden = false; micBtn.classList.add('rec');
+    vn.timer = setInterval(() => { $('#rec-t').textContent = mmss(Date.now() - vn.t0); if (Date.now() - vn.t0 > 300000) vnEnd(); }, 200);
+  });
+  micBtn.addEventListener('pointermove', e => { if (!vn.rec) return; const dx = e.clientX - vn.x0; vn.cancel = dx < -80; $('#rec-bar').classList.toggle('cancel', vn.cancel); });
+  const vnEnd = async () => {
+    if (!vn.rec) return;
+    const rec = vn.rec, cancel = vn.cancel, id = st.open; vn.rec = null; clearInterval(vn.timer);
+    $('#rec-bar').hidden = true; $('#rec-bar').classList.remove('cancel'); micBtn.classList.remove('rec');
+    if (cancel) { try { rec.cancel(); } catch {} return toast('Vocale annullato'); }
+    const out = await rec.stop();
+    if (!out || out.ms < 800 || !out.blob.size) return toast('Tieni premuto il microfono mentre parli');
+    try { await api.sendFile(id, st.uid, { type: 'voice', blob: out.blob, name: 'vocale.' + out.ext, mime: out.mime, size: out.blob.size, dur: Math.round(out.ms / 1000) }); native.haptic('light'); }
+    catch (e) { console.warn('vocale chat', e); toast(v31Msg(e)); }
+  };
+  micBtn.addEventListener('pointerup', vnEnd); micBtn.addEventListener('pointercancel', () => { vn.cancel = true; vnEnd(); });
+  // lettore dei vocali: un solo audio alla volta, l'onda si colora mentre suona
+  let vnAudio = null, vnEl = null;
+  async function vnPlay(box) {
+    if (vnEl === box && vnAudio) { if (vnAudio.paused) vnAudio.play(); else vnAudio.pause(); return; }
+    vnAudio?.pause(); vnEl?.classList.remove('on');
+    vnEl = box; box.classList.add('on');
+    try { vnAudio = new Audio(await fileUrl(box.dataset.f)); } catch { box.classList.remove('on'); return toast('Vocale non disponibile'); }
+    const bars = [...box.querySelectorAll('.vn-bars i')], t = box.querySelector('.vn-t'), pl = box.querySelector('.vn-play');
+    vnAudio.ontimeupdate = () => { const d = vnAudio.duration || Number(box.dataset.d) || 1, k = vnAudio.currentTime / d; bars.forEach((b, i) => b.classList.toggle('p', i / bars.length <= k)); t.textContent = mmss(vnAudio.currentTime * 1000); };
+    vnAudio.onplay = () => (pl.innerHTML = I('pause')); vnAudio.onpause = () => (pl.innerHTML = I('play'));
+    vnAudio.onended = () => { pl.innerHTML = I('play'); bars.forEach(b => b.classList.remove('p')); t.textContent = mmss(Number(box.dataset.d) * 1000); box.classList.remove('on'); vnEl = null; };
+    vnAudio.play().catch(() => toast('Vocale non disponibile'));
+  }
+  async function openFile(p, name) {
+    try { const u = await fileUrl(p); native.openUrl ? native.openUrl(u) : window.open(u, '_blank'); } catch { toast('File non disponibile'); }
+  }
+  function openImage(p) {
+    fileUrl(p).then(u => openSheet(`<div class="img-view"><img src="${esc(u)}" alt=""></div><button class="btn ghost" data-a="file-open" data-f="${esc(p)}">${I('share')}Apri o salva</button>`, 'img')).catch(() => toast('Foto non disponibile'));
+  }
+  const mapsUrl = (lat, lng) => isIOS() ? `https://maps.apple.com/?q=${lat},${lng}` : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   function rThread() {
     const id = st.open; if (!id) return;
     const l = st.threads[id] || [], box = $('#msgs'), prevN = cl.id === id ? cl.count : l.length;
@@ -900,7 +1005,7 @@ export function boot(api, native) {
     // se è arrivato un messaggio di chi stava scrivendo, il suo «sta scrivendo» sparisce
     if (fresh > 0) l.slice(-fresh).forEach(m => delete cl.typing[m.from]);
     rSeen(); rTyping(); rTSub();
-    box.scrollTop = 1e9; hydrate(box);
+    box.scrollTop = 1e9; hydrate(box); hydrateFiles(box);
     if (l.length) {
       seen[id] = l[l.length - 1].at; ls.set('seenChats', JSON.stringify(seen)); rBadge();
       const lastIn = [...l].reverse().find(m => m.from !== st.uid);
@@ -910,9 +1015,9 @@ export function boot(api, native) {
     }
   }
   async function sendText() {
-    const v = $('#txt').value.trim(); if (!v || !st.open) return; $('#txt').value = '';
+    const v = $('#txt').value.trim(); if (!v || !st.open) return; $('#txt').value = ''; composeSync();
     cl.h?.typing(''); cl.sentAt = 0;
-    try { await api.sendText(st.open, st.uid, v); } catch (e) { $('#txt').value = v; toast(errMsg(e)); }
+    try { await api.sendText(st.open, st.uid, v); } catch (e) { $('#txt').value = v; composeSync(); toast(errMsg(e)); }
   }
   $('#txt').onkeydown = e => { if (e.key === 'Enter') sendText(); };
   // mentre scrivi: gli altri vedono «sta scrivendo» e (se vuoi) l'anteprima del testo
@@ -949,35 +1054,44 @@ export function boot(api, native) {
   function rCircle() {
     const p = partner(), f = friends(), g = groups(), appN = recipients().size, sl = smsList(), smsN = smsOn().length, n = appN + smsN;
     { const el = $('#c-count'); if (el) el.innerHTML = `${String(n).padStart(2, '0')}<small> ${n === 1 ? 'persona' : 'persone'}</small>`; }
-    const person = x => `<button class="row" data-a="person" data-id="${x.id}">${AV(x.name, null, '', x.uid)}<div class="fl"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div>${I('chev', 'chev')}</button>`;
     const ini = n => esc(initials(n));
-    // stato: le informazioni che prima stavano in Home
+    const cf = st.cf || 'all';
+    const last = id => (st.threads[id] || []).slice(-1)[0];
     const status = n
       ? `<div class="c-status"><i class="st-dot"></i><div class="fl"><b>Sei ${G().prot}</b><span>${n} ${n === 1 ? 'persona riceve' : 'persone ricevono'} il tuo SOS${smsN ? ` · ${appN} in app, ${smsN} via SMS` : ''}</span></div></div>`
       : `<div class="c-status warn"><i class="st-dot warn"></i><div class="fl"><b>Nessuno da avvisare</b><span>Aggiungi almeno una persona: il tasto SOS si attiva subito.</span></div></div>`;
-    const how = `<div class="c-how"><span>${I('clock')}Tieni premuto 1,5 s</span><span>${I('pin')}Posizione live</span><span>${I('camera')}2 foto</span></div>`;
-    let body;
-    if (!p && !f.length && !g.length) {
-      body = `<div class="empty sm"><i class="ic-dot violet">${I('people')}</i><b>Nessuno con l'app</b>Aggiungi il partner, ${G().amico} o crea un gruppo.<button class="btn" data-a="add">Aggiungi persona</button></div>`;
-    } else {
-      const hero = p
-        ? `<button class="hero-card" data-a="person" data-id="${p.id}"><span class="deco"></span><span class="hero-av">${ini(p.name)}${avUrl(p.uid) ? `<img src="${esc(avUrl(p.uid))}" alt="" onerror="this.remove()">` : ''}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>Riceve sempre i tuoi SOS</span></span>${I('chev', 'chev')}</button>`
-        : `<button class="hero-card empty-hero" data-a="invite" data-k="partner"><span class="hero-av">${I('heart')}</span><span class="fl"><small>PARTNER</small><b>Aggiungi il partner</b><span>Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
-      const grpCard = x => {
-        const ms = (x.members || []).filter(m => m.uid !== st.uid).slice(0, 3);
-        return `<button class="grp-card" data-a="grp" data-id="${x.id}">
-          <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}${avUrl(m.uid) ? `<img src="${esc(avUrl(m.uid))}" alt="" onerror="this.remove()">` : ''}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
-          <span class="grp-name">${esc(x.name)}</span><span class="grp-sub">${x.members.length} di 8 persone${x.admin && x.req.length ? ` · <b>${x.req.length} richieste</b>` : ''}</span></button>`;
-      };
-      body = hero
-        + `<div class="label">${G() === GG.m ? 'Amici' : 'Amiche e amici'} · ${f.length}</div><div class="card">${f.map(person).join('')}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`
-        + `<div class="label">Gruppi · ${g.length}</div><div class="grp-grid">${g.map(grpCard).join('')}<button class="grp-card add" data-a="newgroup"><span class="grp-plus">${I('plus')}</span><span class="grp-name">Nuovo gruppo</span><span class="grp-sub">Fino a 8 persone</span></button></div>`;
-    }
+    const live = st.sosIn.filter(s => Date.now() - s.at < 12 * 36e5);
+    const alerts = live.map(s => `<button class="sos-alert" data-a="in-open" data-id="${s.id}"><span class="deco"></span><span class="hero-av">${ini(s.fromName)}</span><span class="fl"><small>SOS IN CORSO</small><b>${esc(s.fromName)}</b><span>Ha chiesto aiuto ${ago(s.at)}${s.audio ? ' · vocale' : ''}</span></span>${I('chev', 'chev')}</button>`).join('');
+    const chips = `<div class="c-chips" role="tablist">${[['all', 'Tutti'], ['friends', G() === GG.m ? 'Amici' : 'Amiche e amici'], ['groups', 'Gruppi'], ['sms', 'Via SMS']].map(([k, t]) => `<button class="chip ${cf === k ? 'on' : ''}" role="tab" aria-selected="${cf === k}" data-a="cf" data-k="${k}">${t}</button>`).join('')}</div>`;
+    const conv = c => { const l = last(c.id), u = unread(c.id);
+      return `<button class="row conv" data-a="open" data-id="${c.id}">${AV(c.name, c.k, '', c.uid)}<div class="fl"><b>${esc(c.name)}</b><span>${l ? preview(l) : esc(c.sub)}</span></div><div class="cv-meta">${l ? `<span class="meta">${when(l.at)}</span>` : ''}${u ? `<b class="badge">${u > 9 ? '9+' : u}</b>` : ''}</div></button>`; };
+    const hero = p
+      ? (() => { const l = last(p.id), u = unread(p.id);
+        return `<button class="hero-card conv-hero" data-a="open" data-id="${p.id}"><span class="hero-av">${ini(p.name)}${avUrl(p.uid) ? `<img src="${esc(avUrl(p.uid))}" alt="" onerror="this.remove()">` : ''}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>${l ? preview(l) : 'Riceve sempre i tuoi SOS'}</span></span>${u ? `<b class="badge">${u > 9 ? '9+' : u}</b>` : I('chev', 'chev')}</button>`; })()
+      : `<button class="hero-card empty-hero" data-a="invite" data-k="partner"><span class="hero-av">${I('heart')}</span><span class="fl"><small>PARTNER</small><b>Aggiungi il partner</b><span>Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
+    const grpCard = x => {
+      const ms = (x.members || []).filter(m => m.uid !== st.uid).slice(0, 3);
+      return `<button class="grp-card" data-a="grp" data-id="${x.id}">
+        <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}${avUrl(m.uid) ? `<img src="${esc(avUrl(m.uid))}" alt="" onerror="this.remove()">` : ''}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
+        <span class="grp-name">${esc(x.name)}</span><span class="grp-sub">${x.members.length} di 8 persone${x.admin && x.req.length ? ` · <b>${x.req.length} richieste</b>` : ''}</span></button>`;
+    };
     const smsRow = c => `<div class="row sms-row"><button class="sms-who" data-a="sms-edit" data-id="${c.id}">${AV(c.name)}<div class="fl"><b>${esc(c.name)}</b><span>${esc(c.phone)}</span></div></button><input type="checkbox" class="switch" data-sms="${c.id}" ${c.on ? 'checked' : ''} aria-label="Avvisa ${esc(c.name)} ad SOS"></div>`;
     const smsBlock = `<div class="label">Senza app · via SMS · ${sl.length}</div><div class="card">${sl.map(smsRow).join('')}<button class="row add" data-a="sms-add"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>Aggiungi contatto</b><span>Basta il numero: riceve posizione e foto via SMS</span></div></button></div>`;
-    $('#p-list').innerHTML = status + how + body + smsBlock
+    const person = x => `<button class="row" data-a="prof" data-uid="${x.uid}" data-id="${x.id}">${AV(x.name, null, '', x.uid)}<div class="fl"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div>${I('chev', 'chev')}</button>`;
+    let body = '';
+    if (cf === 'all') {
+      const others = [...f, ...g].map(c => ({ ...c, l: last(c.id) })).sort((a, b) => (b.l?.at || 0) - (a.l?.at || 0));
+      body = hero + (others.length ? `<div class="label">Conversazioni</div><div class="card">${others.map(conv).join('')}</div>`
+        : !p ? `<div class="empty sm"><i class="ic-dot violet">${I('people')}</i><b>Nessuno con l'app</b>Aggiungi il partner, ${G().amico} o crea un gruppo.<button class="btn" data-a="add">Aggiungi persona</button></div>` : '')
+        + (sl.length ? smsBlock : '');
+    } else if (cf === 'friends') {
+      body = `<div class="card">${[...(p ? [p] : []), ...f].map(person).join('')}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`;
+    } else if (cf === 'groups') {
+      body = `<div class="grp-grid">${g.map(grpCard).join('')}<button class="grp-card add" data-a="newgroup"><span class="grp-plus">${I('plus')}</span><span class="grp-name">Nuovo gruppo</span><span class="grp-sub">Fino a 8 persone</span></button></div>`;
+    } else body = smsBlock;
+    $('#p-list').innerHTML = alerts + status + chips + body
       + `<div class="circle-acts"><button class="btn" data-a="invite" data-k="friend">${I('qr')}Il mio QR</button><button class="btn ghost" data-a="qr-scan">${I('camera')}Scansiona QR</button></div>
-        <p class="note">L'SOS arriva a tutte le persone qui sopra, ai gruppi attivi e ai contatti SMS con la spunta.</p>`;
+        <p class="note">L'SOS arriva a tutte le persone della cerchia, ai gruppi attivi e ai contatti SMS con la spunta.</p>`;
   }
   // contatto senza app: aggiungi / modifica
   const sheetSms = id => {
@@ -1060,13 +1174,150 @@ export function boot(api, native) {
     };
     inp.click();
   }
+  // banner del profilo: immagine o sfumatura col colore della persona
+  const bannerBg = (url, name) => url ? `background-image:url('${esc(url)}')` : `--bc:var(--${col(name)}, #3a3a44)`;
+  function meCard(p, full) {
+    return `<div class="card pcard"><div class="pc-banner${p.banner ? ' img' : ''}" style="${bannerBg(p.banner, full)}"></div>
+      <div class="pc-main"><button class="pc-av" data-a="my-prof" aria-label="Vedi il tuo profilo">${AV(full, null, 'lg', st.uid)}</button>
+        <button class="btn ghost sm pc-edit" data-a="ed-open">${I('pen')}Modifica</button></div>
+      <button class="pc-txt" data-a="my-prof"><b>${esc(full)}</b><span>${esc(p.bio || (p.city ? p.city : st.email || ''))}</span></button></div>`;
+  }
+  function readyItems() {
+    let med = false; try { const m = JSON.parse(ls.get('medical:' + st.uid) || 'null'); med = !!(m && ((m.blood && m.blood !== 'Non so') || m.allergies || m.meds || m.conditions || m.notes)); } catch {}
+    return [
+      [recipients().size + smsOn().length > 0, 'Qualcuno nella cerchia', 'add', 'people'],
+      [!!st.p?.phone, 'Il tuo numero di telefono', 'ed-open', 'phone'],
+      [med, 'Scheda medica', 'med', 'heart'],
+      [permCount() >= 3, 'Permessi attivi', 'perm-sheet', 'lock'],
+      [!!avUrl(st.uid), 'Foto profilo', 'ed-open', 'camera']
+    ];
+  }
+  function readyCard() {
+    const it = readyItems(), n = it.filter(x => x[0]).length, todo = it.filter(x => !x[0]);
+    return `<div class="card ready${n === 5 ? ' full' : ''}"><div class="rd-head"><div class="fl"><b>${G() === GG.m ? 'Pronto' : 'Pronta'} per un'emergenza</b><span>${n === 5 ? 'Hai fatto tutto: ottimo lavoro' : 'Completa questi passi: chi ti aiuta arriva prima'}</span></div><span class="rd-n">${n}/5</span></div>
+      <div class="rd-bar">${it.map(x => `<i class="${x[0] ? 'on' : ''}"></i>`).join('')}</div>
+      ${todo.map(x => `<button class="row rd-row" data-a="${x[2]}"><i class="ic-dot gray">${I(x[3])}</i><div class="fl"><b>${esc(x[1])}</b></div><span class="pill ok">Fai ora</span></button>`).join('')}</div>`;
+  }
+  /* ---------- profilo di una persona (3.1) ---------- */
+  const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  const bdayTxt = b => { const m = /^(\d\d)-(\d\d)$/.exec(b || ''); return m ? `${Number(m[2])} ${MESI[Number(m[1]) - 1]}` : ''; };
+  const sinceTxt = ms => { if (!ms) return ''; const d = new Date(ms); return `${MESI[d.getMonth()]} ${d.getFullYear()}`; };
+  let profFrom = null, profUid = null;
+  async function openProfile(uid) {
+    if (!uid) return;
+    profFrom = curScreen; profUid = uid; const self = uid === st.uid;
+    const c = convs().find(x => x.uid === uid);
+    const nm = self ? st.p.name + ' ' + st.p.surname : (c?.name || '');
+    $('#pf-body').innerHTML = profHtml(self ? { ...st.p, uid, phone: st.p.phone, bday: st.p.dob ? st.p.dob.slice(5, 10) : '', kind: 'me', since: 0 } : { uid, name: nm, kind: c?.k === 'p' ? 'partner' : '' }, true);
+    show('s-prof', 'in-push');
+    if (self) return;
+    try { const d = await api.circleProfile(uid); if (profUid !== uid) return; $('#pf-body').innerHTML = profHtml(d); }
+    catch (e) { if (profUid !== uid) return; if (e?.code === 'v31-setup') $('#pf-body').querySelector('.pf-info')?.insertAdjacentHTML('beforebegin', `<p class="note">${esc(v31Msg(e))}</p>`); else toast(errMsg(e)); }
+  }
+  function profHtml(d, loading) {
+    const self = d.uid === st.uid, full = self ? st.p.name + ' ' + st.p.surname : (d.surname ? d.name + ' ' + d.surname : d.name || '');
+    const c = convs().find(x => x.uid === d.uid), banner = self ? st.p.banner : d.banner, phone = d.phone || '', bd = bdayTxt(d.bday);
+    if (!self && d.avatar && !st.av[d.uid]) st.av = { ...st.av, [d.uid]: d.avatar };
+    const info = [
+      phone ? `<div class="row"><i class="ic-dot green">${I('phone')}</i><div class="fl"><span>Telefono</span><b translate="no">${esc(phone)}</b></div><button class="iconbtn round sm" data-a="pf-copy" data-v="${esc(phone)}" aria-label="Copia il numero">${I('copy')}</button></div>` : '',
+      d.city ? `<div class="row"><i class="ic-dot blue">${I('pin')}</i><div class="fl"><span>Città</span><b translate="no">${esc(d.city)}</b></div></div>` : '',
+      bd ? `<div class="row"><i class="ic-dot amber">${I('spark')}</i><div class="fl"><span>Compleanno</span><b>${esc(bd)}</b></div></div>` : '',
+      d.since ? `<div class="row"><i class="ic-dot violet">${I('people')}</i><div class="fl"><span>Nella tua cerchia da</span><b>${esc(sinceTxt(d.since))}</b></div></div>` : ''
+    ].join('');
+    const tag = d.kind === 'partner' ? '<span class="tag pf-tag">PARTNER</span>' : d.kind === 'group' ? '<span class="tag pf-tag">GRUPPO</span>' : self ? '<span class="tag pf-tag">TU</span>' : '';
+    return `<div class="pf-banner${banner ? ' img' : ''}" style="${bannerBg(banner, full)}"><button class="iconbtn round pf-back" data-a="pf-back" aria-label="Indietro">${I('back')}</button></div>
+      <div class="pf-head"><div class="pf-av">${AV(full, c?.k, 'xl', d.uid)}</div>
+        <h1 translate="no">${esc(full)}</h1>${tag}
+        ${d.bio ? `<p class="pf-bio" translate="no">${esc(d.bio)}</p>` : loading && !self ? '<p class="pf-bio dim">Carico il profilo…</p>' : ''}</div>
+      <div class="pf-acts">${self ? `<button class="pf-act" data-a="ed-open">${I('pen')}<span>Modifica</span></button>`
+        : `${c ? `<button class="pf-act" data-a="open" data-id="${esc(c.id)}">${I('chat')}<span>Messaggio</span></button>` : ''}
+           ${phone ? `<a class="pf-act" href="tel:${esc(phone.replace(/[^+\d]/g, ''))}">${I('phone')}<span>Chiama</span></a>` : `<button class="pf-act off" disabled>${I('phone')}<span>Chiama</span></button>`}
+           ${c ? `<button class="pf-act" data-a="pf-loc" data-uid="${esc(d.uid)}" data-id="${esc(c.id)}">${I('pin')}<span>Posizione</span></button>` : ''}`}</div>
+      ${info ? `<div class="card pf-info">${info}</div>` : ''}
+      ${!self && c && c.k !== 'g' ? `<button class="btn ghost pf-more" data-a="person" data-id="${esc(c.id)}">Opzioni della cerchia</button>` : ''}`;
+  }
+  async function profLoc(uid, chatId) {
+    const s = st.sosIn.find(x => x.from === uid && x.lat != null);
+    if (s) { tab('map'); return mapFocus(s.id, s.lat, s.lng); }
+    if (await dialog({ title: 'Mandare la tua posizione?', text: 'La posizione delle persone la vedi solo durante un loro SOS. Puoi però mandare la tua in chat, adesso.', ok: 'Manda la mia posizione', cancel: 'Annulla' })) {
+      try { const p = await native.getPos(); await api.sendLoc(chatId, st.uid, p.lat, p.lng); toast('Posizione inviata'); openThread(chatId); }
+      catch (e) { toast(e?.code ? v31Msg(e) : 'Posizione non disponibile: controlla il GPS'); }
+    }
+  }
+
+  /* ---------- crea / modifica il mio profilo (3.1) ---------- */
+  let ed = null, edFrom = null;
+  // banner largo 3:1, 1200×400 JPEG
+  const wideJpeg = file => new Promise((ok, ko) => {
+    const u = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const W = img.naturalWidth, H = img.naturalHeight, r = 3; let sw = W, sh = W / r; if (sh > H) { sh = H; sw = H * r; }
+      const ow = Math.min(1200, Math.round(sw)), c = document.createElement('canvas'); c.width = ow; c.height = Math.round(ow / r);
+      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, (W - sw) / 2, (H - sh) / 2, sw, sh, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(u); let q = 0.84, d = c.toDataURL('image/jpeg', q); while (d.length > 600000 && q > 0.4) { q -= 0.12; d = c.toDataURL('image/jpeg', q); } ok(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); ko(new Error('Immagine non leggibile')); };
+    img.src = u;
+  });
+  function openEdit() {
+    const p = st.p; edFrom = curScreen === 's-edit' ? edFrom : curScreen;
+    ed = { banner: null, avatar: null, delBanner: false };
+    show('s-edit', 'in-push'); rEdit({ name: p.name, surname: p.surname, bio: p.bio || '', phone: p.phone || '', city: p.city || '', showBday: !!p.showBday });
+  }
+  function rEdit(v) {
+    const full = st.p.name + ' ' + st.p.surname, bn = ed.banner || (ed.delBanner ? '' : st.p.banner), av = ed.avatar || avUrl(st.uid);
+    $('#ed-body').innerHTML = `<button class="ed-banner${bn ? ' img' : ''}" data-a="ed-banner" style="${bannerBg(bn, full)}" aria-label="Cambia il banner"><span>${I('camera')}${bn ? 'Cambia banner' : 'Aggiungi un banner'}</span></button>
+      <button class="ed-av" data-a="ed-avatar" aria-label="Cambia la foto profilo">${av ? `<span class="av xl img" style="background-image:url('${esc(av)}')"></span>` : AV(full, null, 'xl', '')}<i>${I('camera')}</i></button>
+      ${bn ? `<button class="ed-link" data-a="ed-banner-del">Togli il banner</button>` : ''}
+      <div class="card ed-form">
+        <label class="field"><span>Nome</span><input id="ed-name" maxlength="40" autocomplete="given-name" value="${esc(v.name)}"></label>
+        <label class="field"><span>Cognome</span><input id="ed-surname" maxlength="40" autocomplete="family-name" value="${esc(v.surname)}"></label>
+        <label class="field"><span>Bio <em id="ed-bio-n">${v.bio.length}/150</em></span><textarea id="ed-bio" maxlength="150" rows="3" placeholder="Due parole su di te">${esc(v.bio)}</textarea></label>
+      </div>
+      <div class="label">Info visibili alla tua cerchia</div>
+      <div class="card ed-form">
+        <label class="field"><span>Telefono</span><input id="ed-phone" type="tel" inputmode="tel" maxlength="20" placeholder="+39 333 123 4567" value="${esc(v.phone)}"></label>
+        <label class="field"><span>Città</span><input id="ed-city" maxlength="40" autocomplete="address-level2" placeholder="Es. Roma" value="${esc(v.city)}"></label>
+        <label class="row tg"><div class="fl wrap"><b>Mostra il compleanno</b><span>${st.p.dob ? esc(bdayTxt(st.p.dob.slice(5, 10))) + ' · senza l\'anno' : 'Senza l\'anno di nascita'}</span></div><input type="checkbox" class="sw" id="ed-bday"${v.showBday ? ' checked' : ''}></label>
+      </div>
+      <p class="note">Il profilo e il numero li vede solo chi è nella tua cerchia o nei tuoi gruppi.</p>`;
+    $('#ed-bio').oninput = e => ($('#ed-bio-n').textContent = e.target.value.length + '/150');
+  }
+  const edVals = () => ({ name: $('#ed-name').value.trim(), surname: $('#ed-surname').value.trim(), bio: $('#ed-bio').value.trim().slice(0, 150), phone: $('#ed-phone').value.trim(), city: $('#ed-city').value.trim().slice(0, 40), showBday: $('#ed-bday').checked });
+  function edPick(kind) {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async () => {
+      const f = inp.files?.[0]; if (!f) return; const v = edVals();
+      try { if (kind === 'banner') { ed.banner = await wideJpeg(f); ed.delBanner = false; } else ed.avatar = await squareJpeg(f); rEdit(v); }
+      catch { toast('Questa immagine non si può usare: prova con un\'altra'); }
+    };
+    inp.click();
+  }
+  async function edSave(btn) {
+    const v = edVals();
+    if (!v.name || !v.surname) return toast('Scrivi nome e cognome');
+    if (v.phone && !/^\+?[\d\s().-]{6,20}$/.test(v.phone)) return toast('Controlla il numero di telefono');
+    await busy(btn, async () => {
+      const warn = [];
+      if (v.phone !== (st.p.phone || '')) { await api.updateProfile(st.uid, { phone: v.phone }); st.p = { ...st.p, phone: v.phone }; }
+      try { await api.setProfile(v); st.p = { ...st.p, name: v.name, surname: v.surname, bio: v.bio, city: v.city, showBday: v.showBday }; }
+      catch (e) { if (e?.code === 'v31-setup') warn.push(v31Msg(e)); else throw e; }
+      if (ed.avatar) { try { const url = await api.setAvatar(st.uid, ed.avatar); st.p = { ...st.p, avatar: url }; st.av = { ...st.av, [st.uid]: url }; } catch (e) { warn.push(e?.code === 'avatar-setup' ? 'Foto profilo non salvata: esegui aggiornamento-foto-profilo.sql' : errMsg(e)); } }
+      if (ed.banner) { try { const url = await api.setBanner(st.uid, ed.banner); st.p = { ...st.p, banner: url }; } catch (e) { warn.push(v31Msg(e)); } }
+      else if (ed.delBanner && st.p.banner) { try { await api.removeBanner(st.uid); st.p = { ...st.p, banner: '' }; } catch (e) { warn.push(v31Msg(e)); } }
+      try { ls.set('me:' + st.uid, JSON.stringify(st.p)); } catch {}
+      ed = null; render(); rMap?.();
+      show(edFrom && edFrom !== 's-edit' && $('#' + edFrom) ? edFrom : 's-me', 'in-pop'); if (edFrom === 's-prof') openProfile(st.uid);
+      toast(warn[0] || 'Profilo salvato');
+    });
+  }
   function rMe() {
     if (!st.p) return;
     const p = st.p, full = p.name + ' ' + p.surname, pc = permCount();
     const LG = LANGS.find(l => l.code === curLang()) || LANGS[0];
     $('#m-body').innerHTML = `
-      <div class="card me-card"><button class="row" data-a="avatar" aria-label="Foto profilo"><span class="av-edit">${AV(full, null, '', st.uid)}<i>${I('camera')}</i></span><div class="fl"><b>${esc(full)}</b><span>${esc(st.email)}</span><span class="av-hint">${avUrl(st.uid) ? 'Cambia foto profilo' : 'Aggiungi una foto profilo'}</span></div>${I('chev', 'chev')}</button>
-        <button class="row" data-a="phone"><i class="ic-dot green">${I('phone')}</i><div class="fl"><b>Telefono</b><span>${p.phone ? esc(p.phone) : 'Aggiungi: chi ti aiuta potrà chiamarti'}</span></div>${I('chev', 'chev')}</button></div>
+      ${meCard(p, full)}
+      ${readyCard()}
       <div class="card lang-card"><button class="row" data-a="lang-sheet"><i class="ic-dot blue">${I('globe')}</i><div class="fl"><b>Lingua</b><span translate="no">${LG.flag} ${esc(LG.name)}</span></div>${I('chev', 'chev')}</button></div>
       <div class="label">SOS</div><div class="card">
         <div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Sempre attiva dopo l'SOS, finché non tocchi «Sono al sicuro»</span></div></div>
@@ -1294,15 +1545,106 @@ export function boot(api, native) {
   const inviteText = c => `Ti aggiungo alla mia cerchia su Vicina, l'app SOS. Inserisci questo codice nell'app: ${c}`;
 
   /* ================= assistente (IA gratuita con riserve) ================= */
-  // La conversazione resta solo su questo telefono. L'assistente non vede posizione, foto o chat.
-  const AI_KEY = () => 'ai:' + (st.uid || 'anon');
+  // Più conversazioni, salvate sull'account (tabelle ai_chats / ai_messages). Se il server non è aggiornato restano su questo telefono.
+  // L'assistente non vede posizione, foto o chat.
+  const AI_KEY = () => 'ai:' + (st.uid || 'anon');          // vecchia conversazione unica (≤ 3.0)
+  const AIL_KEY = () => 'aichats:' + (st.uid || 'anon');    // riserva locale
   let aiMsgs = [], aiBusy = false, aiLeft = null;
+  const ai = { chats: null, cur: null, title: '', local: false, q: '' };
+  const aiLocalDb = () => { try { return JSON.parse(ls.get(AIL_KEY()) || '[]'); } catch { return []; } };
+  const aiLocalSave = l => ls.set(AIL_KEY(), JSON.stringify(l.slice(0, 50)));
+  const aiStore = {
+    async list() {
+      if (!ai.local) { try { return await api.aiChats(); } catch (e) { console.warn('chat ia', e); ai.local = true; } }
+      return aiLocalDb().map(c => ({ id: c.id, title: c.title, at: c.at })).sort((a, b) => b.at - a.at);
+    },
+    async msgs(id) {
+      if (!ai.local && !String(id).startsWith('l_')) return api.aiMessages(id);
+      return (aiLocalDb().find(c => c.id === id)?.msgs) || [];
+    },
+    async create(title) {
+      if (!ai.local) { try { return await api.aiNew(title); } catch (e) { console.warn('nuova chat ia', e); ai.local = true; } }
+      const id = 'l_' + Date.now().toString(36), l = aiLocalDb(); l.unshift({ id, title, at: Date.now(), msgs: [] }); aiLocalSave(l); return id;
+    },
+    async add(id, role, text) {
+      if (!String(id).startsWith('l_')) return api.aiAdd(id, role, text).catch(e => console.warn('salva ia', e));
+      const l = aiLocalDb(), c = l.find(x => x.id === id); if (!c) return;
+      c.msgs.push({ role, text, at: Date.now() }); c.msgs = c.msgs.slice(-200); c.at = Date.now(); aiLocalSave(l);
+    },
+    async del(id) {
+      if (!String(id).startsWith('l_')) return api.aiDelete(id);
+      aiLocalSave(aiLocalDb().filter(c => c.id !== id));
+    }
+  };
+  // la conversazione unica delle versioni precedenti diventa la prima chat salvata
+  async function aiMigrate() {
+    let old; try { old = JSON.parse(ls.get(AI_KEY()) || '[]').filter(m => m.role === 'user' || m.role === 'model'); } catch { old = []; }
+    if (!old.length) return;
+    ls.del ? ls.del(AI_KEY()) : ls.set(AI_KEY(), '[]');
+    try { const id = await aiStore.create((old.find(m => m.role === 'user')?.text || 'Conversazione').slice(0, 60)); for (const m of old) await aiStore.add(id, m.role, m.text); } catch (e) { console.warn('migra ia', e); }
+  }
+  const dayLabel = ms => {
+    const d = new Date(ms), t = new Date(); t.setHours(0, 0, 0, 0); const k = Math.floor((t - new Date(d).setHours(0, 0, 0, 0)) / 864e5);
+    return k <= 0 ? 'Oggi' : k === 1 ? 'Ieri' : k < 7 ? 'Questa settimana' : k < 31 ? 'Questo mese' : d.toLocaleDateString(curLang(), { month: 'long', year: 'numeric' });
+  };
+  async function openAIList(how = 'in-push') {
+    show('s-ailist', how); rAIList();
+    await aiMigrate();
+    ai.chats = await aiStore.list().catch(() => []); rAIList();
+  }
+  function rAIList() {
+    const box = $('#ail-body'); if (!box) return;
+    const q = ai.q.trim().toLowerCase(), list = (ai.chats || []).filter(c => !q || (c.title || '').toLowerCase().includes(q));
+    let html = `<h1 class="title ail-title">Assistente</h1>
+      <label class="search ail-search">${I('search')}<input id="ail-q" type="search" placeholder="Cerca nelle chat" value="${esc(ai.q)}"></label>
+      <button class="card ai-start" data-a="ai-new"><i class="ic-dot amber">${I('spark')}</i><div class="fl"><b>Nuova chat</b><span>Chiedi come usare Vicina o cosa fare in una situazione</span></div>${I('chev', 'chev')}</button>`;
+    if (ai.chats == null) html += `<p class="note">Carico le tue chat…</p>`;
+    else if (!list.length) html += `<p class="note">${q ? 'Nessuna chat trovata' : 'Non hai ancora chat con l\'assistente.'}</p>`;
+    else {
+      let last = '';
+      for (const c of list) {
+        const g = dayLabel(c.at); if (g !== last) { html += `<div class="label">${esc(g)}</div>`; last = g; }
+        html += `<div class="ail-item" data-id="${esc(c.id)}"><button class="ail-del" data-a="ai-del" data-id="${esc(c.id)}" aria-label="Elimina la chat">${I('trash')}<span>Elimina</span></button>
+          <button class="ail-row" data-a="ai-open" data-id="${esc(c.id)}"><i class="ic-dot gray">${I('chat')}</i><div class="fl"><b translate="no">${esc(c.title || 'Nuova chat')}</b><span>${esc(when(c.at))}</span></div>${I('chev', 'chev')}</button></div>`;
+      }
+    }
+    if (ai.local) html += `<p class="note">Le chat sono salvate solo su questo telefono: per salvarle sull'account esegui aggiornamento-3.1.sql su Supabase.</p>`;
+    box.innerHTML = html;
+    const qi = $('#ail-q'); qi.oninput = () => { ai.q = qi.value; const pos = qi.selectionStart; rAIList(); const n = $('#ail-q'); n.focus(); try { n.setSelectionRange(pos, pos); } catch {} };
+    box.querySelectorAll('.ail-item').forEach(swipeRow);
+  }
+  // scorri a sinistra per mostrare «Elimina»
+  function swipeRow(item) {
+    const row = item.querySelector('.ail-row'); let x0 = null, y0 = 0, dx = 0, drag = false;
+    row.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; dx = 0; drag = false; row.style.transition = 'none'; });
+    row.addEventListener('pointermove', e => {
+      if (x0 == null) return; const mx = e.clientX - x0;
+      if (!drag && Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(e.clientY - y0)) { drag = true; try { row.setPointerCapture(e.pointerId); } catch {} }
+      if (!drag) return; const base = item.classList.contains('open') ? -96 : 0; dx = Math.max(-140, Math.min(0, base + mx)); row.style.transform = `translateX(${dx}px)`;
+    });
+    const end = () => {
+      if (x0 == null) return; x0 = null; row.style.transition = ''; row.style.transform = '';
+      if (drag) { document.querySelectorAll('.ail-item.open').forEach(o => o !== item && o.classList.remove('open')); item.classList.toggle('open', dx < -48); row.dataset.swiped = '1'; setTimeout(() => delete row.dataset.swiped, 50); }
+    };
+    row.addEventListener('pointerup', end); row.addEventListener('pointercancel', end);
+  }
+  async function openAIChat(id) {
+    ai.cur = id || null; aiMsgs = []; aiLeft = null;
+    const c = (ai.chats || []).find(x => x.id === id); ai.title = c?.title || '';
+    $('#ai-title').textContent = ai.title || 'Nuova chat';
+    $('#ai-sub').textContent = ai.local ? 'Assistente · salvata su questo telefono' : 'Assistente · salvata sul tuo account';
+    show('s-ai', 'in-push'); rAI();
+    if (id) { try { aiMsgs = await aiStore.msgs(id); } catch (e) { toast(errMsg(e)); } if (ai.cur === id) rAI(); }
+    else setTimeout(() => $('#ai-txt').focus(), 250);
+  }
+  async function aiDelete(id) {
+    if (!(await dialog({ title: 'Eliminare la chat?', text: 'La conversazione sarà cancellata da tutti i tuoi telefoni.', ok: 'Elimina', danger: true }))) { $$('.ail-item.open').forEach(o => o.classList.remove('open')); return; }
+    try { await aiStore.del(id); ai.chats = (ai.chats || []).filter(c => c.id !== id); rAIList(); native.haptic('light'); toast('Chat eliminata'); } catch (e) { toast(errMsg(e)); }
+  }
   const DANGER = /(aiuto|pericolo|mi segu|seguit|pedin|aggredi|aggression|minacc|picchi|violen|ferit|sangue|svenut|non respira|stupr|molest|rapin|ho paura|mi stanno|mi vuole|mi ha toccat)/i;
   const AI_CHIPS = ['Come aggiungo una persona alla cerchia?', 'Mi sento seguita/o: cosa faccio?', 'Perché non mi arrivano le notifiche?', "Cosa succede quando premo SOS?"];
-  const aiLoad = () => { try { aiMsgs = JSON.parse(ls.get(AI_KEY()) || '[]'); } catch { aiMsgs = []; } };
-  const aiSave = () => ls.set(AI_KEY(), JSON.stringify(aiMsgs.filter(m => m.role === 'user' || m.role === 'model').slice(-30)));
   const mdLite = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\n)- (.+)/g, '$1• $2').replace(/\n/g, '<br>');
-  function openAI() { aiLoad(); show('s-ai', 'in-push'); rAI(); setTimeout(() => $('#ai-txt').focus(), 250); }
+  function openAI() { openAIList(); }
   function rAI() {
     const box = $('#ai-msgs');
     if (!aiMsgs.length && !aiBusy) {
@@ -1337,20 +1679,26 @@ export function boot(api, native) {
   async function sendAI(text) {
     text = (text || '').trim(); if (!text || aiBusy) return;
     $('#ai-txt').value = '';
-    aiMsgs.push({ role: 'user', text });
+    if (!ai.cur) {   // prima domanda: nasce la chat, col titolo preso dalla domanda
+      const title = text.replace(/\s+/g, ' ').slice(0, 60);
+      try { ai.cur = await aiStore.create(title); ai.title = title; $('#ai-title').textContent = title; $('#ai-sub').textContent = ai.local ? 'Assistente · salvata su questo telefono' : 'Assistente · salvata sul tuo account'; ai.chats = [{ id: ai.cur, title, at: Date.now() }, ...(ai.chats || [])]; }
+      catch (e) { console.warn('chat ia', e); }
+    }
+    const chatId = ai.cur;
+    aiMsgs.push({ role: 'user', text }); if (chatId) aiStore.add(chatId, 'user', text);
     if (DANGER.test(text)) { aiMsgs.push({ role: 'danger' }); native.vibrate(200); }
     aiBusy = true; rAI();
     try {
       const history = aiMsgs.filter(m => m.role === 'user' || m.role === 'model').slice(-12).map(m => ({ role: m.role, text: m.text }));
       const r = await api.askAI(history);
-      aiMsgs.push({ role: 'model', text: r.reply }); aiLeft = r.left ?? null;
+      aiMsgs.push({ role: 'model', text: r.reply }); aiLeft = r.left ?? null; if (chatId) aiStore.add(chatId, 'model', r.reply);
     } catch (e) {
       console.warn('assistente', e);
       // risposta di riserva + spiegazione dell'errore (non salvata: al prossimo invio si riprova il server)
-      aiMsgs.push({ role: 'local', text: aiLocal(text) });
+      const lt = aiLocal(text); aiMsgs.push({ role: 'local', text: lt }); if (chatId) aiStore.add(chatId, 'local', lt);
       aiMsgs.push({ role: 'err', text: (e?.message || "L'assistente online non risponde.") + ' Ti ho risposto con la guida integrata.' });
     }
-    aiBusy = false; aiSave(); rAI();
+    aiBusy = false; if (chatId) { const c = (ai.chats || []).find(x => x.id === chatId); if (c) c.at = Date.now(); } if (ai.cur === chatId) rAI();
   }
   async function diagAI(btn) {
     await busy(btn, async () => {
@@ -1607,7 +1955,26 @@ export function boot(api, native) {
         case 'leave': if (await dialog({ title: 'Uscire dal gruppo?', text: 'Per rientrare servirà di nuovo l\'approvazione dell\'admin.', ok: 'Esci', danger: true })) { await api.call('removeMember', { groupId: id, uid: st.uid }); closeSheet(); } break;
         case 'delgroup': if (await dialog({ title: 'Eliminare il gruppo?', text: 'Il gruppo e la sua chat verranno cancellati per tutti.', ok: 'Elimina', danger: true })) { await api.call('deleteGroup', { groupId: id }); closeSheet(); } break;
         case 'open': closeSheet(); closeIncoming(); openThread(id); break;
-        case 'thread-back': st.open = null; tab(st.tab === 'home' ? 'chat' : st.tab, 'in-pop'); break;
+        case 'cf': st.cf = t.dataset.k || 'all'; rCircle(); break;
+        case 'prof': closeSheet(); openProfile(t.dataset.uid); break;
+        case 'my-prof': openProfile(st.uid); break;
+        case 't-prof': { const c = convs().find(x => x.id === st.open); if (!c) break; if (c.k === 'g') sheetGroup(c.id); else openProfile(c.uid); break; }
+        case 'pf-back': profUid = null; if (profFrom && profFrom !== 's-prof' && $('#' + profFrom)) { if (profFrom === 's-thread' && st.open) show('s-thread', 'in-pop'); else if (TABS_BY_SCREEN[profFrom]) tab(TABS_BY_SCREEN[profFrom], 'in-pop'); else show(profFrom, 'in-pop'); } else tab(st.tab || 'circle', 'in-pop'); break;
+        case 'pf-copy': await native.copy(t.dataset.v); native.haptic('light'); toast('Numero copiato'); break;
+        case 'pf-loc': await profLoc(t.dataset.uid, id); break;
+        case 'ed-open': openEdit(); break;
+        case 'ed-cancel': ed = null; if (edFrom === 's-prof') show('s-prof', 'in-pop'); else tab('me', 'in-pop'); break;
+        case 'ed-save': await edSave(t); break;
+        case 'ed-banner': edPick('banner'); break;
+        case 'ed-avatar': edPick('avatar'); break;
+        case 'ed-banner-del': { const v = edVals(); ed.banner = null; ed.delBanner = true; rEdit(v); break; }
+        case 'att-menu': { const m = $('#att-menu'); m.hidden = !m.hidden; t.classList.toggle('on', !m.hidden); break; }
+        case 'att': $('[data-a="att-menu"]')?.classList.remove('on'); await attach(t.dataset.k); break;
+        case 'img-open': { const im = t.querySelector('img'); const f = t.dataset.f || im?.dataset.f || Object.keys(fileCache).find(k => fileCache[k] === im?.src); if (f) openImage(f); break; }
+        case 'file-open': await openFile(t.dataset.f, t.dataset.n); break;
+        case 'vn-play': { const b = t.closest('.vn'); if (b) await vnPlay(b); break; }
+        case 'loc-open': native.openUrl(mapsUrl(t.dataset.lat, t.dataset.lng)); break;
+        case 'thread-back': st.open = null; tab(['home', 'chat'].includes(st.tab) ? 'circle' : st.tab, 'in-pop'); break;
         case 'send': sendText(); break;
         case 'send-cancel': break;
         case 'safe': await markSafe(t); break;
@@ -1643,7 +2010,11 @@ export function boot(api, native) {
         case 'in-ack': await busy(t, async () => { await api.call('ackSos', { sosId: id }); st.dismissed.add(id); closeIncoming(); toast('Abbiamo avvisato che te ne occupi tu'); }); break;
         case 'in-chat': { const s = st.sosIn.find(x => x.id === id); st.dismissed.add(id); closeIncoming(); const c = s?.chats?.find(c => convs().some(x => x.id === c)); if (c) openThread(c); else tab('chat'); break; }
         case 'ai': closeSheet(); openAI(); break;
-        case 'ai-back': tab(st.tab || 'home', 'in-pop'); break;
+        case 'ai-back': show('s-ailist', 'in-pop'); rAIList(); break;
+        case 'ail-back': tab(st.tab || 'home', 'in-pop'); break;
+        case 'ai-new': if (aiBusy) break; if (curScreen === 's-ai' && !ai.cur) { $('#ai-txt').focus(); break; } openAIChat(null); break;
+        case 'ai-open': { if (t.dataset.swiped) break; const it = t.closest('.ail-item'); if (it?.classList.contains('open')) { it.classList.remove('open'); break; } openAIChat(id); break; }
+        case 'ai-del': await aiDelete(id); break;
         case 'ai-send': sendAI($('#ai-txt').value); break;
         case 'ai-chip': sendAI(t.dataset.q); break;
         case 'ai-diag': await diagAI(t); break;
@@ -1739,7 +2110,7 @@ export function boot(api, native) {
       }
     });
   }
-  const pick = d => ({ name: d.name, surname: d.surname, dob: d.dob, gender: d.gender, phone: d.phone || '', avatar: d.avatar || '' });
+  const pick = d => ({ name: d.name, surname: d.surname, dob: d.dob, gender: d.gender, phone: d.phone || '', avatar: d.avatar || '', banner: d.banner || '', bio: d.bio || '', city: d.city || '', showBday: !!d.showBday });
   function refreshSheet() {
     if (!curSheet) return;
     if (curSheet.startsWith('group:')) sheetGroup(curSheet.slice(6));

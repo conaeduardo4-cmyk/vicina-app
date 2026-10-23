@@ -474,3 +474,16 @@ badge che spuntano, SOS con anello che si riempie, bagliore crescente, tremito f
 3. Database → Replication: controlla che `sos` sia nella pubblicazione realtime (lo fa già lo script).
 
 Le traduzioni si generano con `python3 scripts/i18n/merge.py` dai file `scripts/i18n/tr/*.json`.
+
+## Novità 3.1 · Profili, chat con allegati, assistente con più chat
+- **Home** ridisegnata: data e saluto, mappa in alto, SOS, Appello e Assistente affiancati, quattro tasti grandi (112, Sirena, Accompagnami, Finta chiamata).
+- **Cerchia** unita alle conversazioni (filtri Tutti / Amici / Gruppi / Via SMS). La barra in basso ha 5 schede.
+- **Chat**: sfondo a disegni, fumetti con la coda, foto, documenti (fino a 15 MB), **vocali** (tieni premuto il microfono, scorri a sinistra per annullare) e posizione. Tocca il nome in alto per aprire il profilo.
+- **Profilo**: banner, foto, bio, città, compleanno (facoltativo). Chi è nella tua cerchia vede il profilo e il numero di telefono (con tasto Copia e Chiama).
+- **Tu**: card del profilo con «Modifica» e il riquadro «Pronta per un'emergenza N/5».
+- **Assistente**: più chat, ricerca, elimina scorrendo a sinistra; le chat restano **salvate sull'account**.
+
+### Passi su Supabase per la 3.1
+1. SQL Editor → incolla ed esegui **`supabase/aggiornamento-3.1.sql`** (oppure `ripara.sql`, che ora la contiene). Non cancella dati, si può rieseguire.
+2. Ripubblica la funzione `vicina` (anteprime 📷 🎤 📎 📍 nelle notifiche).
+3. **Non** eseguire `installa.sql` su un database già in uso: azzera tutto.

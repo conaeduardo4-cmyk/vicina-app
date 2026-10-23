@@ -152,6 +152,15 @@ const T: Record<string, Tx> = {
 const fill = (s: string, v: Record<string, unknown>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ''));
 // L: lingua di chi riceve. k: chiavi [titolo, testo, titolo discreto, testo discreto]; v: valori
 type Loc = { k: [string, string, string?, string?]; v: Record<string, unknown> };
+// anteprima della notifica per foto, file, vocali e posizione
+function msgBody(m: any) {
+  const t = String(m.text || '').slice(0, 140);
+  if (m.type === 'image') return '📷 ' + (t || 'Foto');
+  if (m.type === 'file') return '📎 ' + String(m.file_name || 'File').slice(0, 100);
+  if (m.type === 'voice') return '🎤 ' + (m.dur ? `${Math.floor(m.dur / 60)}:${String(m.dur % 60).padStart(2, '0')}` : 'Messaggio vocale');
+  if (m.type === 'loc') return '📍 Posizione';
+  return t;
+}
 function localize(lang: string, loc: Loc | undefined, discreet: boolean) {
   const t = loc && T[lang]; if (!t) return null;
   const v = { ...loc.v };
@@ -309,7 +318,7 @@ async function handle(ev: { event: string; id: string; [k: string]: unknown }) {
       const m = await one('messages', ev.id); if (!m) return;
       const link = await one('links', m.chat_id), group = link ? null : await one('groups', m.chat_id);
       const to = (link?.uids || group?.member_uids || []).filter((u: string) => u !== m.from_uid);
-      return push(to, { title: group ? `${first(m.from_name)} · ${group.name}` : m.from_name || 'Vicina', body: String(m.text || '').slice(0, 140), data: { type: 'msg', chatId: m.chat_id } });
+      return push(to, { title: group ? `${first(m.from_name)} · ${group.name}` : m.from_name || 'Vicina', body: msgBody(m), data: { type: 'msg', chatId: m.chat_id } });
     }
     case 'link':
       return push([String(ev.to)], { title: 'Nuovo collegamento', body: `${ev.name} ora è nella tua cerchia`, data: { type: 'link', chatId: ev.id }, loc: { k: ['link_t', 'link_b'], v: { n: ev.name } } });

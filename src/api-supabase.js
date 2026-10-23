@@ -35,8 +35,8 @@ export function createApi(env) {
     answered: c.answered || 0, helps: c.helps || 0, active: c.active, at: ms(c.created_at), remindedAt: c.reminded_at ? Date.parse(c.reminded_at) : 0,
     answers: Object.fromEntries(ans.map(a => [a.uid, { status: a.status, name: a.name, note: a.note || '', lat: a.lat, lng: a.lng, acc: a.acc, at: ms(a.at) }]))
   });
-  const msg = m => ({ id: m.id, type: m.type, from: m.from_uid, fromName: m.from_name, text: m.text, sosId: m.sos_id, lat: m.lat, lng: m.lng, photos: m.photos || [], audio: m.audio || null, at: ms(m.created_at) });
-  const prof = p => p && ({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '', mutedGroups: p.muted_groups || [], termsVersion: p.terms_version || 0, avatar: p.avatar ? avatarUrl(p.id, p.avatar) : '' });
+  const msg = m => ({ id: m.id, type: m.type, from: m.from_uid, fromName: m.from_name, text: m.text, sosId: m.sos_id, lat: m.lat, lng: m.lng, photos: m.photos || [], audio: m.audio || null, file: m.file || null, fileName: m.file_name || '', fileSize: m.file_size || 0, mime: m.mime || '', dur: m.dur || 0, at: ms(m.created_at) });
+  const prof = p => p && ({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '', mutedGroups: p.muted_groups || [], termsVersion: p.terms_version || 0, avatar: p.avatar ? avatarUrl(p.id, p.avatar) : '', banner: p.banner ? avatarUrl(p.id, p.banner) : '', bio: p.bio || '', city: p.city || '', showBday: !!p.show_bday });
   // foto profilo: bucket pubblico «avatars», il nome del file è un codice casuale (lo conosce solo chi è nella tua cerchia)
   const avatarUrl = (uid, tok) => `${String(env.VITE_SUPABASE_URL).replace(/\/+$/, '')}/storage/v1/object/public/avatars/${uid}/${tok}.jpg`;
   const token = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join('');
@@ -105,6 +105,16 @@ export function createApi(env) {
     async getProfile(uid) { return prof(ok(await sb.from('profiles').select('*').eq('id', uid).maybeSingle())); },
     async createProfile(uid, p) { ok(await sb.from('profiles').insert({ id: uid, name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '' })); },
     async updateProfile(uid, patch) { ok(await sb.from('profiles').update({ phone: patch.phone ?? '' }).eq('id', uid)); },
+    // profilo esteso (3.1): nome, bio, città, compleanno visibile
+    async setProfile(d) {
+      const r = await sb.rpc('set_profile', { p_name: d.name, p_surname: d.surname, p_bio: d.bio || '', p_city: d.city || '', p_show_bday: !!d.showBday });
+      if (r.error) throw Object.assign(rerr(r.error), /set_profile|function/i.test(r.error.message || '') && !/Scrivi/.test(r.error.message || '') ? { code: 'v31-setup' } : {});
+    },
+    async circleProfile(uid) {
+      const { data, error } = await sb.rpc('circle_profile', { p_uid: uid });
+      if (error) throw Object.assign(rerr(error), /circle_profile|function/i.test(error.message || '') && !/non disponibile/.test(error.message || '') ? { code: 'v31-setup' } : {});
+      return { ...data, avatar: data.avatar ? avatarUrl(data.uid, data.avatar) : '', banner: data.banner ? avatarUrl(data.uid, data.banner) : '', since: data.since ? Date.parse(data.since) : 0 };
+    },
     async setMuted(uid, gid, muted) { ok(await sb.rpc('set_muted', { p_group_id: gid, p_muted: muted })); },
     async saveToken(uid, token) { ok(await sb.rpc('save_token', { p_token: token })); },
 
@@ -162,6 +172,40 @@ export function createApi(env) {
       return () => sb.removeChannel(ch);
     },
     async sendText(id, uid, text) { ok(await sb.from('messages').insert({ chat_id: id, type: 'text', from_uid: uid, text })); },
+    // allegati (3.1): foto, file, vocali → bucket privato «chat», cartella = id della chat
+    async sendFile(id, uid, f) {
+      const ext = (String(f.name || '').match(/\.([a-z0-9]{1,5})$/i)?.[1] || (f.type === 'voice' ? 'm4a' : f.type === 'image' ? 'jpg' : 'bin')).toLowerCase();
+      const path = `${id}/${token()}.${ext}`;
+      const up = await sb.storage.from('chat').upload(path, f.blob, { contentType: f.mime || 'application/octet-stream', upsert: false });
+      if (up.error) throw Object.assign(rerr(up.error), /bucket|not found|row-level/i.test(up.error.message || '') ? { code: 'v31-setup' } : {});
+      const r = await sb.from('messages').insert({ chat_id: id, type: f.type, from_uid: uid, file: path, file_name: f.name || null, file_size: f.size ?? f.blob.size, mime: f.mime || null, dur: f.dur ?? null, text: f.text || null });
+      if (r.error) throw Object.assign(rerr(r.error), /type_chk|check constraint|column/i.test(r.error.message || '') ? { code: 'v31-setup' } : {});
+    },
+    async sendLoc(id, uid, lat, lng) {
+      const r = await sb.from('messages').insert({ chat_id: id, type: 'loc', from_uid: uid, lat, lng });
+      if (r.error) throw Object.assign(rerr(r.error), /type_chk|check constraint|column/i.test(r.error.message || '') ? { code: 'v31-setup' } : {});
+    },
+    async fileUrl(p, secs = 3600) {
+      const { data, error } = await sb.storage.from('chat').createSignedUrl(p, secs);
+      if (error) throw rerr(error); return data.signedUrl;
+    },
+    // ---------- assistente: conversazioni salvate sull'account (3.1) ----------
+    async aiChats() {
+      const { data, error } = await sb.from('ai_chats').select('id, title, updated_at').order('updated_at', { ascending: false }).limit(100);
+      if (error) throw Object.assign(rerr(error), { code: 'v31-setup' });
+      return data.map(c => ({ id: c.id, title: c.title, at: ms(c.updated_at) }));
+    },
+    async aiMessages(id) {
+      const { data, error } = await sb.from('ai_messages').select('role, text, created_at').eq('chat_id', id).order('id').limit(400);
+      if (error) throw rerr(error); return data.map(m => ({ role: m.role, text: m.text, at: ms(m.created_at) }));
+    },
+    async aiNew(title) {
+      const { data, error } = await sb.from('ai_chats').insert({ title: String(title || '').slice(0, 80) }).select('id').single();
+      if (error) throw Object.assign(rerr(error), { code: 'v31-setup' }); return data.id;
+    },
+    async aiAdd(id, role, text) { ok(await sb.from('ai_messages').insert({ chat_id: id, role, text: String(text).slice(0, 8000) })); },
+    async aiRename(id, title) { ok(await sb.from('ai_chats').update({ title: String(title || '').slice(0, 80) }).eq('id', id)); },
+    async aiDelete(id) { ok(await sb.from('ai_chats').delete().eq('id', id)); },
 
     // «Sta scrivendo…» con anteprima del testo, chi è online e letture in tempo reale (canale broadcast, niente database)
     chatLive(id, me, h) {
@@ -248,9 +292,23 @@ export function createApi(env) {
       this.cleanAvatars(uid, tok);
       return avatarUrl(uid, tok);
     },
+    // banner del profilo: stessa cartella delle foto profilo, nome «bn_<codice>.jpg»
+    async setBanner(uid, dataUrl) {
+      const blob = await (await fetch(dataUrl)).blob(), tok = 'bn_' + token();
+      const up = await sb.storage.from('avatars').upload(`${uid}/${tok}.jpg`, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+      if (up.error) throw rerr(up.error);
+      const r = await sb.rpc('set_banner', { p_banner: tok });
+      if (r.error) throw Object.assign(rerr(r.error), /set_banner|function/i.test(r.error.message || '') ? { code: 'v31-setup' } : {});
+      this.cleanBanners(uid, tok);
+      return avatarUrl(uid, tok);
+    },
+    async removeBanner(uid) { ok(await sb.rpc('set_banner', { p_banner: null })); this.cleanBanners(uid, null); },
+    async cleanBanners(uid, keep) {
+      try { const { data } = await sb.storage.from('avatars').list(uid, { limit: 50 }); const old = (data || []).filter(f => f.name.startsWith('bn_') && f.name !== keep + '.jpg').map(f => `${uid}/${f.name}`); if (old.length) await sb.storage.from('avatars').remove(old); } catch {}
+    },
     async removeAvatar(uid) { ok(await sb.rpc('set_avatar', { p_avatar: null })); this.cleanAvatars(uid, null); },
     async cleanAvatars(uid, keep) {   // via le foto vecchie (in sottofondo)
-      try { const { data } = await sb.storage.from('avatars').list(uid, { limit: 50 }); const old = (data || []).filter(f => f.name !== keep + '.jpg').map(f => `${uid}/${f.name}`); if (old.length) await sb.storage.from('avatars').remove(old); } catch {}
+      try { const { data } = await sb.storage.from('avatars').list(uid, { limit: 50 }); const old = (data || []).filter(f => !f.name.startsWith('bn_') && f.name !== keep + '.jpg').map(f => `${uid}/${f.name}`); if (old.length) await sb.storage.from('avatars').remove(old); } catch {}
     },
     async circleAvatars() {
       const { data, error } = await sb.rpc('circle_avatars');
