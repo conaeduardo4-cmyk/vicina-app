@@ -1983,5 +1983,10 @@ export default {
 "GRUPPO": "GRUPPE",
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "Dein Profil · füge jemanden zu deinem Kreis hinzu",
 "Chiama": "Anrufen",
+"Continua con Google": "Weiter mit Google",
+"Continua con Apple": "Weiter mit Apple",
+"oppure con l'email": "oder mit E-Mail",
+"Accesso annullato": "Anmeldung abgebrochen",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "Diese Anmeldung ist auf dem Server nicht aktiv: aktiviere sie in Supabase → Authentication → Providers",
 "O": "W"
 };

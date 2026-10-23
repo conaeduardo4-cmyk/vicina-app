@@ -1979,5 +1979,10 @@ export default {
 "Via SMS": "Me SMS",
 "GRUPPO": "GRUP",
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "Profili yt · shto dikë në rreth",
-"Chiama": "Telefono"
+"Chiama": "Telefono",
+"Continua con Google": "Vazhdo me Google",
+"Continua con Apple": "Vazhdo me Apple",
+"oppure con l'email": "ose me email",
+"Accesso annullato": "Hyrja u anulua",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "Kjo hyrje nuk është aktive në server: aktivizoje te Supabase → Authentication → Providers"
 };

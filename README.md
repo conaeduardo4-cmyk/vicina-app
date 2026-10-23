@@ -487,3 +487,17 @@ Le traduzioni si generano con `python3 scripts/i18n/merge.py` dai file `scripts/
 1. SQL Editor → incolla ed esegui **`supabase/aggiornamento-3.1.sql`** (oppure `ripara.sql`, che ora la contiene). Non cancella dati, si può rieseguire.
 2. Ripubblica la funzione `vicina` (anteprime 📷 🎤 📎 📍 nelle notifiche).
 3. **Non** eseguire `installa.sql` su un database già in uso: azzera tutto.
+
+## Novità 3.2 · Mappa fisica scura, SOS in alto, accesso con Google e Apple
+- **Mappa**: nuovo stile scuro «cartina fisica» con rilievi (ombreggiatura del terreno), boschi, parchi, acqua, strade e nomi leggibili. Sempre gratis e senza chiavi (OpenFreeMap + rilievi Terrarium).
+- **Home**: il pulsante SOS sta sopra la mappa.
+- **Accesso con Google / Apple**: i pulsanti compaiono da soli appena attivi il provider su Supabase. Chi entra la prima volta completa solo data di nascita e sesso (nome e cognome arrivano già compilati). Se l'email è la stessa di un account già esistente, Supabase collega i due accessi allo stesso account.
+
+### Attivare «Continua con Google» (gratis, ~10 minuti)
+1. **Supabase → Authentication → URL Configuration → Redirect URLs**: aggiungi `vicina://auth` (e, se provi dal browser, anche l'indirizzo del sito).
+2. **console.cloud.google.com** → crea un progetto → *APIs & Services → OAuth consent screen*: tipo **External**, nome «Vicina», la tua email; scope solo `email`, `profile`, `openid`; poi **Publish app** (con questi scope non serve la verifica di Google).
+3. *Credentials → Create credentials → OAuth client ID* → tipo **Web application** → in *Authorized redirect URIs* incolla `https://<tuo-progetto>.supabase.co/auth/v1/callback` (lo trovi in Supabase → Authentication → Providers → Google, «Callback URL»).
+4. Copia **Client ID** e **Client secret** in **Supabase → Authentication → Providers → Google** e attivalo. Fatto: il pulsante compare nell'app.
+
+### «Continua con Apple» (serve l'Apple Developer Program, 99 €/anno)
+Apple non permette l'accesso senza un account sviluppatore a pagamento. Se lo hai: developer.apple.com → *Identifiers* → crea un **Services ID** (es. `it.vicina.auth`) con «Sign in with Apple», dominio `<tuo-progetto>.supabase.co` e Return URL `https://<tuo-progetto>.supabase.co/auth/v1/callback`; crea una **Key** con «Sign in with Apple» e scarica il file .p8. In **Supabase → Providers → Apple** inserisci Services ID, Team ID, Key ID e il contenuto del .p8 (Supabase genera il secret). Il pulsante compare da solo. Senza account sviluppatore il pulsante resta nascosto e non serve fare niente.

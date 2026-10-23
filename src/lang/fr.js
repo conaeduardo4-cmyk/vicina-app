@@ -1985,5 +1985,10 @@ export default {
 "GRUPPO": "GROUPE",
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "Ton profil · ajoute quelqu'un à ton cercle",
 "Foto": "Photo",
-"Chiama": "Appeler"
+"Chiama": "Appeler",
+"Continua con Google": "Continuer avec Google",
+"Continua con Apple": "Continuer avec Apple",
+"oppure con l'email": "ou avec l'e-mail",
+"Accesso annullato": "Connexion annulée",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "Cette connexion n'est pas activée sur le serveur : active-la dans Supabase → Authentication → Providers"
 };

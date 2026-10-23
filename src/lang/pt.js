@@ -1963,5 +1963,10 @@ export default {
 "TU": "VOCÊ",
 "GRUPPO": "GRUPO",
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "Seu perfil · adicione alguém ao círculo",
-"Chiama": "Ligar"
+"Chiama": "Ligar",
+"Continua con Google": "Continuar com o Google",
+"Continua con Apple": "Continuar com a Apple",
+"oppure con l'email": "ou com o e-mail",
+"Accesso annullato": "Acesso cancelado",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "Este acesso não está ativo no servidor: ative em Supabase → Authentication → Providers"
 };

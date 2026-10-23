@@ -1956,5 +1956,10 @@ export default {
 "Via SMS": "Por SMS",
 "GRUPPO": "GRUPO",
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "Tu perfil · añade a alguien a tu círculo",
-"Chiama": "Llamar"
+"Chiama": "Llamar",
+"Continua con Google": "Continuar con Google",
+"Continua con Apple": "Continuar con Apple",
+"oppure con l'email": "o con el correo",
+"Accesso annullato": "Acceso cancelado",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "Este acceso no está activo en el servidor: actívalo en Supabase → Authentication → Providers"
 };

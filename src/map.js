@@ -4,12 +4,12 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-const STYLES = ['https://tiles.openfreemap.org/styles/dark', 'https://tiles.openfreemap.org/styles/liberty'];
+import { DARK_PHYSICAL, OFM } from './map-style.js';
 
 async function pickStyle() {
-  for (const url of STYLES) {
-    try { const r = await fetch(url, { cache: 'force-cache' }); if (r.ok) return await r.json(); } catch { /* prova il prossimo */ }
-  }
+  // verifica veloce che le mappe siano raggiungibili; se il nostro stile fallisce si ripiega su quello pronto
+  try { const r = await fetch(OFM + '/planet', { cache: 'force-cache' }); if (r.ok) return DARK_PHYSICAL; } catch { /* offline */ }
+  try { const r = await fetch(OFM + '/styles/dark', { cache: 'force-cache' }); if (r.ok) return await r.json(); } catch { /* offline */ }
   return null;
 }
 

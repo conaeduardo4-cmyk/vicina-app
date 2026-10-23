@@ -2004,5 +2004,10 @@ export default {
 "GRUPPO": "مجموعة",
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "ملفك · أضف شخصًا إلى دائرتك",
 "Foto": "صورة",
-"Chiama": "اتصال"
+"Chiama": "اتصال",
+"Continua con Google": "المتابعة باستخدام Google",
+"Continua con Apple": "المتابعة باستخدام Apple",
+"oppure con l'email": "أو بالبريد الإلكتروني",
+"Accesso annullato": "أُلغي تسجيل الدخول",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "طريقة الدخول هذه غير مفعّلة على الخادم: فعّلها في Supabase → Authentication → Providers"
 };

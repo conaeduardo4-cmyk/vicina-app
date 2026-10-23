@@ -204,6 +204,8 @@ export const webNative = {
   isNative: false, platform: 'web',
   async openMaps(lat, lng, name, nav) { window.open(mapsLinks(lat, lng, name, nav, 'web').web, '_blank', 'noopener'); },
   async openUrl(url) { window.open(url, '_blank', 'noopener'); },
+  async openAuth(url) { location.assign(url); },
+  closeAuth() {},
   update: {
     autoInstall: false,
     async current() { return null; },

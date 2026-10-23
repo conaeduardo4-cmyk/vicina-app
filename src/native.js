@@ -7,6 +7,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { AppLauncher } from '@capacitor/app-launcher';
+import { Browser } from '@capacitor/browser';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { webNative, smsUrl, parseJsonLoose, releaseToVersion, apiUrlFor, osmQuery, mapsLinks, snap, cameraPermission, cameraState, micPermission, micState, fastPos, saveMediaState, startRecording, releasesUrlFor, ipaFromReleases, OSM_UA, OSM_REF } from './native-web.js';
 
@@ -127,6 +128,9 @@ export const native = !isNative ? webNative : {
 
   // Apre un link fuori dall'app (pagina di download, ecc.)
   async openUrl(url) { try { await AppLauncher.openUrl({ url }); } catch { window.open(url, '_system'); } },
+  // accesso con Google / Apple: pagina di login dentro l'app (Safari View Controller / Chrome Custom Tabs), poi torna con vicina://auth
+  async openAuth(url) { try { await Browser.open({ url, presentationStyle: 'popover' }); } catch { await this.openUrl(url); } },
+  closeAuth() { Browser.close().catch(() => {}); },
 
   // Aggiornamenti: su Android scarica e installa l'APK dentro l'app; su iOS solo avviso + istruzioni
   // luoghi vicini: richiesta nativa (niente CORS, con un User-Agent riconoscibile come chiedono i server OSM)

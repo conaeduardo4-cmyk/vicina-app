@@ -1971,5 +1971,10 @@ export default {
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "Your profile · add someone to your circle",
 "Foto": "Photo",
 "Chiama": "Call",
+"Continua con Google": "Continue with Google",
+"Continua con Apple": "Continue with Apple",
+"oppure con l'email": "or with email",
+"Accesso annullato": "Sign-in cancelled",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "This sign-in isn't enabled on the server: turn it on in Supabase → Authentication → Providers",
 "O": "W"
 };

@@ -54,6 +54,8 @@ jobs:
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Dipendenze
         run: npm install --no-audit --no-fund
+      - name: Controllo stile della mappa
+        run: node scripts/check-map-style.mjs
       - name: Chiavi Supabase (.env) dai secrets
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

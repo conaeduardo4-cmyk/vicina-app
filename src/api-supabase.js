@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export function createApi(env) {
   const sb = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: 'pkce' }
   });
 
   /* ---------- errori nel formato atteso dall'interfaccia ---------- */
@@ -81,7 +81,7 @@ export function createApi(env) {
     onAuth(cb) {
       let last;
       const { data } = sb.auth.onAuthStateChange((_ev, session) => {
-        const u = session?.user ? { uid: session.user.id, email: session.user.email } : null;
+        const u = session?.user ? { uid: session.user.id, email: session.user.email, meta: session.user.user_metadata || {} } : null;
         if ((u?.uid || null) === last) return; last = u?.uid || null;
         setTimeout(() => cb(u), 0); // mai chiamare Supabase dentro il callback
       });
@@ -92,6 +92,27 @@ export function createApi(env) {
       const { data, error } = await sb.auth.signUp({ email, password });
       if (error) throw aerr(error);
       return { needsConfirm: !data.session };
+    },
+    // accesso con Google / Apple (OAuth di Supabase, flusso PKCE)
+    async providers() {
+      try {
+        const r = await fetch(env.VITE_SUPABASE_URL + '/auth/v1/settings', { headers: { apikey: env.VITE_SUPABASE_ANON_KEY } });
+        const j = await r.json(); return { google: !!j?.external?.google, apple: !!j?.external?.apple };
+      } catch { return {}; }
+    },
+    async oauth(provider, redirectTo) {
+      const { data, error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true, ...(provider === 'google' ? { queryParams: { prompt: 'select_account' } } : {}) } });
+      if (error) throw aerr(error);
+      return data.url;
+    },
+    async oauthFinish(url) {
+      const u = new URL(url.replace(/^vicina:\/\//i, 'https://vicina.app/')), q = new URLSearchParams(u.search + '&' + u.hash.slice(1));
+      const err = q.get('error_description') || q.get('error');
+      if (err) throw Object.assign(new Error(err.replace(/\+/g, ' ')), { code: 'auth/oauth' });
+      const code = q.get('code'); if (!code) return false;
+      const { error } = await sb.auth.exchangeCodeForSession(code);
+      if (error) throw aerr(error);
+      return true;
     },
     async signOut() { const { error } = await sb.auth.signOut(); if (error) await sb.auth.signOut({ scope: 'local' }); },
     async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email); if (error) throw aerr(error); },

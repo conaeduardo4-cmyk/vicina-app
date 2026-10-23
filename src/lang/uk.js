@@ -2002,5 +2002,10 @@ export default {
 "GRUPPO": "ГРУПА",
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "Твій профіль · додай когось до кола",
 "Foto": "Фото",
-"Chiama": "Подзвонити"
+"Chiama": "Подзвонити",
+"Continua con Google": "Продовжити з Google",
+"Continua con Apple": "Продовжити з Apple",
+"oppure con l'email": "або через email",
+"Accesso annullato": "Вхід скасовано",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "Цей вхід не увімкнено на сервері: увімкни в Supabase → Authentication → Providers"
 };

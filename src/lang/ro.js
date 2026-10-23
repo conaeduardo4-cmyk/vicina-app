@@ -1965,5 +1965,10 @@ export default {
 "Via SMS": "Prin SMS",
 "GRUPPO": "GRUP",
 "Il tuo profilo · aggiungi qualcuno alla cerchia": "Profilul tău · adaugă pe cineva în cerc",
-"Chiama": "Sună"
+"Chiama": "Sună",
+"Continua con Google": "Continuă cu Google",
+"Continua con Apple": "Continuă cu Apple",
+"oppure con l'email": "sau cu e-mailul",
+"Accesso annullato": "Conectare anulată",
+"Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers": "Această conectare nu este activă pe server: activeaz-o în Supabase → Authentication → Providers"
 };

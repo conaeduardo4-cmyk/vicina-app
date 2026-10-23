@@ -254,6 +254,25 @@ export function boot(api, native) {
     $('#auth-reset').hidden = up;
     $('#pwd').autocomplete = up ? 'new-password' : 'current-password';
     $('#pwd').placeholder = up ? 'Almeno 8 caratteri' : 'Password';
+    rSocial();
+  }
+  // Google / Apple: i pulsanti compaiono solo se sono attivi sul server (Supabase → Authentication → Providers)
+  let socP = null;
+  function rSocial() {
+    if (!api.providers) return;
+    (socP = socP || api.providers().catch(() => ({}))).then(p => {
+      $('[data-p=google]').hidden = !p.google; $('[data-p=apple]').hidden = !p.apple; $('#auth-soc').hidden = !p.google && !p.apple;
+    });
+  }
+  const oauthMsg = e => /not enabled|unsupported provider|provider is not/i.test(e?.message || '') ? 'Questo accesso non è attivo sul server: attivalo in Supabase → Authentication → Providers'
+    : /cancel|annull/i.test(e?.message || '') ? 'Accesso annullato' : AE[e?.code] || ('Accesso non riuscito: ' + (e?.message || 'errore sconosciuto'));
+  async function oauthGo(btn) {
+    const prov = btn.dataset.p, redirect = native.isNative ? 'vicina://auth' : location.origin + location.pathname;
+    ls.set('seen', '1');
+    await busy(btn, async () => {
+      try { const url = await api.oauth(prov, redirect); if (url) await native.openAuth(url); }
+      catch (e) { console.warn('oauth', e); toast(oauthMsg(e)); }
+    });
   }
   $$('#auth-seg button').forEach(b => b.onclick = () => authMode(b.dataset.mode));
   $('#pwd').onkeydown = e => { if (e.key === 'Enter') $('#auth-go').click(); };
@@ -1813,6 +1832,7 @@ export function boot(api, native) {
   let pendingLink = null, pendingAdd = null, lastLink = { u: '', t: 0 };
   native.vx?.onUrl?.(url => {
     if (!/^vicina:/i.test(url || '')) return;
+    if (/^vicina:\/\/auth/i.test(url)) { native.closeAuth?.(); api.oauthFinish?.(url).catch(e => toast(oauthMsg(e))); return; }
     if (url === lastLink.u && Date.now() - lastLink.t < 4000) return;
     lastLink = { u: url, t: Date.now() };
     const addCode = /^vicina:\/\/add\//i.test(url) ? parseInvite(url) : null;
@@ -1855,6 +1875,7 @@ export function boot(api, native) {
         case 'auth-back': show('s-wel'); break;
         case 'pw-toggle': $('#pwd').type = $('#pwd').type === 'password' ? 'text' : 'password'; break;
         case 'auth-go': await doAuth(t); break;
+        case 'oauth': await oauthGo(t); break;
         case 'auth-reset': {
           const em = $('#email').value.trim(); if (!em) return toast('Scrivi prima la tua email');
           await busy(t, async () => {
@@ -2304,10 +2325,15 @@ export function boot(api, native) {
   setTimeout(() => checkUpdate(false), 8000);                       // controllo all'avvio…
   setInterval(() => checkUpdate(false), 6 * 36e5);                  // …e ogni 6 ore
   document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - Number(ls.get('updChecked') || 0) > 6 * 36e5) checkUpdate(false); });
+  // browser: ritorno da Google / Apple con ?code=… nell'indirizzo
+  if (!native.isNative && api.oauthFinish && /[?&#](code|error)=/.test(location.href)) {
+    const back = location.href; history.replaceState(null, '', location.pathname);
+    api.oauthFinish(back).catch(e => toast(oauthMsg(e)));
+  }
   api.onAuth(async u => {
     if (!u) { stopData(); show(ls.get('seen') ? 's-auth' : 's-wel'); authMode(ls.get('seen') ? 'in' : 'up'); return; }
     if (st.uid === u.uid && st.p) return;
-    st.uid = u.uid; st.email = u.email || '';
+    st.uid = u.uid; st.email = u.email || ''; st.meta = u.meta || {};
     try {
       const p = await api.getProfile(u.uid);
       await refreshPerms();
@@ -2328,7 +2354,12 @@ export function boot(api, native) {
         if (c?.name && c?.surname && c?.dob && c?.gender) { await api.createProfile(st.uid, c); p = await api.getProfile(st.uid); }
       } catch (e) { console.warn('ripristino profilo', e); }
     }
-    if (!p) { draft = { gender: null }; return setup(1); }
+    if (!p) {
+      // accesso con Google / Apple: nome e cognome arrivano già compilati
+      const m = st.meta || {}, full = String(m.full_name || m.name || '').trim().split(/\s+/);
+      draft = { gender: null, name: (m.given_name || full[0] || '').slice(0, 40), surname: (m.family_name || full.slice(1).join(' ') || '').slice(0, 40) };
+      return setup(1);
+    }
     try { ls.set(meKey, JSON.stringify({ name: p.name, surname: p.surname, dob: p.dob, gender: p.gender, phone: p.phone || '' })); } catch {}
     st.p = pick(p); startData();
     if (ls.get('permAsked')) registerPush();

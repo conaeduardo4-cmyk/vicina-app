@@ -221,6 +221,10 @@ export function createDemoApi() {
     onAuth(cb) { authCb = cb; setTimeout(() => cb(null), 400); return () => {}; },
     async signIn(email, pw) { await wait(500); if (pw.length < 6) throw err('auth/invalid-credential'); db.email = email; if (!db.user) db.user = { name: 'Alex', surname: 'Demo', dob: '1995-05-12', gender: 'f', phone: '', mutedGroups: [], fcmTokens: [] }; authCb({ uid: 'me', email }); },
     async signUp(email, pw) { await wait(500); db.email = email; db.user = null; authCb({ uid: 'me', email }); },
+    async providers() { return { google: true, apple: true }; },
+    // demo: simula il ritorno da Google / Apple con nome già compilato
+    async oauth(provider) { await wait(600); db.email = provider === 'apple' ? 'privato@privaterelay.appleid.com' : 'sofia.ferri@gmail.com'; db.user = null; authCb({ uid: 'me', email: db.email, meta: { given_name: 'Sofia', family_name: 'Ferri' } }); return null; },
+    async oauthFinish() { return false; },
     async signOut() { h = null; authCb(null); },
     async resetPassword() { await wait(300); },
     async confirmReset(email, code, pw) { await wait(400); if (code !== '123456') throw err('auth/otp-expired', 'x'); db.email = email; if (!db.user) db.user = { name: 'Alex', surname: 'Demo', dob: '1995-05-12', gender: 'f', phone: '', mutedGroups: [], fcmTokens: [] }; authCb({ uid: 'me', email }); },
