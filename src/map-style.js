@@ -45,3 +45,7 @@ export const DARK_PHYSICAL = {
   ]
 };
 
+
+// telefoni lenti: stessa cartina senza l'ombreggiatura del rilievo (è la parte più pesante da disegnare)
+export const darkPhysical = ({ relief = true } = {}) => relief ? DARK_PHYSICAL
+  : { ...DARK_PHYSICAL, sources: { omt: DARK_PHYSICAL.sources.omt }, layers: DARK_PHYSICAL.layers.filter(l => l.type !== 'hillshade') };

@@ -501,3 +501,13 @@ Le traduzioni si generano con `python3 scripts/i18n/merge.py` dai file `scripts/
 
 ### «Continua con Apple» (serve l'Apple Developer Program, 99 €/anno)
 Apple non permette l'accesso senza un account sviluppatore a pagamento. Se lo hai: developer.apple.com → *Identifiers* → crea un **Services ID** (es. `it.vicina.auth`) con «Sign in with Apple», dominio `<tuo-progetto>.supabase.co` e Return URL `https://<tuo-progetto>.supabase.co/auth/v1/callback`; crea una **Key** con «Sign in with Apple» e scarica il file .p8. In **Supabase → Providers → Apple** inserisci Services ID, Team ID, Key ID e il contenuto del .p8 (Supabase genera il secret). Il pulsante compare da solo. Senza account sviluppatore il pulsante resta nascosto e non serve fare niente.
+
+## Novità 3.3 · Android più fluido, SOS migliorato, assistente nuovo
+- **Modalità leggera** (Tu → App): sui telefoni Android più vecchi si attiva da sola. Toglie sfocature, ombre pesanti, animazioni continue e il rilievo della mappa; la mappa usa meno memoria. L'app ora è compilata anche per WebView Android più vecchie.
+- **Invio SOS**: barra di avanzamento continua con **tempo stimato** («circa N secondi»), che impara i tempi reali del telefono.
+- **Durante il tuo SOS vedi la tua cerchia**: chi riceve l'SOS (con Vicina aperta) manda la sua posizione; la vedi nella schermata dell'SOS e sulla mappa, con **Percorso** per raggiungerla. Solo finché l'SOS è attivo: quando lo chiudi le posizioni vengono cancellate. Si può disattivare da Tu → «Posizione a chi ha un SOS attivo».
+- **Assistente**: nuovo stile con «Bentornata/o, Nome», suggerimenti a schede, risposte senza fumetto.
+- **Foto profilo**: tocca la foto nel profilo per vederla a schermo intero (pizzica o doppio tocco per ingrandire).
+
+### Passi su Supabase per la 3.3
+Esegui **`supabase/aggiornamento-3.3.sql`** (o `ripara.sql`, che lo contiene). Sul progetto «sos» è già stato applicato.

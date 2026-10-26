@@ -61,6 +61,7 @@ export function boot(api, native) {
   const seen = JSON.parse(ls.get('seenChats') || '{}');
   const prefs = Object.assign({ live: true, voice: true, typingPreview: true, diretta: true }, (() => { try { return JSON.parse(ls.get('prefs') || '{}'); } catch { return {}; } })());
   const savePrefs = () => ls.set('prefs', JSON.stringify(prefs));
+  if (prefs.shareSosPos === undefined) prefs.shareSosPos = true;   // 3.3: chi ha un SOS attivo vede dove sei (attivo di serie)
   // versione dell'app (scritta da GitHub durante la compilazione) e stato degli aggiornamenti
   // (accessi scritti per esteso: Vite li sostituisce con i valori veri durante la compilazione)
   const ENV = (() => { try { return { v: import.meta.env.VITE_APP_VERSION, c: import.meta.env.VITE_APP_CODE, u: import.meta.env.VITE_UPDATE_URL }; } catch { return {}; } })();
@@ -72,6 +73,13 @@ export function boot(api, native) {
   const lastCode = () => isIOS() ? Number(upd.last?.ios?.ipa ? upd.last.ios.code || upd.last.code || 0 : 0) : Number(upd.last?.code || 0);
   const lastVersion = () => (isIOS() && upd.last?.ios?.version) || upd.last?.version || '';
   const updNewer = () => !!(upd.last && upd.cur && lastCode() > Number(upd.cur.code || 0));
+  // Modalità leggera: sui telefoni Android più vecchi o con poca memoria niente sfocature, ombre pesanti e animazioni continue
+  const lowEnd = (() => {
+    const n = navigator, ua = n.userAgent || '', av = Number((ua.match(/Android (\d+)/) || [])[1] || 99);
+    return (n.deviceMemory && n.deviceMemory <= 4) || (n.hardwareConcurrency && n.hardwareConcurrency <= 4) || av < 10;
+  })();
+  if (prefs.lite === undefined) prefs.lite = lowEnd;
+  document.documentElement.classList.toggle('lite', !!prefs.lite);
   const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const GG = { f: { sola: 'sola', prot: 'protetta', amico: "un'amica", amicoS: 'Amica', pronta: 'pronta' }, m: { sola: 'solo', prot: 'protetto', amico: 'un amico', amicoS: 'Amico', pronta: 'pronto' } };
   const G = () => GG[st.p?.gender] || GG.f;
@@ -218,7 +226,7 @@ export function boot(api, native) {
     const cls = how || (pa >= 0 && pb >= 0 ? (pb > pa ? 'in-r' : pb < pa ? 'in-l' : 'in-f') : 'in-f');
     const el = $('#' + id); el.classList.remove('in-r', 'in-l', 'in-f', 'in-push', 'in-pop', 'in-up', 'stg');
     void el.offsetWidth; el.classList.add(cls);
-    if (el.classList.contains('tabbed')) { el.classList.add('stg'); clearTimeout(el._stg); el._stg = setTimeout(() => el.classList.remove('stg'), 800); }   // i blocchi entrano uno dopo l'altro
+    if (el.classList.contains('tabbed') && !prefs.lite) { el.classList.add('stg'); clearTimeout(el._stg); el._stg = setTimeout(() => el.classList.remove('stg'), 800); }   // i blocchi entrano uno dopo l'altro
   }
   // barra in basso: la «pillola» scorre con una molla fino alla scheda scelta
   function navPill() {
@@ -372,11 +380,42 @@ export function boot(api, native) {
   sos.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && canSos()) { e.preventDefault(); trigger(); } });
 
   const STEPS = [1, 2, 3, 4, 5];
+  // tempo stimato: secondi tipici di ogni passaggio, aggiornati con i tempi reali di questo telefono
+  const EST0 = { 1: 4, 2: 2, 3: 3.5, 4: 3.5, 5: 2 };
+  let est = { ...EST0 }; try { est = { ...EST0, ...JSON.parse(ls.get('sosEst') || '{}') }; } catch {}
+  const sendT = { t0: 0, step: {}, timer: null, doneAt: 0 };
+  const isEnd = c => /done|fail|wait/.test(c);
+  function etaTick() {
+    const vis = STEPS.filter(i => !$('#st' + i).hidden), now = Date.now();
+    let left = 0;
+    for (const i of vis) {
+      const c = $('#st' + i).className;
+      if (isEnd(c)) continue;
+      left += /run/.test(c) ? Math.max(0.6, est[i] - (now - (sendT.step[i] || now)) / 1000) : est[i];
+    }
+    const spent = (now - sendT.t0) / 1000, el = $('#send-eta');
+    $('#send-prog').style.width = Math.min(100, left <= 0 ? 100 : spent / (spent + left) * 100) + '%';
+    if (!el) return;
+    if (left <= 0) { if (!sendT.doneAt) sendT.doneAt = now; el.innerHTML = `${I('check')}Completato in ${((sendT.doneAt - sendT.t0) / 1000).toFixed(1).replace('.', ',')} s`; el.classList.add('ok'); return; }
+    el.classList.remove('ok');
+    const n = Math.ceil(left);
+    el.innerHTML = `<i class="eta-dot"></i>${n <= 1 ? 'Ancora un attimo…' : `Tempo stimato: circa ${n} secondi`}`;
+  }
+  function etaStart(learn = true) {
+    Object.assign(sendT, { t0: Date.now(), step: {}, doneAt: 0, learn });
+    clearInterval(sendT.timer); sendT.timer = setInterval(etaTick, 250); etaTick();
+  }
+  function etaStop() { clearInterval(sendT.timer); sendT.timer = null; }
   const stp = (n, c) => {
+    const prev = $('#st' + n).className;
     $('#st' + n).className = 'step ' + c;
-    const vis = STEPS.filter(i => !$('#st' + i).hidden), sts = vis.map(i => $('#st' + i).className), w = 100 / vis.length;
-    const pct = sts.reduce((a, x) => a + (/done|fail|wait/.test(x) ? w : /run/.test(x) ? w * 0.4 : 0), 0);
-    $('#send-prog').style.width = Math.min(100, pct) + '%';
+    if (c === 'run') sendT.step[n] = Date.now();
+    else if (sendT.learn && /done/.test(c) && /run/.test(prev) && sendT.step[n]) {   // impara quanto ci mette davvero questo telefono
+      const d = (Date.now() - sendT.step[n]) / 1000; est[n] = Math.min(20, Math.max(0.5, est[n] * 0.6 + d * 0.4));
+      try { ls.set('sosEst', JSON.stringify(est)); } catch {}
+    }
+    const vis = STEPS.filter(i => !$('#st' + i).hidden), sts = vis.map(i => $('#st' + i).className);
+    if (sendT.timer) etaTick(); else $('#send-prog').style.width = (sts.filter(isEnd).length / vis.length * 100) + '%';
     const t = $('#send-title'), sub = $('#send-sub');
     if (sts.every(x => /done|fail|wait/.test(x))) { t.textContent = 'Fatto. Ti stanno cercando.'; sub.textContent = 'Chi ti aiuta ha posizione e foto.'; $('#ov-send').classList.add('ok'); }
     else if (/done/.test($('#st2').className) || /done/.test($('#st5').className)) { t.textContent = 'Allarme inviato'; sub.textContent = 'Aggiungo le foto per chi ti aiuta…'; }
@@ -402,8 +441,8 @@ export function boot(api, native) {
     const cancel = $('#send-cancel'); cancel.hidden = false; cancel.onclick = () => { cancelled = true; };
     $('#st2').hidden = !appN; $('#st5').hidden = !sms.length;
     $('#st5-sub').textContent = autoSms ? `A ${sms.length} ${sms.length === 1 ? 'contatto' : 'contatti'} senza app` : 'Si apre Messaggi: premi Invia';
-    STEPS.forEach(n => stp(n, '')); if (!silent) $('#ov-send').classList.add('on');
-    const sosId = rid(), end = () => { sending = false; $('#ov-send').classList.remove('on'); };
+    STEPS.forEach(n => stp(n, '')); if (!silent) { $('#ov-send').classList.add('on'); etaStart(); }
+    const sosId = rid(), end = () => { sending = false; etaStop(); $('#ov-send').classList.remove('on'); };
     let res = null, srvErr = null; const imgs = [], links = [];
     try {
       stp(1, 'run'); const pos = await native.getPos({ precise: true }); if (cancelled) { end(); return toast('SOS annullato'); }
@@ -468,10 +507,10 @@ export function boot(api, native) {
   async function simulateSos() {
     if (sending) return;
     $('#st2').hidden = false; $('#st5').hidden = !smsOn().length; STEPS.forEach(n => stp(n, ''));
-    const ov = $('#ov-send'); ov.classList.add('on', 'demo'); $('#send-cancel').hidden = false; $('#send-cancel').onclick = () => { ov.classList.remove('on', 'demo'); };
+    const ov = $('#ov-send'); ov.classList.add('on', 'demo'); etaStart(false); $('#send-cancel').hidden = false; $('#send-cancel').onclick = () => { etaStop(); ov.classList.remove('on', 'demo'); };
     const seq = [1, 2, 3, 4].concat(smsOn().length ? [5] : []);
     for (const n of seq) { if (!ov.classList.contains('on')) return; stp(n, 'run'); await wait(700); stp(n, 'done'); await wait(250); }
-    await wait(900); ov.classList.remove('on', 'demo');
+    await wait(900); etaStop(); ov.classList.remove('on', 'demo');
     dialog({ title: 'Era solo una prova', text: 'Non è stato inviato niente a nessuno. Quando serve davvero tieni premuto il tasto SOS per 1,5 secondi, oppure usa il widget o la scorciatoia.', ok: 'Ho capito', cancel: 'Chiudi' });
   }
 
@@ -494,6 +533,7 @@ export function boot(api, native) {
       + (others ? `<div class="row"><div class="av more">+${others}</div><div class="fl"><b>${ackNames.length ? 'Gli altri' : 'La tua cerchia'}</b><span>Avvisati · in attesa di risposta</span></div></div>` : '')
       + (smsOn().length ? `<div class="row sms-act"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>${smsOn().length} ${smsOn().length === 1 ? 'contatto' : 'contatti'} via SMS</b><span>Senza app · posizione e link alle foto</span></div></div>
         <div class="row2 sms-btns"><button class="btn ghost sm" data-a="sms-resend">${I('sms')}Rimanda SMS</button>${lastSms.imgs.length ? `<button class="btn ghost sm" data-a="sms-photos">${I('camera')}Invia le foto</button>` : ''}</div>` : '');
+    rCirclePos();
     rVoice(s); centrale?.renderActive();
     clearInterval(activeTimer); activeTimer = setInterval(() => {
       if (!st.sosMine) return clearInterval(activeTimer);
@@ -502,10 +542,43 @@ export function boot(api, native) {
       $('#a-since').textContent = `Inviato ${ago(st.sosMine.at)} a ${st.sosMine.recipients.length} ${st.sosMine.recipients.length === 1 ? 'persona' : 'persone'}`;
     }, 1000);
   }
+  /* ---------- 3.3: durante il mio SOS, dove sono le persone della cerchia ---------- */
+  let circleTimer = null;
+  async function pollCirclePos() {
+    const s = st.sosMine; if (!s) { st.circlePos = []; clearInterval(circleTimer); circleTimer = null; return; }
+    try { st.circlePos = await api.sosPositions?.(s.id) || []; } catch (e) { if (e?.code !== 'v33-setup') console.warn('posizioni cerchia', e); st.circlePos = []; }
+    rCirclePos(); rMap();
+  }
+  function watchCirclePos() {
+    if (st.sosMine && !circleTimer) { pollCirclePos(); circleTimer = setInterval(pollCirclePos, 15000); }
+    if (!st.sosMine && circleTimer) { clearInterval(circleTimer); circleTimer = null; st.circlePos = []; }
+  }
+  function rCirclePos() {
+    const box = $('#a-circle'); if (!box) return;
+    const list = (st.circlePos || []).slice(), me = st.sosMine?.lat != null ? st.sosMine : st.myPos;
+    if (me) list.sort((a, b) => km(me, a) - km(me, b));
+    box.hidden = !st.sosMine;
+    box.innerHTML = `<div class="label">La tua cerchia adesso</div><div class="card">${list.length ? list.map(f => `<div class="row cp-row">${AV(f.name, null, '', f.uid)}<div class="fl"><b>${esc(f.name)}</b><span>${me ? 'A ' + dist(km(me, f)) + ' · ' : ''}${ageTxt(f.at)}</span></div>
+        <button class="pill ic" data-a="cp-map" data-id="f-${esc(f.uid)}" aria-label="Vedi sulla mappa">${I('pin')}</button><button class="pill ok" data-a="map-nav" data-id="f-${esc(f.uid)}">${I('send')}Percorso</button></div>`).join('')
+      : `<div class="row"><i class="ic-dot blue">${I('pin')}</i><div class="fl wrap"><b>In attesa delle posizioni</b><span>Appena chi riceve il tuo SOS apre Vicina, qui vedi dov'è e puoi impostare il percorso per raggiungerlo.</span></div></div>`}</div>`;
+  }
+  // chi RICEVE un SOS attivo manda la sua posizione (solo con l'app aperta e se l'opzione è attiva)
+  let shareBusy = false, shareKey = '';
+  async function shareMyPosForSos() {
+    if (shareBusy || !st.uid || prefs.shareSosPos === false || !api.shareSosPos || document.hidden) return;
+    const live = st.sosIn.filter(s => s.active !== false && s.from !== st.uid && Date.now() - s.at < 6 * 36e5);
+    if (!live.length) return;
+    shareBusy = true;
+    try {
+      const p = await refreshMyPos(true); if (!p) return;
+      for (const s of live) await api.shareSosPos(s.id, p).catch(e => e?.code !== 'v33-setup' && console.warn('condivido posizione', e));
+    } finally { shareBusy = false; }
+  }
+  setInterval(shareMyPosForSos, 20000);
   async function markSafe(btn) {
     if (!(await dialog({ title: 'Sei al sicuro?', text: 'Avviseremo la tua cerchia che stai bene e chiuderemo l\'SOS.', ok: 'Sì, sto bene', cancel: 'Non ancora' }))) return;
     await busy(btn, async () => {
-      try { await api.call('resolveSos', { sosId: st.sosMine.id }); if (voice.rec) { try { voice.rec.cancel(); } catch {} voice.rec = null; clearInterval(voice.timer); } stopLive(false); st.sosMine = null; native.haptic('medium'); toast('Bene così. Abbiamo avvisato tutti.'); tab('home', 'in-f'); }
+      try { await api.call('resolveSos', { sosId: st.sosMine.id }); if (voice.rec) { try { voice.rec.cancel(); } catch {} voice.rec = null; clearInterval(voice.timer); } stopLive(false); st.sosMine = null; watchCirclePos(); native.haptic('medium'); toast('Bene così. Abbiamo avvisato tutti.'); tab('home', 'in-f'); }
       catch (e) { toast(errMsg(e)); }
     });
   }
@@ -706,6 +779,8 @@ export function boot(api, native) {
     }));
     const m = st.sosMine;
     if (centrale) out.push(...centrale.helperPins());
+    // 3.3: durante il MIO SOS vedo dove sono le persone della cerchia (solo finché l'SOS è attivo)
+    if (m) for (const f of st.circlePos || []) out.push({ id: 'f-' + f.uid, uid: f.uid, name: f.name, ini: initials(f.name), lat: f.lat, lng: f.lng, acc: f.acc, track: [], locAt: f.at, at: f.at, live: true, friend: true, cls: 'friend', stale: Date.now() - f.at > 3 * 60e3, label: f.name.split(' ')[0], img: avUrl(f.uid) });
     if (m && m.lat != null) out.push({ id: m.id, name: 'Tu', ini: 'TU', lat: m.lat, lng: m.lng, acc: m.acc, track: m.track || [], audio: m.audio, locAt: m.locAt || m.at, at: m.at, live: true, mine: true, label: 'Il tuo SOS', img: avUrl(st.uid) });
     return out;
   }
@@ -803,9 +878,10 @@ export function boot(api, native) {
     el.dataset.k = key;
     el.innerHTML = people.map(p => {
       return `<div class="map-card${p.mine ? ' mine' : ''}" data-id="${p.id}">
-        <button class="map-card-h" data-a="map-focus" data-id="${p.id}">${p.mine ? `<div class="av" style="background:var(--red)">TU</div>` : AV(p.name, null, '', p.src?.from)}<div class="fl"><b>${p.mine ? 'Il tuo SOS' : esc(p.name)}</b><span class="st">${status(p)}</span></div>${I('chev', 'chev')}</button>
+        <button class="map-card-h" data-a="map-focus" data-id="${p.id}">${p.mine ? `<div class="av" style="background:var(--red)">TU</div>` : AV(p.name, null, '', p.src?.from || p.uid)}<div class="fl"><b>${p.mine ? 'Il tuo SOS' : esc(p.name)}</b><span class="st">${status(p)}</span></div>${I('chev', 'chev')}</button>
         ${p.audio ? `<div class="voice-in sm">${I('mic')}<audio controls preload="none" data-p="${esc(p.audio)}"></audio></div>` : ''}
-        ${p.mine ? '' : `<div class="map-acts"><button class="btn red sm" data-a="map-nav" data-id="${p.id}">${I('send')}Raggiungi</button>
+        ${p.friend ? `<div class="map-acts"><button class="btn red sm" data-a="map-nav" data-id="${p.id}">${I('send')}Percorso</button>${(() => { const c = convs().find(x => x.uid === p.uid); return c ? `<button class="btn ghost sm" data-a="open" data-id="${c.id}">${I('chat')}Chat</button>` : ''; })()}</div>`
+        : p.mine ? '' : `<div class="map-acts"><button class="btn red sm" data-a="map-nav" data-id="${p.id}">${I('send')}Raggiungi</button>
           ${p.phone ? `<a class="btn ghost sm" href="tel:${esc(p.phone.replace(/[^\d+]/g, ''))}">${I('phone')}Chiama</a>` : ''}
           <button class="btn ghost sm" data-a="in-chat" data-id="${p.id}">${I('chat')}Chat</button></div>
           <p class="map-note">«Raggiungi» apre le indicazioni in ${navName}</p>`}
@@ -1245,7 +1321,7 @@ export function boot(api, native) {
     ].join('');
     const tag = d.kind === 'partner' ? '<span class="tag pf-tag">PARTNER</span>' : d.kind === 'group' ? '<span class="tag pf-tag">GRUPPO</span>' : self ? '<span class="tag pf-tag">TU</span>' : '';
     return `<div class="pf-banner${banner ? ' img' : ''}" style="${bannerBg(banner, full)}"><button class="iconbtn round pf-back" data-a="pf-back" aria-label="Indietro">${I('back')}</button></div>
-      <div class="pf-head"><div class="pf-av">${AV(full, c?.k, 'xl', d.uid)}</div>
+      <div class="pf-head"><button class="pf-av" data-a="av-zoom" data-uid="${esc(d.uid)}" aria-label="Ingrandisci la foto">${AV(full, c?.k, 'xl', d.uid)}</button>
         <h1 translate="no">${esc(full)}</h1>${tag}
         ${d.bio ? `<p class="pf-bio" translate="no">${esc(d.bio)}</p>` : loading && !self ? '<p class="pf-bio dim">Carico il profilo…</p>' : ''}</div>
       <div class="pf-acts">${self ? `<button class="pf-act" data-a="ed-open">${I('pen')}<span>Modifica</span></button>`
@@ -1254,6 +1330,36 @@ export function boot(api, native) {
            ${c ? `<button class="pf-act" data-a="pf-loc" data-uid="${esc(d.uid)}" data-id="${esc(c.id)}">${I('pin')}<span>Posizione</span></button>` : ''}`}</div>
       ${info ? `<div class="card pf-info">${info}</div>` : ''}
       ${!self && c && c.k !== 'g' ? `<button class="btn ghost pf-more" data-a="person" data-id="${esc(c.id)}">Opzioni della cerchia</button>` : ''}`;
+  }
+  // foto profilo a schermo intero: pizzica per ingrandire, doppio tocco per zoom, tocca fuori o × per chiudere
+  function zoomAvatar(uid) {
+    const url = avUrl(uid); if (!url) return toast('Nessuna foto profilo');
+    let ov = $('#zoom');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'zoom'; ov.className = 'zoom'; document.body.appendChild(ov); }
+    ov.innerHTML = `<button class="iconbtn round zoom-x" aria-label="Chiudi">${I('x') || '×'}</button><img src="${esc(url)}" alt="" draggable="false">`;
+    const img = ov.querySelector('img'), pts = new Map();
+    let sc = 1, tx = 0, ty = 0, d0 = 0, s0 = 1, lastTap = 0, moved = false;
+    const apply = () => { img.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`; };
+    const close = () => { ov.classList.remove('on'); setTimeout(() => { ov.innerHTML = ''; }, 200); };
+    ov.querySelector('.zoom-x').onclick = close;
+    ov.onpointerdown = e => { ov.setPointerCapture?.(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; d0 = Math.hypot(a.x - b.x, a.y - b.y); s0 = sc; } };
+    ov.onpointermove = e => {
+      const p = pts.get(e.pointerId); if (!p) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; sc = Math.min(5, Math.max(1, s0 * Math.hypot(a.x - b.x, a.y - b.y) / (d0 || 1))); }
+      else if (sc > 1) { tx += dx; ty += dy; }
+      if (sc === 1) { tx = 0; ty = 0; }
+      apply();
+    };
+    ov.onpointerup = ov.onpointercancel = e => {
+      pts.delete(e.pointerId);
+      if (moved || e.target.closest('.zoom-x')) return;
+      const now = Date.now();
+      if (now - lastTap < 300) { sc = sc > 1 ? 1 : 2.5; tx = ty = 0; img.style.transition = 'transform .2s'; apply(); setTimeout(() => (img.style.transition = ''), 220); lastTap = 0; }
+      else { lastTap = now; if (e.target !== img && sc === 1) setTimeout(() => lastTap === now && close(), 300); }
+    };
+    requestAnimationFrame(() => ov.classList.add('on'));
   }
   async function profLoc(uid, chatId) {
     const s = st.sosIn.find(x => x.from === uid && x.lat != null);
@@ -1344,6 +1450,7 @@ export function boot(api, native) {
         ${toggleRow('voice', 'mic', 'amber', 'Messaggio vocale', 'Dopo l\'SOS puoi registrarne uno (facoltativo)')}
         ${toggleRow('shake', 'alert', 'violet', 'Scuoti per SOS', 'Scuoti forte il telefono: dopo 5 secondi parte l\'SOS (con l\'app aperta)')}
         ${toggleRow('quiet', 'eye', 'gray', 'SOS discreto', 'Niente vibrazioni e flash mentre l\'SOS parte')}
+        ${toggleRow('shareSosPos', 'pin', 'blue', 'Posizione a chi ha un SOS attivo', 'Se qualcuno della tua cerchia chiede aiuto, vede dove sei per raggiungerti. Solo finché il suo SOS è attivo e Vicina è aperta')}
         ${prefs.diretta === false ? toggleRow('autoAudio', 'mic', 'red', 'Registra audio dopo l\'SOS', 'Dopo le foto registra 30 secondi di quello che succede intorno e lo manda alla cerchia') : ''}
         <button class="row" data-a="my-proofs"><i class="ic-dot violet">${I('shield')}</i><div class="fl wrap"><b>Prove dei miei SOS</b><span>Audio, foto e posizioni certificate · PDF per la denuncia</span></div>${I('chev', 'chev')}</button>
       </div>
@@ -1364,6 +1471,7 @@ export function boot(api, native) {
         <button class="row" data-a="terms-read"><i class="ic-dot red">${I('alert')}</i><div class="fl"><b>Termini d'uso e limiti</b><span>Vicina non sostituisce il 112</span></div>${I('chev', 'chev')}</button>
       </div>
       <div class="label">App</div><div class="card">
+        ${toggleRow('lite', 'spark', 'green', 'Modalità leggera', lowEnd ? 'Consigliata su questo telefono: niente sfocature e animazioni continue, tutto più fluido' : 'Meno effetti grafici, più fluida sui telefoni lenti')}
         <button class="row" data-a="upd-open"><i class="ic-dot ${updNewer() ? 'red' : 'blue'}">${I('share')}</i><div class="fl"><b>Aggiornamenti</b><span>${updNewer() ? 'Nuova versione ' + esc(lastVersion()) + ' disponibile' : 'Versione ' + esc((upd.cur || BUILD).version) + ' · tocca per controllare'}</span></div>${updNewer() ? '<span class="tag red">Nuova</span>' : I('chev', 'chev')}</button>
       </div>
       <div class="label">Telefono</div><div class="card">
@@ -1550,7 +1658,7 @@ export function boot(api, native) {
       ${g.admin ? `<button class="btn danger" data-a="delgroup" data-id="${id}">Elimina gruppo</button>` : `<button class="btn danger" data-a="leave" data-id="${id}">Esci dal gruppo</button>`}`, 'group:' + id);
   }
   $('#sheet').addEventListener('change', async e => {
-    if (e.target.dataset.pref) { const k = e.target.dataset.pref; prefs[k] = e.target.checked; savePrefs(); native.haptic('light'); tools.prefChanged(k, prefs[k], e.target); rMe(); return; }
+    if (e.target.dataset.pref) { const k = e.target.dataset.pref; prefs[k] = e.target.checked; savePrefs(); native.haptic('light'); if (k === 'lite') { document.documentElement.classList.toggle('lite', !!prefs.lite); toast(prefs.lite ? 'Modalità leggera attiva: l\'app è più fluida' : 'Effetti grafici completi riattivati'); } tools.prefChanged(k, prefs[k], e.target); rMe(); return; }
     const id = e.target.dataset.mute; if (!id) return;
     try { await api.setMuted(st.uid, id, !e.target.checked); } catch (x) { toast(errMsg(x)); e.target.checked = !e.target.checked; }
   });
@@ -1614,9 +1722,9 @@ export function boot(api, native) {
   function rAIList() {
     const box = $('#ail-body'); if (!box) return;
     const q = ai.q.trim().toLowerCase(), list = (ai.chats || []).filter(c => !q || (c.title || '').toLowerCase().includes(q));
-    let html = `<h1 class="title ail-title">Assistente</h1>
+    let html = `<div class="ail-hero"><span class="ai-orb md" aria-hidden="true"></span><div><span class="eyebrow">Assistente Vicina</span><h1 class="ai-greet sm"><span>${G() === GG.m ? 'Bentornato' : 'Bentornata'}${st.p ? ',' : ''}</span>${st.p ? ` <b translate="no">${esc(st.p.name)}</b>` : ''}</h1></div></div>
       <label class="search ail-search">${I('search')}<input id="ail-q" type="search" placeholder="Cerca nelle chat" value="${esc(ai.q)}"></label>
-      <button class="card ai-start" data-a="ai-new"><i class="ic-dot amber">${I('spark')}</i><div class="fl"><b>Nuova chat</b><span>Chiedi come usare Vicina o cosa fare in una situazione</span></div>${I('chev', 'chev')}</button>`;
+      <button class="card ai-start" data-a="ai-new"><span class="ai-orb" aria-hidden="true"></span><div class="fl"><b>Nuova chat</b><span>Chiedi come usare Vicina o cosa fare in una situazione</span></div>${I('chev', 'chev')}</button>`;
     if (ai.chats == null) html += `<p class="note">Carico le tue chat…</p>`;
     else if (!list.length) html += `<p class="note">${q ? 'Nessuna chat trovata' : 'Non hai ancora chat con l\'assistente.'}</p>`;
     else {
@@ -1667,16 +1775,19 @@ export function boot(api, native) {
   function rAI() {
     const box = $('#ai-msgs');
     if (!aiMsgs.length && !aiBusy) {
-      box.innerHTML = `<div class="ai-hello"><i class="ic-dot amber">${I('spark')}</i><b>Ciao${st.p ? ', ' + esc(st.p.name) : ''}!</b><p>Chiedimi come usare Vicina o un consiglio di sicurezza. Non vedo la tua posizione né le tue chat.</p>
-        <div class="chips">${AI_CHIPS.map(c => `<button class="chip" data-a="ai-chip" data-q="${esc(c)}">${esc(c)}</button>`).join('')}</div></div>`;
+      box.innerHTML = `<div class="ai-hero"><span class="ai-orb lg" aria-hidden="true"></span>
+        <h1 class="ai-greet"><span>${G() === GG.m ? 'Bentornato' : 'Bentornata'}${st.p ? ',' : ''}</span>${st.p ? ` <b translate="no">${esc(st.p.name)}</b>` : ''}</h1>
+        <p>Come posso aiutarti oggi?</p></div>
+        <div class="ai-sugg">${AI_CHIPS.map((c, k) => `<button class="ai-sug" data-a="ai-chip" data-q="${esc(c)}"><i>${I(['people', 'shield', 'bell', 'alert'][k] || 'spark')}</i><span>${esc(c)}</span></button>`).join('')}</div>
+        <p class="ai-priv">${I('lock')}Non vedo la tua posizione né le tue chat</p>`;
       return;
     }
     box.innerHTML = aiMsgs.map(m => m.role === 'user' ? `<div class="msg me" translate="no">${esc(m.text)}</div>`
       : m.role === 'danger' ? `<div class="msg danger"><b>Se sei in pericolo adesso, non aspettare la risposta:</b> tieni premuto SOS o chiama il 112. Per violenza o stalking c'è anche il 1522, gratis e attivo 24 ore su 24.<div class="row2"><button class="btn red" data-a="ai-sos">${I('alert')}Vai all'SOS</button><a class="btn ghost" href="tel:112">${I('phone')}112</a></div></div>`
       : m.role === 'err' ? `<div class="msg err">${mdLite(m.text)}<button class="chip" data-a="ai-diag">Verifica collegamento</button></div>`
-      : m.role === 'local' ? `<div class="msg bot"><span class="ai-tag">Guida integrata</span>${mdLite(m.text)}</div>`
-      : `<div class="msg bot" translate="no">${mdLite(m.text)}</div>`).join('')
-      + (aiBusy ? `<div class="msg bot"><span class="typing"><i></i><i></i><i></i></span></div>` : '')
+      : m.role === 'local' ? `<div class="ai-row"><span class="ai-orb" aria-hidden="true"></span><div class="msg bot"><span class="ai-tag">Guida integrata</span>${mdLite(m.text)}</div></div>`
+      : `<div class="ai-row"><span class="ai-orb" aria-hidden="true"></span><div class="msg bot" translate="no">${mdLite(m.text)}</div></div>`).join('')
+      + (aiBusy ? `<div class="ai-row"><span class="ai-orb spin" aria-hidden="true"></span><div class="ai-think"><i></i><i></i><i></i></div></div>` : '')
       + (aiLeft != null && aiLeft <= 5 ? `<div class="ai-left">Messaggi rimasti oggi: ${aiLeft}</div>` : '');
     box.scrollTop = 1e9;
   }
@@ -1981,6 +2092,7 @@ export function boot(api, native) {
         case 'my-prof': openProfile(st.uid); break;
         case 't-prof': { const c = convs().find(x => x.id === st.open); if (!c) break; if (c.k === 'g') sheetGroup(c.id); else openProfile(c.uid); break; }
         case 'pf-back': profUid = null; if (profFrom && profFrom !== 's-prof' && $('#' + profFrom)) { if (profFrom === 's-thread' && st.open) show('s-thread', 'in-pop'); else if (TABS_BY_SCREEN[profFrom]) tab(TABS_BY_SCREEN[profFrom], 'in-pop'); else show(profFrom, 'in-pop'); } else tab(st.tab || 'circle', 'in-pop'); break;
+        case 'av-zoom': zoomAvatar(t.dataset.uid); break;
         case 'pf-copy': await native.copy(t.dataset.v); native.haptic('light'); toast('Numero copiato'); break;
         case 'pf-loc': await profLoc(t.dataset.uid, id); break;
         case 'ed-open': openEdit(); break;
@@ -2014,6 +2126,7 @@ export function boot(api, native) {
         case 'upd-ipa': await saveIpa(false); break;
         case 'upd-ipa-share': if (upd.saved?.uri) await native.update.shareFile(upd.saved.uri, 'Vicina ' + lastVersion()).catch(() => {}); break;
         case 'map-focus': { if ($('#ov-in').classList.contains('on')) { st.dismissed.add(st.shownIn); closeIncoming(); } closeSheet(); tab('map'); mapFocus(id, +t.dataset.lat, +t.dataset.lng); break; }
+        case 'cp-map': tab('map'); { const p = mapPeople().find(x => x.id === id); if (p) mapFocus(id, p.lat, p.lng); } break;
         case 'map-nav': case 'map-open': { const p = mapPeople().find(x => x.id === id) || (() => { const x = st.sosIn.find(y => y.id === id); return x && { lat: x.lat, lng: x.lng, name: x.fromName }; })(); if (p && p.lat != null) native.openMaps(p.lat, p.lng, p.name, a === 'map-nav'); else toast('Posizione non disponibile'); break; }
         case 'map-me': { const me = await refreshMyPos(true); if (me && mapApi) mapApi.center(me.lat, me.lng); else if (!me) toast('Posizione non disponibile: attiva il GPS'); break; }
         case 'map-all': if (mapApi) mapApi.showAll(mapPeople(), st.myPos); break;
@@ -2120,9 +2233,9 @@ export function boot(api, native) {
         syncChats(); render(); refreshSheet(); loadAvatars(); if ($('#s-setup').classList.contains('on') && st.setup === 3) setup(3);
       },
       checks: list => appello?.set(list),
-      sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); if (centrale?.rxId()) { if (st.sosIn.some(s => s.id === centrale.rxId())) centrale.renderRx(); else centrale.closeRx(true); } rSosBar(); if (st.sosIn.some(s => !(s.from in st.av))) loadAvatars(true); checkIncoming(); rChats(); rBadge(); rMap(); if (st.open) rThread(); },
+      sosIn: list => { st.sosIn = list.filter(s => Date.now() - s.at < 12 * 36e5); if (centrale?.rxId()) { if (st.sosIn.some(s => s.id === centrale.rxId())) centrale.renderRx(); else centrale.closeRx(true); } rSosBar(); if (st.sosIn.some(s => !(s.from in st.av))) loadAvatars(true); checkIncoming(); rChats(); rBadge(); rMap(); if (st.open) rThread(); { const k = st.sosIn.filter(x => x.active !== false).map(x => x.id).join(); if (k && k !== shareKey) setTimeout(shareMyPosForSos, 1500); shareKey = k; } },
       sosMine: list => {
-        const was = !!st.sosMine; st.sosMine = list.filter(s => Date.now() - s.at < 12 * 36e5).sort((a, b) => b.at - a.at)[0] || null;
+        const was = !!st.sosMine; st.sosMine = list.filter(s => Date.now() - s.at < 12 * 36e5).sort((a, b) => b.at - a.at)[0] || null; watchCirclePos();
         if (st.sosMine) { const go = () => { if (!st.sosMine) return; if (sending) return setTimeout(go, 600); centrale?.onMine(st.sosMine, { silent: silentSos }); }; go(); }
         else centrale?.onMine(null);
         if (st.sosMine) { intro.done(true); if (live.sosId !== st.sosMine.id) startLive(st.sosMine.id, st.sosMine.liveUntil || st.sosMine.at + 12 * 36e5); rActive(); if (!sending && !silentSos && ['s-home', 's-active'].some(s => $('#' + s).classList.contains('on'))) show('s-active'); }
@@ -2167,7 +2280,11 @@ export function boot(api, native) {
     if ($('#scrim').classList.contains('on')) { closeSheet(); return true; }
     if ($('#ov-in').classList.contains('on')) { st.dismissed.add(st.shownIn); closeIncoming(); return true; }
     if (appello?.back()) return true;
-    if ($('#s-ai').classList.contains('on')) { tab(st.tab || 'home', 'in-pop'); return true; }
+    if ($('#zoom')?.classList.contains('on')) { $('#zoom .zoom-x')?.click(); return true; }
+    if ($('#s-ai').classList.contains('on')) { show('s-ailist', 'in-pop'); rAIList(); return true; }
+    if ($('#s-ailist').classList.contains('on')) { tab(st.tab || 'home', 'in-pop'); return true; }
+    if ($('#s-prof').classList.contains('on')) { $('[data-a="pf-back"]')?.click(); return true; }
+    if ($('#s-edit').classList.contains('on')) { $('[data-a="ed-cancel"]')?.click(); return true; }
     if ($('#s-guide').classList.contains('on')) { if (gi > 0) guideGo(gi - 1); else closeGuide(); return true; }
     if ($('#s-thread').classList.contains('on')) { $('[data-a="thread-back"]').click(); return true; }
     if ($('#s-terms').classList.contains('on')) { if (termsMode !== 'gate') $('#terms-back').click(); return true; }

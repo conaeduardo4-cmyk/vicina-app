@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const repo = e.GITHUB_REPOSITORY || e.VICINA_REPO || '';
   const updateUrl = e.VITE_UPDATE_URL || (repo ? `https://github.com/${repo}/releases/latest/download/version.json` : '');
   return {
-    build: { outDir: 'dist', target: ['es2020', 'safari15', 'chrome90'] },
+    build: { outDir: 'dist', target: ['es2019', 'safari14', 'chrome79'], cssTarget: ['chrome79', 'safari14'] },  // anche WebView Android più vecchie
     define: {
       'import.meta.env.VITE_APP_VERSION': JSON.stringify(e.VITE_APP_VERSION || e.APP_VERSION || e.npm_package_version || ''),
       'import.meta.env.VITE_APP_CODE': JSON.stringify(String(e.VITE_APP_CODE || e.GITHUB_RUN_NUMBER || '0')),

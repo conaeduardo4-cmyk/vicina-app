@@ -182,6 +182,7 @@
         <div class="act-live" id="a-live"></div>
       </section>
       <div class="act-list" id="a-info"></div>
+      <div class="a-circle" id="a-circle" hidden></div>
       <div class="cx-act" id="a-centrale"></div>
       <div class="vcard" id="a-voice" aria-live="polite"></div>
     </div>
@@ -270,7 +271,7 @@
   <!-- Assistente (IA) -->
   <section class="screen" id="s-ai">
     <div class="th"><button class="iconbtn round" data-a="ai-back" aria-label="Le tue chat"><svg class="i"><use href="#i-back"/></svg></button>
-      <div class="av sm ai-av"><svg class="i"><use href="#i-spark"/></svg></div>
+      <span class="ai-orb md" aria-hidden="true"></span>
       <div class="fl"><b id="ai-title">Assistente</b><span id="ai-sub">Salvata sul tuo account</span></div>
       <button class="iconbtn round" data-a="ai-new" aria-label="Nuova chat"><svg class="i"><use href="#i-pen"/></svg></button></div>
     <div class="ai-warn"><svg class="i"><use href="#i-alert"/></svg><span>In pericolo adesso?</span><button data-a="ai-sos">SOS</button><a href="tel:112">112</a></div>
@@ -293,6 +294,7 @@
       <h1 class="send-title" id="send-title">Invio l'aiuto…</h1>
       <p class="send-sub" id="send-sub">Tieni l'app aperta, servono pochi secondi.</p>
       <div class="send-bar"><i id="send-prog"></i></div>
+      <p class="send-eta" id="send-eta"></p>
       <div class="steps">
         <div class="step" id="st1"><i class="st-ic"><svg class="i ic-main"><use href="#i-pin"/></svg><svg class="i ic-ok"><use href="#i-check"/></svg></i><span class="st-txt"><b>Posizione</b><small>Cerco il GPS</small></span><span class="st-state"></span></div>
         <div class="step" id="st2"><i class="st-ic"><svg class="i ic-main"><use href="#i-send"/></svg><svg class="i ic-ok"><use href="#i-check"/></svg></i><span class="st-txt"><b>Allarme alla cerchia</b><small>Notifica a tutti</small></span><span class="st-state"></span></div>

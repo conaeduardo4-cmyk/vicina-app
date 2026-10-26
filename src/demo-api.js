@@ -231,6 +231,12 @@ export function createDemoApi() {
     async getProfile() { await wait(200); return db.user && { ...db.user }; },
     async createProfile(uid, p) { await wait(300); db.user = { ...p, mutedGroups: [], fcmTokens: [] }; },
     async updateProfile(uid, patch) { Object.assign(db.user, patch); emit(); },
+    async shareSosPos() { return { ok: true }; },
+    // demo: le persone della cerchia sparse intorno a chi ha l'SOS
+    async sosPositions(sosId) {
+      const s = db.sos.find(x => x.id === sosId && x.active); if (!s || s.lat == null) return [];
+      return s.recipients.slice(0, 3).map((u, i) => ({ uid: u, name: nameOf(u), lat: s.lat + [0.006, -0.004, 0.009][i], lng: s.lng + [-0.005, 0.007, 0.004][i], acc: 20, at: Date.now() - i * 40000 }));
+    },
     async setMuted(uid, gid, muted) { const m = db.user.mutedGroups; db.user.mutedGroups = muted ? [...new Set([...m, gid])] : m.filter(x => x !== gid); emit(); },
     async saveToken() {},
     watch(uid, handlers) { h = handlers; setTimeout(emit, 50); return () => { h = null; }; },

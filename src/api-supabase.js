@@ -156,6 +156,17 @@ export function createApi(env) {
       if (error) throw Object.assign(rerr(error), /circle_profile|function/i.test(error.message || '') && !/non disponibile/.test(error.message || '') ? { code: 'v31-setup' } : {});
       return { ...data, avatar: data.avatar ? avatarUrl(data.uid, data.avatar) : '', banner: data.banner ? avatarUrl(data.uid, data.banner) : '', since: data.since ? Date.parse(data.since) : 0 };
     },
+    // 3.3: durante un SOS attivo chi lo riceve manda la sua posizione; la vede solo chi ha chiesto aiuto
+    async shareSosPos(sosId, p) {
+      const r = await sb.rpc('sos_share_pos', { p_sos_id: sosId, p_lat: p.lat, p_lng: p.lng, p_acc: p.acc ?? null });
+      if (r.error) throw Object.assign(rerr(r.error), /sos_share_pos|function/i.test(r.error.message || '') ? { code: 'v33-setup' } : {});
+      return r.data;
+    },
+    async sosPositions(sosId) {
+      const { data, error } = await sb.from('sos_positions').select('uid, name, lat, lng, acc, at').eq('sos_id', sosId);
+      if (error) throw Object.assign(rerr(error), { code: 'v33-setup' });
+      return data.map(x => ({ uid: x.uid, name: x.name, lat: x.lat, lng: x.lng, acc: x.acc, at: ms(x.at) }));
+    },
     async setMuted(uid, gid, muted) { ok(await sb.rpc('set_muted', { p_group_id: gid, p_muted: muted })); },
     async saveToken(uid, token) { ok(await sb.rpc('save_token', { p_token: token })); },
 

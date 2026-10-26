@@ -2221,3 +2221,74 @@ html.dz #msgs.wall .msg:not(.in):not(.sos):not(.safe):not(.typing),html.dz #s-th
 .soc .or::before,.soc .or::after{content:'';flex:1;height:1px;background:var(--line2)}
 .map-widget,#map{background:#161A21}
 #s-home>.sos-wrap{margin-top:4px}
+
+/* ===================== 3.3 · fluidità, SOS, assistente, foto profilo ===================== */
+/* tocchi più reattivi (niente attesa del doppio tocco) */
+button,a,[data-a],label,.tile,.row{touch-action:manipulation}
+/* liste lunghe: il telefono disegna solo quello che si vede */
+#m-body>.card,#p-list>.card,#ail-body>.ail-item{content-visibility:auto;contain-intrinsic-size:auto 120px}
+/* ---------- Modalità leggera (telefoni lenti) ---------- */
+html.lite *,html.lite *::before,html.lite *::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+html.lite .card,html.lite .tile,html.lite .ai-card,html.lite .chk-btn,html.lite #sos,html.lite .hero-card,html.lite .sos-alert,html.lite nav,html.lite .btn,html.lite .map-widget,html.lite .grp-card,html.lite .tool,html.lite .tl-big{box-shadow:none!important}
+html.lite .chk-halo,html.lite .chk-dot,html.lite .chk-wave,html.lite .chkin-bg i,html.lite .sos-deco,html.lite .ai-card::after,html.lite .radar i,html.lite .halo,html.lite .pin-ring,html.lite .wk-pulse,html.lite .upd-ind{animation:none!important}
+html.lite .screen.in-r,html.lite .screen.in-l,html.lite .screen.in-f,html.lite .screen.in-push,html.lite .screen.in-pop,html.lite .screen.in-up{animation-duration:.14s!important}
+html.lite .stg>*{animation:none!important}
+html.lite .msg.pop{animation:none}
+html.lite nav,html.lite #s-thread .th,html.lite .mw-circle,html.lite .pf-back{background-color:#111114!important}
+html.lite #msgs.wall{background-image:none}
+/* ---------- invio SOS: tempo stimato ---------- */
+.send-eta{display:flex;align-items:center;justify-content:center;gap:8px;min-height:22px;margin:2px 0 4px;font-size:13.5px;font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums}
+.send-eta .eta-dot{width:8px;height:8px;border-radius:50%;background:var(--red2);animation:blink 1s steps(1) infinite}
+.send-eta.ok{color:var(--green)}.send-eta .i{width:16px;height:16px}
+.send-bar i{transition:width .3s linear}
+/* ---------- la cerchia durante il mio SOS ---------- */
+.a-circle{margin-top:6px}
+.a-circle .label{margin:18px 4px 8px}
+.cp-row{gap:10px}
+.cp-row .fl{min-width:0}.cp-row .fl span{font-size:12.5px;color:var(--sub)}
+.cp-row .pill{display:inline-flex;align-items:center;gap:5px;flex:none;padding:7px 11px;font-size:12.5px}
+.cp-row .pill .i{width:14px;height:14px}
+.cp-row .pill.ok{background:var(--red);color:#fff}
+.pin-sos.friend .pin-head{background:#2E7D4F}.pin-sos.friend .pin-ring{border-color:var(--green)}
+.map-card .av{flex:none}
+/* ---------- assistente: «Bentornata, nome» ---------- */
+.ai-orb{position:relative;display:inline-block;flex:none;width:30px;height:30px;border-radius:50%;
+  background:radial-gradient(circle at 30% 28%,#fff6 0,#fff0 34%),conic-gradient(from 210deg,#FF4D5E,#FFB547,#FFD27A,#9C8CFF,#FF4D5E);
+  box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.ai-orb::after{content:'';position:absolute;inset:28%;border-radius:50%;background:#0B0B10;opacity:.18}
+.ai-orb.md{width:40px;height:40px}
+.ai-orb.lg{width:76px;height:76px;box-shadow:0 18px 50px -12px rgba(255,140,80,.55)}
+.ai-orb.spin{animation:orbspin 1.4s linear infinite}
+@keyframes orbspin{to{transform:rotate(360deg)}}
+.ai-hero{margin:auto 0 0;padding:22px 6px 8px;text-align:left}
+.ai-greet{font-size:31px;line-height:1.12;letter-spacing:-.03em;font-weight:800;margin-top:18px}
+.ai-greet span{color:var(--sub);font-weight:700}
+.ai-greet b{background:linear-gradient(90deg,#FF4D5E,#FFB547 55%,#9C8CFF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ai-greet.sm{font-size:24px;margin-top:2px}
+.ai-hero p{color:#C9C9D1;font-size:19px;font-weight:600;margin-top:6px}
+.ai-sugg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:22px}
+.ai-sug{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:104px;padding:14px;border-radius:20px;background:var(--s1);border:1px solid var(--line);text-align:left;color:var(--ink);font-size:14px;font-weight:600;line-height:1.3}
+.ai-sug i{width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:var(--s2);color:var(--amber);font-style:normal}
+.ai-sug i .i{width:17px;height:17px}
+.ai-sug:active{transform:scale(.97)}
+.ai-priv{display:flex;align-items:center;justify-content:center;gap:6px;margin:16px 0 4px;color:var(--mute);font-size:12.5px}
+.ai-priv .i{width:14px;height:14px}
+.ai-row{display:flex;gap:10px;align-items:flex-start;align-self:stretch}
+.ai-row .ai-orb{margin-top:2px}
+#ai-msgs .ai-row .msg.bot{background:none;border:0;padding:2px 0;max-width:none;flex:1;font-size:16px;line-height:1.55;color:#E6E6EA;border-radius:0}
+#ai-msgs .msg.me{background:#26262C;color:var(--ink);border-radius:22px 22px 6px 22px;padding:11px 15px;max-width:82%}
+.ai-think{display:flex;gap:5px;align-items:center;height:30px}
+.ai-think i{width:7px;height:7px;border-radius:50%;background:var(--sub);animation:tdot 1.2s infinite}
+.ai-think i:nth-child(2){animation-delay:.15s}.ai-think i:nth-child(3){animation-delay:.3s}
+#s-ai .th .ai-orb{margin:0 2px}
+.ail-hero{display:flex;align-items:center;gap:14px;margin:4px 2px 0}
+.ail-hero .eyebrow{display:block;font-size:12px;color:var(--sub)}
+.ai-start .ai-orb{width:36px;height:36px}
+#s-ai .sendb.ai{background:linear-gradient(135deg,#FF4D5E,#FFB547);color:#fff}
+/* ---------- foto profilo a schermo intero ---------- */
+.pf-av{display:block;border-radius:50%;padding:0}
+.zoom{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:rgba(0,0,0,.94);opacity:0;pointer-events:none;transition:opacity .2s;touch-action:none}
+.zoom.on{opacity:1;pointer-events:auto}
+.zoom img{max-width:100vw;max-height:80vh;object-fit:contain;user-select:none;-webkit-user-select:none;will-change:transform}
+.zoom-x{position:absolute;top:calc(var(--sat) + 14px);right:14px;background:rgba(255,255,255,.12)!important;color:#fff;z-index:2}
+.cp-row .pill.ic{padding:7px 9px}.cp-row .fl b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}

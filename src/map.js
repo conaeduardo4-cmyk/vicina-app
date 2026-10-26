@@ -4,11 +4,12 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { DARK_PHYSICAL, OFM } from './map-style.js';
+import { darkPhysical, OFM } from './map-style.js';
+const LITE = () => document.documentElement.classList.contains('lite');
 
 async function pickStyle() {
   // verifica veloce che le mappe siano raggiungibili; se il nostro stile fallisce si ripiega su quello pronto
-  try { const r = await fetch(OFM + '/planet', { cache: 'force-cache' }); if (r.ok) return DARK_PHYSICAL; } catch { /* offline */ }
+  try { const r = await fetch(OFM + '/planet', { cache: 'force-cache' }); if (r.ok) return darkPhysical({ relief: !LITE() }); } catch { /* offline */ }
   try { const r = await fetch(OFM + '/styles/dark', { cache: 'force-cache' }); if (r.ok) return await r.json(); } catch { /* offline */ }
   return null;
 }
@@ -22,7 +23,7 @@ export async function createMap(el, { onPick, interactive = true, center = null 
     container: el, style, center: center ? [center.lng, center.lat] : [12.5, 42.5], zoom: center ? 13.5 : 4.6,
     attributionControl: { compact: true }, pitchWithRotate: false, dragRotate: false, cooperativeGestures: false, interactive,
     // iPad e tablet: schermi grandi e densi → limitiamo la memoria grafica (evita chiusure del WebView)
-    pixelRatio: Math.min(window.devicePixelRatio || 1, 2), maxCanvasSize: [4096, 4096], fadeDuration: 0, maxTileCacheSize: 80
+    pixelRatio: LITE() ? 1 : Math.min(window.devicePixelRatio || 1, 2), maxCanvasSize: [4096, 4096], fadeDuration: 0, maxTileCacheSize: LITE() ? 30 : 80, antialias: false
   });
   if (interactive) map.touchZoomRotate.disableRotation();
   const ready = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
