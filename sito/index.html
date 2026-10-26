@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vicina — Un gesto. La tua cerchia sa dove sei.</title>
+<meta name="description" content="Vicina è l'app SOS che con un solo gesto manda posizione live, due foto e un vocale alle persone di cui ti fidi. Scarica gratis la versione 1.0.30 per Android e la beta per iPhone.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="Vicina — Qualcuno c'è. Sempre.">
+<meta property="og:description" content="Tieni premuto 1,5 secondi: la tua cerchia riceve posizione live, due foto e un vocale.">
+<meta property="og:image" content="img/home.webp">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23E8192C'/%3E%3Cpath d='M32 13l15 6v11c0 10-6.5 17-15 21-8.5-4-15-11-15-21V19z' fill='none' stroke='white' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M25 32l5 5 9-10' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000;--bg2:#0A0A0C;--s1:#111114;--s2:#1A1A1F;--s3:#26262C;--line:#222228;--line2:#2A2A30;
+  --ink:#fff;--sub:#9E9EA8;--mute:#75757F;
+  --red:#E8192C;--red2:#FF4D5E;--green:#3DDC84;--blue:#4DA3FF;--violet:#9C8CFF;--amber:#FFB547;--yellow:#FFD23F;
+  --r:22px;--max:1180px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,"Segoe UI",Roboto,system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:17px/1.55 var(--font);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+h1,h2,h3{letter-spacing:-.035em;line-height:1.04;font-weight:800}
+.eyebrow{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--red2)}
+.sub{color:var(--sub)}
+.red{color:var(--red2)}
+.i{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+:focus-visible{outline:2px solid var(--red2);outline-offset:3px;border-radius:8px}
+
+/* ---------- intro ---------- */
+#intro{position:fixed;inset:0;z-index:100;background:#0B0B10;display:grid;place-items:center;transition:opacity .7s ease,visibility .7s}
+#intro.out{opacity:0;visibility:hidden}
+#intro[hidden]{display:none}
+#intro video{width:100%;height:100%;object-fit:cover}
+#intro .ctl{position:absolute;right:20px;bottom:calc(20px + env(safe-area-inset-bottom));display:flex;gap:10px}
+#intro .ctl button{padding:11px 18px;border-radius:999px;background:rgba(255,255,255,.12);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.14)}
+#intro .ctl button.solid{background:#fff;color:#000}
+
+/* ---------- nav ---------- */
+.nav{position:fixed;top:0;left:0;right:0;z-index:50;transition:background .3s,border-color .3s;border-bottom:1px solid transparent}
+.nav.solid{background:rgba(0,0,0,.72);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px);border-color:var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:28px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.03em}
+.logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(160deg,var(--red2),var(--red));display:grid;place-items:center;box-shadow:0 6px 20px -6px rgba(232,25,44,.8)}
+.logo .i{width:18px;height:18px;color:#fff;stroke-width:2.4}
+.beta{font-size:11px;font-weight:800;letter-spacing:.08em;padding:3px 8px;border-radius:999px;background:rgba(255,77,94,.14);color:var(--red2);border:1px solid rgba(255,77,94,.35)}
+.links{display:flex;gap:26px;margin-left:auto;font-size:15px;color:var(--sub);font-weight:500}
+.links a:hover{color:#fff}
+.nav .cta{padding:9px 18px;border-radius:999px;background:#fff;color:#000;font-weight:700;font-size:15px}
+@media (max-width:860px){.links{display:none}.nav .cta{margin-left:auto}}
+
+/* ---------- buttons ---------- */
+.btns{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:12px;padding:14px 22px 14px 18px;border-radius:16px;font-weight:700;font-size:16px;line-height:1.15;transition:transform .15s ease,box-shadow .2s,background .2s}
+.btn:active{transform:scale(.97)}
+.btn small{display:block;font-size:12px;font-weight:500;opacity:.75}
+.btn svg.os{width:26px;height:26px;fill:currentColor;stroke:none}
+.btn.primary{background:var(--red);color:#fff;box-shadow:0 14px 40px -12px rgba(232,25,44,.75)}
+.btn.primary:hover{background:#f3263a}
+.btn.ghost{background:var(--s2);border:1px solid var(--line2)}
+.btn.ghost:hover{background:var(--s3)}
+.btn.white{background:#fff;color:#000}
+
+/* ---------- phone ---------- */
+.phone{position:relative;width:var(--pw,300px);aspect-ratio:393/852;border-radius:calc(var(--pw,300px)*.165);padding:calc(var(--pw,300px)*.032);background:linear-gradient(145deg,#3a3a40,#121214 40%,#26262b);box-shadow:0 0 0 1px #45454c inset,0 40px 80px -30px rgba(0,0,0,.9),0 0 0 1px #000;flex:none}
+.phone .scr{position:relative;width:100%;height:100%;border-radius:calc(var(--pw,300px)*.135);overflow:hidden;background:#000}
+.phone .scr img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .5s ease}
+.phone .island{position:absolute;top:calc(var(--pw,300px)*.034);left:50%;transform:translateX(-50%);width:31%;height:calc(var(--pw,300px)*.09);background:#000;border-radius:999px;z-index:3}
+.phone .sb{position:absolute;top:0;left:0;right:0;height:calc(var(--pw,300px)*.14);display:flex;align-items:center;justify-content:space-between;padding:0 9% 0 11%;z-index:2;font-weight:600;font-size:calc(var(--pw,300px)*.047);color:#fff;pointer-events:none}
+.phone .sb span:last-child{display:flex;gap:4px;align-items:center}
+.phone .sb svg{height:calc(var(--pw,300px)*.04);fill:#fff}
+.glow{position:absolute;border-radius:50%;filter:blur(60px);pointer-events:none;z-index:-1}
+
+/* ---------- hero ---------- */
+.hero{position:relative;padding:130px 0 90px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-20% -10% auto;height:120%;background:radial-gradient(50% 45% at 72% 38%,rgba(232,25,44,.30),transparent 70%),radial-gradient(40% 40% at 10% 0%,rgba(232,25,44,.12),transparent 70%);z-index:-1}
+.hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;align-items:center;gap:40px}
+.hero h1{font-size:clamp(48px,7.4vw,96px);font-weight:900}
+.hero h1 .red{display:block}
+.hero p.lead{font-size:clamp(18px,2vw,21px);color:var(--sub);max-width:520px;margin:22px 0 32px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:22px;font-size:14px;color:var(--mute)}
+.meta b{color:var(--sub);font-weight:600}
+.hero-ph{position:relative;display:flex;justify-content:center}
+.hero-ph .phone{--pw:330px;transform:rotate(-3deg)}
+.chip{position:absolute;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:16px;background:rgba(26,26,31,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line2);font-size:14px;font-weight:600;box-shadow:0 20px 40px -20px #000;z-index:4;white-space:nowrap}
+.chip small{display:block;color:var(--sub);font-weight:500;font-size:12px}
+.chip .dot{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px}
+.chip.c1{left:-4%;top:18%}.chip.c2{right:-6%;top:52%}.chip.c3{left:2%;bottom:8%}
+.float{animation:float 6s ease-in-out infinite}
+.float.d2{animation-delay:-2s}.float.d3{animation-delay:-4s}
+@keyframes float{50%{transform:translateY(-10px)}}
+@media (max-width:900px){
+  .hero{padding:104px 0 60px}
+  .hero .wrap{grid-template-columns:1fr;text-align:left}
+  .hero-ph{margin-top:20px}
+  .hero-ph .phone{--pw:270px}
+  .chip.c1{left:0}.chip.c2{right:0}
+}
+
+/* ---------- stats ---------- */
+.stats{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg2)}
+.stats .wrap{display:grid;grid-template-columns:repeat(4,1fr)}
+.stat{padding:30px 22px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat b{display:block;font-size:clamp(28px,3.4vw,40px);font-weight:800;letter-spacing:-.04em}
+.stat span{color:var(--sub);font-size:15px}
+@media (max-width:760px){.stats .wrap{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
+
+/* ---------- sections ---------- */
+section.block{padding:120px 0}
+.head{max-width:720px;margin-bottom:56px}
+.head h2{font-size:clamp(36px,5vw,60px);margin:14px 0 16px}
+.head p{font-size:19px;color:var(--sub)}
+.center{text-align:center;margin-left:auto;margin-right:auto}
+
+/* scrollytelling */
+.story{display:grid;grid-template-columns:1fr 1fr;gap:60px}
+.story .stick{position:sticky;top:90px;height:calc(100vh - 120px);max-height:760px;display:flex;align-items:center;justify-content:center}
+.story .stick .phone{--pw:min(330px,calc((100vh - 160px)*.4615))}
+.steps{padding:12vh 0 20vh}
+.step{min-height:62vh;display:flex;flex-direction:column;justify-content:center;opacity:.28;transition:opacity .45s}
+.step.on{opacity:1}
+.step .n{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-weight:800;background:var(--s2);border:1px solid var(--line2);margin-bottom:22px;transition:background .3s,color .3s}
+.step.on .n{background:var(--red);border-color:var(--red)}
+.step h3{font-size:clamp(28px,3.2vw,40px);margin-bottom:14px}
+.step p{font-size:18px;color:var(--sub);max-width:460px}
+.step ul{list-style:none;margin-top:18px;display:grid;gap:10px}
+.step li{display:flex;gap:10px;align-items:flex-start;color:#d8d8de;font-size:16px}
+.step li .i{color:var(--green);margin-top:4px}
+.step .mph{display:none}
+@media (max-width:900px){
+  .story{grid-template-columns:1fr}
+  .story .stick{display:none}
+  .steps{padding:0}
+  .step{min-height:0;opacity:1;padding:0 0 70px}
+  .step .mph{display:flex;justify-content:center;margin-top:30px}
+  .step .mph .phone{--pw:250px}
+}
+
+/* explorer */
+.explorer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:56px;align-items:center}
+.tabs{display:grid;gap:8px}
+.tab{display:flex;gap:16px;align-items:flex-start;text-align:left;padding:16px 18px;border-radius:18px;border:1px solid transparent;transition:background .25s,border-color .25s}
+.tab:hover{background:var(--s1)}
+.tab.on{background:var(--s1);border-color:var(--line2)}
+.tab .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:none;font-size:20px}
+.tab b{display:block;font-size:18px;letter-spacing:-.02em}
+.tab span{display:block;color:var(--sub);font-size:15px;line-height:1.45;max-height:0;overflow:hidden;opacity:0;transition:max-height .35s ease,opacity .35s,margin .35s}
+.tab.on span{max-height:120px;opacity:1;margin-top:4px}
+.ex-ph{position:relative}
+.ex-ph .phone{--pw:330px}
+.ex-cap{display:none}
+@media (max-width:900px){
+  .explorer{grid-template-columns:1fr;gap:28px}
+  .tabs{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px;margin:0 -24px;padding:0 24px 6px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:none;scroll-snap-align:start;padding:10px 14px;align-items:center;gap:10px;border-color:var(--line)}
+  .tab .ic{width:32px;height:32px;font-size:16px;border-radius:10px}
+  .tab b{font-size:15px;white-space:nowrap}
+  .tab span{display:none}
+  .ex-ph{display:flex;flex-direction:column;align-items:center}
+  .ex-ph .phone{--pw:270px}
+  .ex-cap{display:block;text-align:center;color:var(--sub);max-width:420px;margin-top:22px;font-size:16px}
+}
+.c-red{background:rgba(232,25,44,.16);color:var(--red2)}
+.c-amber{background:rgba(255,181,71,.15);color:var(--amber)}
+.c-green{background:rgba(61,220,132,.14);color:var(--green)}
+.c-blue{background:rgba(77,163,255,.15);color:var(--blue)}
+.c-violet{background:rgba(156,140,255,.16);color:var(--violet)}
+.c-yellow{background:rgba(255,210,63,.15);color:var(--yellow)}
+
+/* onboarding row */
+.rail{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.rail figure{display:flex;flex-direction:column;align-items:center;text-align:center}
+.rail .phone{--pw:230px}
+.rail figcaption{margin-top:22px;max-width:250px}
+.rail figcaption b{display:block;font-size:18px;margin-bottom:4px}
+.rail figcaption .k{display:inline-block;font-size:12px;font-weight:800;color:var(--red2);letter-spacing:.1em;margin-bottom:8px}
+.rail figcaption span{color:var(--sub);font-size:15px}
+@media (max-width:1060px){.rail{grid-template-columns:repeat(4,250px);overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -24px;padding:0 24px 10px}.rail figure{scroll-snap-align:center}}
+
+/* privacy */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:26px}
+.card .ic{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-size:20px;margin-bottom:18px}
+.card b{display:block;font-size:19px;letter-spacing:-.02em;margin-bottom:6px}
+.card p{color:var(--sub);font-size:15.5px}
+.warn112{margin-top:16px;display:flex;gap:18px;align-items:center;padding:22px 26px;border-radius:var(--r);background:linear-gradient(90deg,rgba(232,25,44,.18),rgba(232,25,44,.05));border:1px solid rgba(255,77,94,.35)}
+.warn112 strong{font-size:44px;font-weight:900;letter-spacing:-.05em;color:var(--red2)}
+.warn112 p{color:#e9e9ee}
+@media (max-width:900px){.grid3{grid-template-columns:1fr}.warn112{flex-direction:column;align-items:flex-start;gap:6px}}
+
+/* download */
+#scarica{position:relative;overflow:hidden}
+#scarica::before{content:"";position:absolute;left:50%;top:30%;width:900px;height:700px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(232,25,44,.22),transparent);z-index:-1}
+.dl{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.plat{position:relative;background:var(--s1);border:1px solid var(--line2);border-radius:28px;padding:32px;display:flex;flex-direction:column}
+.plat.mine{border-color:rgba(255,77,94,.6);box-shadow:0 0 0 1px rgba(255,77,94,.3),0 30px 80px -40px rgba(232,25,44,.7)}
+.plat .you{position:absolute;top:18px;right:18px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--red);display:none}
+.plat.mine .you{display:block}
+.plat .top{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.plat .top .os{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;background:var(--s2);border:1px solid var(--line2)}
+.plat .top .os svg{width:28px;height:28px;fill:#fff}
+.plat h3{font-size:28px}
+.tag{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.06em;padding:4px 10px;border-radius:999px;margin-top:4px}
+.tag.ok{background:rgba(61,220,132,.14);color:var(--green)}
+.tag.beta{background:rgba(255,181,71,.15);color:var(--amber)}
+.specs{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:4px 26px;margin:6px 0 22px;font-size:14px;color:var(--mute)}
+.specs b{display:block;color:#fff;font-size:16px}
+.plat ol{list-style:none;counter-reset:s;display:grid;gap:12px;margin-bottom:24px}
+.plat ol li{counter-increment:s;display:flex;gap:12px;color:#d8d8de;font-size:15.5px}
+.plat ol li::before{content:counter(s);width:26px;height:26px;border-radius:8px;background:var(--s3);display:grid;place-items:center;font-size:13px;font-weight:800;flex:none}
+.note{display:flex;gap:12px;padding:14px 16px;border-radius:16px;font-size:14.5px;line-height:1.5;margin-bottom:22px}
+.note .i{font-size:20px;margin-top:1px}
+.note.amber{background:rgba(255,181,71,.09);border:1px solid rgba(255,181,71,.3);color:#f3dfbd}
+.note.amber .i{color:var(--amber)}
+.note.blue{background:rgba(77,163,255,.08);border:1px solid rgba(77,163,255,.25);color:#cfe3fb}
+.note.blue .i{color:var(--blue)}
+.plat .btn{margin-top:auto;justify-content:center}
+@media (max-width:900px){.dl{grid-template-columns:1fr}.plat{padding:26px 22px}}
+
+/* faq */
+.faq{max-width:820px;margin:0 auto}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{list-style:none;cursor:pointer;padding:24px 0;font-size:19px;font-weight:700;display:flex;justify-content:space-between;gap:20px;letter-spacing:-.015em}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-size:26px;font-weight:400;color:var(--sub);transition:transform .25s;line-height:1}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{color:var(--sub);padding:0 0 24px;max-width:700px}
+
+/* final */
+.final{text-align:center;padding:120px 0 100px;position:relative;overflow:hidden}
+.final h2{font-size:clamp(40px,6vw,76px);margin:18px 0 30px}
+.final .btns{justify-content:center}
+.sosbig{width:120px;height:120px;margin:0 auto;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:30px;background:radial-gradient(circle at 35% 30%,var(--red2),var(--red));box-shadow:0 0 0 14px rgba(232,25,44,.12),0 0 0 30px rgba(232,25,44,.06),0 30px 80px -10px rgba(232,25,44,.8);animation:pulse 2.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 20px rgba(232,25,44,.1),0 0 0 42px rgba(232,25,44,.04),0 30px 80px -10px rgba(232,25,44,.9)}}
+
+footer{border-top:1px solid var(--line);padding:40px 0 calc(40px + env(safe-area-inset-bottom));font-size:14px;color:var(--mute)}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px 40px}
+footer b{color:#fff}
+footer .credits{color:var(--sub)}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s}
+.modal.on{opacity:1;visibility:visible}
+.sheet{width:min(520px,100%);max-height:calc(100vh - 40px);overflow:auto;background:var(--s1);border:1px solid var(--line2);border-radius:28px;padding:30px;transform:translateY(20px) scale(.98);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.modal.on .sheet{transform:none}
+.sheet h3{font-size:26px;margin-bottom:8px}
+.sheet > p{color:var(--sub);margin-bottom:20px}
+.sheet ol{list-style:none;counter-reset:s;display:grid;gap:12px;margin-bottom:20px}
+.sheet ol li{counter-increment:s;display:flex;gap:12px;font-size:15.5px;color:#ddd}
+.sheet ol li::before{content:counter(s);width:26px;height:26px;border-radius:8px;background:var(--s3);display:grid;place-items:center;font-size:13px;font-weight:800;flex:none}
+.check{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:14px;background:var(--s2);margin-bottom:18px;font-size:15px;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--red);margin-top:2px;flex:none}
+.sheet .row{display:flex;gap:10px}
+.sheet .row .btn{flex:1;justify-content:center}
+.btn[aria-disabled="true"]{opacity:.35;pointer-events:none}
+
+/* reveal */
+.rv{opacity:0;transform:translateY(28px);transition:opacity .8s ease,transform .8s cubic-bezier(.2,.8,.2,1)}
+.rv.in{opacity:1;transform:none}
+.rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .rv{opacity:1;transform:none;transition:none}
+  .float,.sosbig{animation:none}
+  .phone .scr img{transition:none}
+}
+@media (max-width:600px){
+  body{font-size:16px}
+  .wrap{padding:0 16px}
+  section.block{padding:84px 0}
+  .head{margin-bottom:36px}
+  .btn{width:100%;justify-content:center}
+  .tabs,.rail{margin:0 -16px;padding-left:16px;padding-right:16px}
+  .chip{font-size:12px;padding:9px 12px}.chip .dot{width:28px;height:28px;font-size:14px}
+  .specs{grid-template-columns:repeat(3,auto);gap:4px 18px}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 7h3l2-2.5h6L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+  <symbol id="i-walk" viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2-6 3 3v3M8 12l2-4 4 1 2 3h3M10 8l-1 5"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1.5"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 20.5h2M20.5 14v2"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.1A8 8 0 1 1 20 12z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.2v.1"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8v.1"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path d="M6 5l9 7-9 7zM18 5v14"/></symbol>
+  <symbol id="android" viewBox="0 0 24 24"><path d="M17.6 9.48l1.84-3.18a.38.38 0 0 0-.66-.38l-1.86 3.22A11.5 11.5 0 0 0 12 8.1c-1.77 0-3.43.39-4.92 1.04L5.22 5.92a.38.38 0 0 0-.66.38L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></symbol>
+  <symbol id="apple" viewBox="0 0 24 24"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.8 1.2 1.8 2.6 3.1 2.6 1.2-.1 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.5.9-1.4 1.3-2.7 1.3-2.8 0 0-2.6-1-2.6-4.2zM13.9 4.9c.7-.8 1.2-2 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1.1 3 1.1.1 2.3-.6 3-1.4z"/></symbol>
+</svg>
+
+<!-- Intro (stesso video che apre l'app) -->
+<div id="intro" aria-hidden="true" hidden>
+  <video id="intro-v" muted playsinline preload="auto"></video>
+  <div class="ctl">
+    <button id="intro-audio" type="button"><svg class="i"><use href="#i-sound"/></svg>Attiva audio</button>
+    <button id="intro-skip" class="solid" type="button">Salta intro<svg class="i"><use href="#i-skip"/></svg></button>
+  </div>
+</div>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Vicina, torna su"><span class="logo"><svg class="i"><use href="#i-shield"/></svg></span>Vicina <span class="beta">BETA</span></a>
+    <nav class="links" aria-label="Sezioni">
+      <a href="#come-funziona">Come funziona</a>
+      <a href="#app">L'app</a>
+      <a href="#sicurezza">Privacy</a>
+      <a href="#faq">Domande</a>
+    </nav>
+    <a class="cta" href="#scarica">Scarica</a>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow rv">Nuova versione 1.0.30 · con assistente AI</p>
+      <h1 class="rv d1">Qualcuno c'è.<span class="red">Sempre.</span></h1>
+      <p class="lead rv d2">Tieni premuto un tasto per 1,5 secondi: le persone di cui ti fidi ricevono subito dove sei, due foto e, se vuoi, un vocale. Senza dover scrivere niente.</p>
+      <div class="btns rv d3">
+        <a class="btn primary" href="#scarica" data-go="android"><svg class="os"><use href="#android"/></svg><span>Scarica per Android<small>APK · gratis</small></span></a>
+        <a class="btn ghost" href="#scarica" data-go="ios"><svg class="os"><use href="#apple"/></svg><span>iPhone in beta<small>IPA da firmare</small></span></a>
+      </div>
+      <div class="meta rv d3"><span><b>Versione 1.0.30</b></span><span>Android 6.0+</span><span>iPhone con iOS 15+</span></div>
+    </div>
+    <div class="hero-ph rv d2">
+      <div class="phone" data-shot="home"></div>
+      <div class="chip c1 float"><span class="dot c-red"><svg class="i"><use href="#i-pin"/></svg></span><span>Posizione live<small>fino a «Sono al sicuro»</small></span></div>
+      <div class="chip c2 float d2"><span class="dot c-violet"><svg class="i"><use href="#i-cam"/></svg></span><span>2 foto automatiche<small>davanti e dietro</small></span></div>
+      <div class="chip c3 float d3"><span class="dot c-green"><svg class="i"><use href="#i-check"/></svg></span><span>Giulia: «Ho visto, arrivo»<small>adesso</small></span></div>
+    </div>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="wrap">
+    <div class="stat rv"><b>1,5 s</b><span>tieni premuto e parte</span></div>
+    <div class="stat rv d1"><b>Live</b><span>posizione fino a «al sicuro»</span></div>
+    <div class="stat rv d2"><b>8</b><span>persone per gruppo, più SMS</span></div>
+    <div class="stat rv d3"><b>102</b><span>strumenti di sicurezza</span></div>
+  </div>
+</div>
+
+<!-- COME FUNZIONA -->
+<section class="block" id="come-funziona">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">Come funziona</p>
+      <h2>Dal tocco all'aiuto, in pochi secondi.</h2>
+      <p>Scorri: ecco cosa succede davvero sul telefono quando premi SOS, e cosa vede chi ti protegge.</p>
+    </div>
+    <div class="story">
+      <div class="steps">
+        <article class="step" data-img="home">
+          <div class="n">1</div>
+          <h3>Tieni premuto SOS</h3>
+          <p>Il pulsante rosso è in cima alla Home. Lo tieni premuto 1,5 secondi: la barra si riempie e l'allarme parte. Niente da scrivere, niente da cercare.</p>
+          <ul><li><svg class="i"><use href="#i-check"/></svg>Anche dal widget, dall'icona o scuotendo il telefono</li><li><svg class="i"><use href="#i-check"/></svg>«Chiama 112» sempre a un tocco</li></ul>
+          <div class="mph"><div class="phone" data-shot="home"></div></div>
+        </article>
+        <article class="step" data-img="send1">
+          <div class="n">2</div>
+          <h3>Parte tutto da solo</h3>
+          <p>Prima la posizione e l'allarme alla tua cerchia, poi le due foto: fotocamera posteriore per cosa hai davanti, frontale per il tuo viso. Se una foto non riesce, l'avviso è già arrivato.</p>
+          <div class="mph"><div class="phone" data-shot="send1"></div></div>
+        </article>
+        <article class="step" data-img="active">
+          <div class="n">3</div>
+          <h3>Sai chi sta arrivando</h3>
+          <p>La schermata «SOS attivo» ti dice quante persone sono state avvisate e chi ha risposto «Ho visto, arrivo». La posizione resta live finché non tocchi «Sono al sicuro».</p>
+          <ul><li><svg class="i"><use href="#i-check"/></svg>Messaggio vocale facoltativo per la cerchia</li><li><svg class="i"><use href="#i-check"/></svg>112, mappa e chat sempre in basso</li></ul>
+          <div class="mph"><div class="phone" data-shot="active"></div></div>
+        </article>
+        <article class="step" data-img="recv">
+          <div class="n">4</div>
+          <h3>Chi ti protegge vede tutto</h3>
+          <p>A tutto schermo: chi sei, dove sei in tempo reale, le due foto e il vocale. Può chiamarti, aprire Google Maps con «Raggiungi», o rispondere «Ho visto, me ne occupo».</p>
+          <div class="mph"><div class="phone" data-shot="recv"></div></div>
+        </article>
+        <article class="step" data-img="thread">
+          <div class="n">5</div>
+          <h3>Il messaggio è già scritto</h3>
+          <p>Nella chat arriva un messaggio pronto: «Ho bisogno di aiuto e non riesco a scrivere. Ecco dove sono e cosa ho intorno.» Con foto, vocale e link alla mappa.</p>
+          <div class="mph"><div class="phone" data-shot="thread"></div></div>
+        </article>
+        <article class="step" data-img="safe">
+          <div class="n">6</div>
+          <h3>Quando è finita, lo sanno tutti</h3>
+          <p>Tocca «Sono al sicuro» e conferma: la cerchia riceve la notizia, la posizione live si ferma e l'SOS si chiude.</p>
+          <div class="mph"><div class="phone" data-shot="safe"></div></div>
+        </article>
+      </div>
+      <div class="stick"><div class="phone" id="story-ph" data-shot="home"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ESPLORA L'APP -->
+<section class="block" id="app" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">Dentro l'app</p>
+      <h2>Ogni sezione, spiegata.</h2>
+      <p>Tocca una voce per vedere la schermata vera dell'app su iPhone.</p>
+    </div>
+    <div class="explorer rv">
+      <div class="tabs" role="tablist" id="tabs">
+        <button class="tab" role="tab" data-img="ai"><i class="ic c-yellow"><svg class="i"><use href="#i-spark"/></svg></i><div><b>Assistente AI</b><span>Chiedi «cosa faccio adesso?» e ricevi risposte chiare. SOS e 112 restano sempre in alto. Non vede la tua posizione né le tue chat, e avvisa che può sbagliare.</span></div></button>
+        <button class="tab" role="tab" data-img="tools"><i class="ic c-red"><svg class="i"><use href="#i-grid"/></svg></i><div><b>102 strumenti</b><span>Panico, Sirena, Finta chiamata, Portami a casa, Luoghi sicuri, Primo soccorso, Torcia, Parla per me e molti altri, con ricerca e filtri. Quasi tutti funzionano anche senza internet.</span></div></button>
+        <button class="tab" role="tab" data-img="walking"><i class="ic c-violet"><svg class="i"><use href="#i-walk"/></svg></i><div><b>Accompagnami</b><span>Dici quanto ci metti. Se non confermi «Sono arrivata» in tempo, l'app chiede se va tutto bene e dopo 30 secondi fa partire l'SOS da sola. +10 min se ti serve più tempo.</span></div></button>
+        <button class="tab" role="tab" data-img="map"><i class="ic c-blue"><svg class="i"><use href="#i-map"/></svg></i><div><b>Mappa live</b><span>Vedi dove si trova chi ha chiesto aiuto, quanto è distante e il percorso. «Raggiungi» apre le indicazioni in Google Maps; chiama o scrivi senza uscire dalla mappa.</span></div></button>
+        <button class="tab" role="tab" data-img="circle"><i class="ic c-green"><svg class="i"><use href="#i-people"/></svg></i><div><b>La tua cerchia</b><span>Partner, amiche e amici, gruppi fino a 8 persone e contatti senza app, che ricevono l'SOS via SMS. L'allarme arriva a tutti quelli con la spunta.</span></div></button>
+        <button class="tab" role="tab" data-img="invite"><i class="ic c-amber"><svg class="i"><use href="#i-qr"/></svg></i><div><b>Collegarsi con un QR</b><span>Fai inquadrare il tuo QR o condividi un codice di 6 caratteri, valido 10 minuti. Nessuno entra nella tua cerchia senza il consenso di entrambi.</span></div></button>
+        <button class="tab" role="tab" data-img="chat"><i class="ic c-red"><svg class="i"><use href="#i-chat"/></svg></i><div><b>Avvisi e chat</b><span>Gli SOS in corso in cima, poi le conversazioni con ogni persona e gruppo. Notifiche ad alta priorità, anche con l'app chiusa.</span></div></button>
+        <button class="tab" role="tab" data-img="anon"><i class="ic c-blue"><svg class="i"><use href="#i-eye"/></svg></i><div><b>Modalità anonima</b><span>Icona e colori celesti, nessuna scritta «SOS»: se qualcuno guarda il telefono sembra un'app qualsiasi. Funziona tutto uguale.</span></div></button>
+        <button class="tab" role="tab" data-img="me"><i class="ic c-violet"><svg class="i"><use href="#i-gear"/></svg></i><div><b>Impostazioni</b><span>Posizione live, vocale, «Scuoti per SOS», SOS discreto, audio automatico di 30 secondi, scheda medica, permessi e aggiornamenti dentro l'app.</span></div></button>
+      </div>
+      <div class="ex-ph">
+        <div class="phone" id="ex-ph" data-shot="ai"></div>
+        <p class="ex-cap" id="ex-cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRIMO AVVIO -->
+<section class="block" id="primo-avvio">
+  <div class="wrap">
+    <div class="head center rv" style="text-align:center">
+      <p class="eyebrow">Primo avvio</p>
+      <h2>Pronta in due minuti.</h2>
+      <p>Una configurazione guidata in tre passi, poi una guida interattiva dove puoi provare il pulsante senza far partire nessun allarme.</p>
+    </div>
+    <div class="rail">
+      <figure class="rv"><div class="phone" data-shot="wel"></div><figcaption><span class="k">01</span><b>Crea l'account</b><span>Email e password. Prima di iniziare leggi e accetti i limiti dell'app.</span></figcaption></figure>
+      <figure class="rv d1"><div class="phone" data-shot="profile"></div><figcaption><span class="k">02</span><b>Parlaci di te</b><span>Nome, cognome, data di nascita e sesso: i testi si adattano a te. Il telefono è facoltativo.</span></figcaption></figure>
+      <figure class="rv d2"><div class="phone" data-shot="perms_after"></div><figcaption><span class="k">03</span><b>Aggiungi chi avvisare</b><span>QR, codice, gruppo o contatto via SMS. Basta una persona per essere protetta.</span></figcaption></figure>
+      <figure class="rv d3"><div class="phone" data-shot="g1"></div><figcaption><span class="k">04</span><b>Prova il pulsante</b><span>Sei schede interattive spiegano tutto. Qui l'SOS è solo una prova.</span></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- SICUREZZA -->
+<section class="block" id="sicurezza" style="padding-top:40px">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">Privacy e sicurezza</p>
+      <h2>I tuoi dati restano tuoi.</h2>
+      <p>Posizione e foto sono dati delicati. Vicina li condivide solo con chi hai scelto, e solo quando serve.</p>
+    </div>
+    <div class="grid3">
+      <div class="card rv"><i class="ic c-green"><svg class="i"><use href="#i-people"/></svg></i><b>Solo con il tuo consenso</b><p>Ci si collega solo se siete d'accordo entrambi. Nei gruppi l'admin approva chi entra.</p></div>
+      <div class="card rv d1"><i class="ic c-amber"><svg class="i"><use href="#i-clock"/></svg></i><b>Codici che scadono</b><p>I codici d'invito hanno 6 caratteri e valgono 10 minuti.</p></div>
+      <div class="card rv d2"><i class="ic c-red"><svg class="i"><use href="#i-trash"/></svg></i><b>Foto cancellate dopo 7 giorni</b><p>Le foto degli SOS non restano per sempre. Account e dati si eliminano dall'app con un tocco.</p></div>
+      <div class="card rv"><i class="ic c-blue"><svg class="i"><use href="#i-pin"/></svg></i><b>Posizione solo quando serve</b><p>Nessun tracciamento continuo: la posizione live parte con l'SOS e si ferma con «Sono al sicuro».</p></div>
+      <div class="card rv d1"><i class="ic c-yellow"><svg class="i"><use href="#i-spark"/></svg></i><b>Un'AI che non ti spia</b><p>L'assistente non vede la tua posizione né le tue chat. Le risposte sono automatiche e possono sbagliare.</p></div>
+      <div class="card rv d2"><i class="ic c-violet"><svg class="i"><use href="#i-lock"/></svg></i><b>Permessi chiari</b><p>Posizione, fotocamera, notifiche e microfono: li chiedi una volta sola e li cambi quando vuoi.</p></div>
+    </div>
+    <div class="warn112 rv"><strong>112</strong><p><b>Vicina non sostituisce i soccorsi.</b> Non è collegata al 112 e nessun operatore controlla gli allarmi. Se tu o altri siete in pericolo, chiama subito il 112.</p></div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="block" id="scarica" style="border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="head center rv" style="text-align:center">
+      <p class="eyebrow">Scarica Vicina 1.0.30</p>
+      <h2>Gratis. Scegli il tuo telefono.</h2>
+      <p>Vicina non è ancora sugli store: la scarichi da qui.</p>
+    </div>
+    <div class="dl">
+      <article class="plat rv" id="p-android">
+        <span class="you">Il tuo telefono</span>
+        <div class="top"><span class="os"><svg><use href="#android"/></svg></span><div><h3>Android</h3><span class="tag ok">VERSIONE STABILE</span></div></div>
+        <div class="specs"><span><b>1.0.30</b>versione</span><span><b>9,3 MB</b>file APK</span><span><b>6.0+</b>Android</span></div>
+        <ol>
+          <li><span>Tocca «Scarica APK» e conferma il download, anche se il browser avvisa che il file potrebbe essere dannoso.</span></li>
+          <li><span>Apri il file scaricato. Se richiesto, consenti al browser di installare app da origini sconosciute.</span></li>
+          <li><span>Tocca «Installa». Se Play Protect blocca, scegli «Altri dettagli» → «Installa comunque».</span></li>
+        </ol>
+        <div class="note blue"><svg class="i"><use href="#i-info"/></svg><span>Hai già Vicina? Le prossime versioni le trovi in <b>Tu → Aggiornamenti</b>, senza perdere account, cerchia e chat.</span></div>
+        <a class="btn primary" href="Vicina-1.0.30.apk" download data-modal="m-android"><svg class="i" style="font-size:22px"><use href="#i-dl"/></svg><span>Scarica APK<small>Vicina-1.0.30.apk</small></span></a>
+      </article>
+      <article class="plat rv d1" id="p-ios">
+        <span class="you">Il tuo telefono</span>
+        <div class="top"><span class="os"><svg><use href="#apple"/></svg></span><div><h3>iPhone</h3><span class="tag beta">BETA · NON FIRMATA</span></div></div>
+        <div class="specs"><span><b>1.0.30</b>versione</span><span><b>6,5 MB</b>file IPA</span><span><b>15+</b>iOS</span></div>
+        <div class="note amber"><svg class="i"><use href="#i-alert"/></svg><span><b>Versione di prova per chi se ne intende.</b> Il file IPA non è firmato: va firmato prima di installarlo. La versione iPhone è ancora in sviluppo e può presentare bug.</span></div>
+        <ol>
+          <li><span>Scarica l'IPA su un computer (Windows o Mac).</span></li>
+          <li><span>Firmalo e installalo con uno strumento di sideload, per esempio Sideloadly o AltStore, usando il tuo Apple ID.</span></li>
+          <li><span>Sull'iPhone apri Impostazioni → Generali → VPN e gestione dispositivi e autorizza il tuo profilo sviluppatore.</span></li>
+        </ol>
+        <div class="note blue"><svg class="i"><use href="#i-info"/></svg><span>Con un Apple ID gratuito l'app installata dura 7 giorni, poi va firmata di nuovo.</span></div>
+        <a class="btn white" href="Vicina-1.0.30-unsigned.ipa" download data-modal="m-ios"><svg class="i" style="font-size:22px"><use href="#i-dl"/></svg><span>Scarica IPA beta<small>Vicina-1.0.30-unsigned.ipa</small></span></a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="block" id="faq" style="padding-top:40px">
+  <div class="wrap">
+    <div class="head center rv" style="text-align:center"><p class="eyebrow">Domande</p><h2>Prima che tu lo chieda.</h2></div>
+    <div class="faq rv">
+      <details><summary>Vicina è gratis?</summary><p>Sì. La scarichi gratis da questo sito, sia per Android sia (in beta) per iPhone.</p></details>
+      <details><summary>Perché non è sul Play Store o sull'App Store?</summary><p>Pubblicare sugli store ha dei costi e dei tempi di revisione. Per ora Vicina si distribuisce direttamente da qui: APK per Android, IPA di prova per iPhone.</p></details>
+      <details><summary>Il telefono dice che l'APK potrebbe essere dannoso. È normale?</summary><p>Sì: Android mostra questo avviso per ogni app installata fuori dal Play Store. Scaricala solo da questo sito. Se Play Protect blocca l'installazione, tocca «Altri dettagli» → «Installa comunque».</p></details>
+      <details><summary>Come installo la versione iPhone?</summary><p>L'IPA non è firmato, quindi non si installa toccandolo. Serve un computer e uno strumento di sideload (per esempio Sideloadly o AltStore) che lo firma con il tuo Apple ID. Con un Apple ID gratuito va rifirmato ogni 7 giorni. È una beta: può avere bug.</p></details>
+      <details><summary>Chi riceve il mio SOS?</summary><p>Tutte le persone della tua cerchia: partner, amiche e amici, i gruppi attivi e i contatti senza app con la spunta, che lo ricevono via SMS.</p></details>
+      <details><summary>Chi può vedere la mia posizione?</summary><p>Solo la tua cerchia e solo durante un SOS, finché non tocchi «Sono al sicuro». Nessun tracciamento in background.</p></details>
+      <details><summary>Funziona senza internet?</summary><p>Per avvisare la cerchia serve una connessione. Quasi tutti gli strumenti (Sirena, Torcia, Finta chiamata…) funzionano anche offline.</p></details>
+      <details><summary>Vicina sostituisce il 112?</summary><p>No. Non è un servizio di emergenza e nessun operatore controlla gli allarmi. In pericolo chiama sempre il 112: nell'app c'è il tasto «Chiama 112» in Home.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <div class="sosbig rv">SOS</div>
+    <h2 class="rv d1">Mettila sul telefono<br>di chi ami.</h2>
+    <div class="btns rv d2">
+      <a class="btn primary" href="#scarica" data-go="android"><svg class="os"><use href="#android"/></svg><span>Scarica per Android<small>gratis · 9,3 MB</small></span></a>
+      <a class="btn ghost" href="#scarica" data-go="ios"><svg class="os"><use href="#apple"/></svg><span>iPhone in beta<small>IPA da firmare</small></span></a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div><b>Vicina</b> · Versione 1.0.30 beta · © 2026<br><span class="credits">Fatto da Eduardo Cona e Flavio D'Agostini</span></div>
+    <div style="max-width:460px">Vicina non è un servizio di emergenza e non sostituisce il 112. In pericolo, chiama subito i soccorsi.</div>
+  </div>
+</footer>
+
+<!-- Modali download -->
+<div class="modal" id="m-android" role="dialog" aria-modal="true" aria-labelledby="ma-t">
+  <div class="sheet">
+    <h3 id="ma-t">Installa Vicina su Android</h3>
+    <p>Il download parte subito. Poi:</p>
+    <ol>
+      <li><span>Apri il file <b>Vicina-1.0.30.apk</b> dalle notifiche o dalla cartella Download.</span></li>
+      <li><span>Se richiesto, consenti l'installazione da origini sconosciute.</span></li>
+      <li><span>Tocca «Installa». Se Play Protect blocca: «Altri dettagli» → «Installa comunque».</span></li>
+    </ol>
+    <div class="row"><button class="btn ghost" data-close>Annulla</button><a class="btn primary" href="Vicina-1.0.30.apk" download data-close>Ho capito, scarica</a></div>
+  </div>
+</div>
+<div class="modal" id="m-ios" role="dialog" aria-modal="true" aria-labelledby="mi-t">
+  <div class="sheet">
+    <h3 id="mi-t">Beta per iPhone</h3>
+    <p>Prima di scaricare, sappi che:</p>
+    <ol>
+      <li><span>Il file IPA <b>non è firmato</b>: per installarlo serve un computer e uno strumento come Sideloadly o AltStore con il tuo Apple ID.</span></li>
+      <li><span>Con un Apple ID gratuito l'app dura <b>7 giorni</b>, poi va firmata di nuovo.</span></li>
+      <li><span>È una versione in sviluppo: <b>può presentare bug</b>. Non affidarti solo a lei in caso di pericolo.</span></li>
+    </ol>
+    <label class="check"><input type="checkbox" id="ios-ok"><span>Ho capito che è una beta non firmata e che potrebbe non funzionare sempre.</span></label>
+    <div class="row"><button class="btn ghost" data-close>Annulla</button><a class="btn white" id="ios-dl" href="Vicina-1.0.30-unsigned.ipa" download data-close aria-disabled="true">Scarica IPA</a></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var store={get:function(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{sessionStorage.setItem(k,v)}catch(e){}}};
+
+  /* telefono: cornice + status bar + immagine */
+  var sb='<div class="sb"><span>9:41</span><span><svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg viewBox="0 0 16 12"><path d="M8 2.5c2.4 0 4.6.9 6.2 2.5l1.3-1.3A10.6 10.6 0 0 0 8 .6 10.6 10.6 0 0 0 .5 3.7L1.8 5A8.7 8.7 0 0 1 8 2.5zm0 3.7c1.4 0 2.7.5 3.6 1.5l1.3-1.3A6.9 6.9 0 0 0 8 4.3a6.9 6.9 0 0 0-4.9 2.1l1.3 1.3c1-1 2.2-1.5 3.6-1.5zM8 12l2.3-2.3a3.2 3.2 0 0 0-4.6 0z"/></svg><svg viewBox="0 0 27 12"><rect x=".5" y=".5" width="23" height="11" rx="3.5" fill="none" stroke="#fff" opacity=".4"/><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="24.5" y="4" width="2" height="4" rx="1" opacity=".4"/></svg></span></div>';
+  var alts={home:'Home di Vicina con il pulsante SOS',send1:'Invio dell\'allarme: posizione, cerchia e foto',active:'Schermata SOS attivo',recv:'Allarme ricevuto a tutto schermo',thread:'Messaggio SOS precompilato in chat',safe:'Conferma Sono al sicuro',ai:'Assistente AI',tools:'Strumenti',walking:'Accompagnami attivo in Home',map:'Mappa con posizione live',circle:'La tua cerchia',invite:'Invito con QR e codice',chat:'Avvisi e conversazioni',anon:'Home in modalità anonima',me:'Impostazioni',wel:'Benvenuto',profile:'Profilo',perms_after:'Scelta di chi avvisare',g1:'Guida interattiva'};
+  function phone(el,img){
+    el.innerHTML='<div class="scr"><img src="img/'+img+'.webp" alt="'+(alts[img]||'')+'" loading="lazy" decoding="async"></div><div class="island"></div>'+sb;
+  }
+  $$('.phone[data-shot]').forEach(function(p){phone(p,p.getAttribute('data-shot'))});
+  /* hero subito */
+  var hi=$('.hero .phone img'); if(hi){hi.loading='eager';hi.setAttribute('fetchpriority','high')}
+
+  /* cambio immagine con dissolvenza */
+  function swap(ph,img){
+    var scr=$('.scr',ph), cur=$('img:last-child',scr);
+    if(cur&&cur.getAttribute('src')==='img/'+img+'.webp')return;
+    var n=new Image(); n.src='img/'+img+'.webp'; n.alt=alts[img]||''; n.style.opacity=0;
+    scr.appendChild(n);
+    var go=function(){requestAnimationFrame(function(){n.style.opacity=1; setTimeout(function(){var all=$$('img',scr),keep=all[all.length-1];all.forEach(function(o){if(o!==keep)o.remove()})},520)})};
+    n.complete?go():n.onload=go;
+  }
+  /* preload */
+  window.addEventListener('load',function(){Object.keys(alts).forEach(function(k){var i=new Image();i.src='img/'+k+'.webp'})});
+
+  /* nav */
+  var nav=$('#nav'); var onS=function(){nav.classList.toggle('solid',scrollY>20)}; onS(); addEventListener('scroll',onS,{passive:true});
+
+  /* reveal */
+  if('IntersectionObserver' in window && !reduce){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
+    $$('.rv').forEach(function(el){io.observe(el)});
+  } else $$('.rv').forEach(function(el){el.classList.add('in')});
+
+  /* storia a scorrimento */
+  var sp=$('#story-ph'), steps=$$('.step');
+  if('IntersectionObserver' in window){
+    var so=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){steps.forEach(function(s){s.classList.toggle('on',s===e.target)});swap(sp,e.target.getAttribute('data-img'))}})},{rootMargin:'-45% 0px -45% 0px'});
+    steps.forEach(function(s){so.observe(s)});
+  }
+  steps[0].classList.add('on');
+
+  /* esplora */
+  var tabs=$$('#tabs .tab'), ex=$('#ex-ph'), cap=$('#ex-cap');
+  function pick(t,scroll){tabs.forEach(function(x){var on=x===t;x.classList.toggle('on',on);x.setAttribute('aria-selected',on)});swap(ex,t.getAttribute('data-img'));cap.textContent=$('span',t).textContent;if(scroll&&innerWidth<=900)t.scrollIntoView({block:'nearest',inline:'center',behavior:reduce?'auto':'smooth'})}
+  tabs.forEach(function(t){t.addEventListener('click',function(){pick(t,true);stopAuto()})});
+  pick(tabs[0]);
+  /* avanza da solo finché non tocchi */
+  var auto=null, ai=0;
+  function stopAuto(){if(auto){clearInterval(auto);auto=null}}
+  if(!reduce && 'IntersectionObserver' in window){
+    new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&auto===null&&ai>=0){auto=setInterval(function(){ai=(tabs.indexOf($('#tabs .tab.on'))+1)%tabs.length;pick(tabs[ai],false)},4500)}else if(!e.isIntersecting)stopAuto()})},{threshold:.4}).observe($('.explorer'));
+    $('.explorer').addEventListener('pointerdown',function(){stopAuto();ai=-1});
+  }
+
+  /* piattaforma */
+  var ua=navigator.userAgent||'', isIOS=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1), isAnd=/Android/i.test(ua);
+  if(isIOS)$('#p-ios').classList.add('mine'); if(isAnd)$('#p-android').classList.add('mine');
+  if(isIOS){ /* su iPhone metti prima la beta */
+    $$('.btns').forEach(function(b){var g=$('[data-go=ios]',b),a=$('[data-go=android]',b);if(g&&a){b.insertBefore(g,a);g.classList.replace('ghost','primary');a.classList.replace('primary','ghost')}});
+    $('.dl').insertBefore($('#p-ios'),$('#p-android'));
+  }
+  $$('[data-go]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();var t=$(a.getAttribute('data-go')==='ios'?'#p-ios':'#p-android');t.scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});t.animate&&t.animate([{boxShadow:'0 0 0 0 rgba(255,77,94,.0)'},{boxShadow:'0 0 0 6px rgba(255,77,94,.45)'},{boxShadow:'0 0 0 0 rgba(255,77,94,.0)'}],{duration:1400,delay:500})})});
+
+  /* modali */
+  var last=null;
+  function open(id,from){last=from;var m=$('#'+id);m.classList.add('on');var f=$('.btn:not([aria-disabled=true]), input',m);setTimeout(function(){f&&f.focus()},50)}
+  function close(){$$('.modal.on').forEach(function(m){m.classList.remove('on')});last&&last.focus()}
+  $$('[data-modal]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();open(a.getAttribute('data-modal'),a)})});
+  $$('.modal').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)close()})});
+  $$('[data-close]').forEach(function(b){b.addEventListener('click',function(){setTimeout(close,b.tagName==='A'?150:0)})});
+  addEventListener('keydown',function(e){if(e.key==='Escape')close()});
+  var ok=$('#ios-ok'), dl=$('#ios-dl'); ok.addEventListener('change',function(){dl.setAttribute('aria-disabled',!ok.checked)});
+
+  /* intro: una volta per sessione */
+  var intro=$('#intro'), v=$('#intro-v');
+  function end(){intro.classList.add('out');document.documentElement.style.overflow='';setTimeout(function(){intro.hidden=true;try{v.pause()}catch(e){}},800)}
+  if(!reduce && !store.get('vicinaIntro') && !location.hash){
+    store.set('vicinaIntro','1');
+    var port=innerHeight>innerWidth, base='intro/intro-'+(port?'9x16':'16x9');
+    v.innerHTML='<source src="'+base+'.webm" type="video/webm"><source src="'+base+'.mp4" type="video/mp4">';
+    intro.hidden=false;document.documentElement.style.overflow='hidden';
+    v.addEventListener('ended',end); v.addEventListener('error',end,true);
+    var p=v.play(); if(p&&p.catch)p.catch(end);
+    setTimeout(function(){if(!intro.classList.contains('out')&&v.currentTime<.1)end()},2500);
+    $('#intro-skip').onclick=end;
+    $('#intro-audio').onclick=function(){v.muted=!v.muted;if(!v.muted){v.currentTime=0;v.play()}this.lastChild.textContent=v.muted?'Attiva audio':'Disattiva audio'};
+  }
+})();
+</script>
+</body>
+</html>

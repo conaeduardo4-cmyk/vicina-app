@@ -14,6 +14,7 @@ export function createApi(env) {
     email_not_confirmed: 'auth/email-not-confirmed', otp_expired: 'auth/otp-expired', same_password: 'auth/same-password',
     signup_disabled: 'auth/signup-disabled', email_provider_disabled: 'auth/email-provider-disabled', unexpected_failure: 'auth/db-error'
   };
+  const GOOGLE_CID = env.VITE_GOOGLE_CLIENT_ID || '', GOOGLE_BRIDGE = 'https://vicina.netlify.app/auth.html';
   const offline = m => /fetch|network|Load failed/i.test(m || '');
   const aerr = e => Object.assign(new Error(e.message), {
     code: AUTH[e.code] || (offline(e.message) ? 'auth/network-request-failed' : /Invalid login/i.test(e.message) ? 'auth/invalid-credential' : /api key|apikey|No API key/i.test(e.message) ? 'auth/bad-key' : /Database error/i.test(e.message) ? 'auth/db-error' : 'auth/' + (e.code || 'unknown'))
@@ -100,7 +101,17 @@ export function createApi(env) {
         const j = await r.json(); return { google: !!j?.external?.google, apple: !!j?.external?.apple };
       } catch { return {}; }
     },
-    async oauth(provider, redirectTo) {
+    // Google sul telefono: il login passa dalla nostra pagina vicina.netlify.app/auth.html, così Google mostra
+    // «Continua su vicina.netlify.app» invece dell'indirizzo tecnico di Supabase. Poi signInWithIdToken.
+    async oauth(provider, redirectTo, opt = {}) {
+      if (provider === 'google' && opt.bridge && GOOGLE_CID) {
+        const rnd = () => Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2, '0')).join('');
+        const nonce = rnd(), state = rnd();
+        const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(nonce))), b => b.toString(16).padStart(2, '0')).join('');
+        try { localStorage.setItem('gAuth', JSON.stringify({ nonce, state, at: Date.now() })); } catch {}
+        const q = new URLSearchParams({ client_id: GOOGLE_CID, redirect_uri: GOOGLE_BRIDGE, response_type: 'id_token', scope: 'openid email profile', nonce: hash, state, prompt: 'select_account' });
+        return 'https://accounts.google.com/o/oauth2/v2/auth?' + q;
+      }
       const { data, error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true, ...(provider === 'google' ? { queryParams: { prompt: 'select_account' } } : {}) } });
       if (error) throw aerr(error);
       return data.url;
@@ -109,6 +120,15 @@ export function createApi(env) {
       const u = new URL(url.replace(/^vicina:\/\//i, 'https://vicina.app/')), q = new URLSearchParams(u.search + '&' + u.hash.slice(1));
       const err = q.get('error_description') || q.get('error');
       if (err) throw Object.assign(new Error(err.replace(/\+/g, ' ')), { code: 'auth/oauth' });
+      const idt = q.get('id_token');
+      if (idt) {
+        let g = null; try { g = JSON.parse(localStorage.getItem('gAuth') || 'null'); } catch {}
+        if (!g || g.state !== q.get('state')) throw Object.assign(new Error('Accesso scaduto: riprova'), { code: 'auth/oauth' });
+        try { localStorage.removeItem('gAuth'); } catch {}
+        const { error } = await sb.auth.signInWithIdToken({ provider: 'google', token: idt, nonce: g.nonce });
+        if (error) throw aerr(error);
+        return true;
+      }
       const code = q.get('code'); if (!code) return false;
       const { error } = await sb.auth.exchangeCodeForSession(code);
       if (error) throw aerr(error);

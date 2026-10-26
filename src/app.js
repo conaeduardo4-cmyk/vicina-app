@@ -270,7 +270,7 @@ export function boot(api, native) {
     const prov = btn.dataset.p, redirect = native.isNative ? 'vicina://auth' : location.origin + location.pathname;
     ls.set('seen', '1');
     await busy(btn, async () => {
-      try { const url = await api.oauth(prov, redirect); if (url) await native.openAuth(url); }
+      try { const url = await api.oauth(prov, redirect, { bridge: native.isNative }); if (url) await native.openAuth(url); }
       catch (e) { console.warn('oauth', e); toast(oauthMsg(e)); }
     });
   }

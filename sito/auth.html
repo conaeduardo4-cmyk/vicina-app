@@ -1,0 +1,12 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Vicina – Accesso</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0b10;color:#fff;font:17px/1.5 -apple-system,system-ui,sans-serif;text-align:center}main{padding:24px}.l{width:64px;height:64px;border-radius:20px;background:#e8192c;display:grid;place-items:center;margin:0 auto 18px;font-weight:900}a{display:inline-block;margin-top:22px;padding:15px 26px;border-radius:16px;background:#fff;color:#000;font-weight:800;text-decoration:none}p{color:#a6a6b0}</style></head>
+<body><main><div class="l">SOS</div><h2 id="t">Accesso riuscito</h2><p id="s">Torno su Vicina…</p><a id="b" href="#">Apri Vicina</a></main>
+<script>
+// Google rimanda qui con #id_token=…; giriamo tutto all'app (vicina://auth). Il token non lascia mai il telefono.
+var h = location.hash.slice(1) || location.search.slice(1);
+var q = new URLSearchParams(h);
+if (q.get('error')) { document.getElementById('t').textContent = 'Accesso annullato'; document.getElementById('s').textContent = 'Torna su Vicina e riprova.'; }
+var url = 'vicina://auth?' + h;
+document.getElementById('b').href = url;
+if (h) setTimeout(function () { location.replace(url); }, 150);
+</script></body></html>

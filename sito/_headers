@@ -1,0 +1,8 @@
+/*.apk
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment
+/*.ipa
+  Content-Type: application/octet-stream
+  Content-Disposition: attachment
+/img/*
+  Cache-Control: public, max-age=604800

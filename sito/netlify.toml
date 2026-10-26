@@ -1,0 +1,3 @@
+# Sito di Vicina (vicina.netlify.app). Netlify pubblica questa cartella così com'è, senza build.
+[build]
+  publish = "."
