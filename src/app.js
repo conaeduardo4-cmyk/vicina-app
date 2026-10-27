@@ -1713,7 +1713,16 @@ export function boot(api, native) {
   /* ================= sheet e dialoghi ================= */
   // fogli e finestre si chiudono con un'animazione: tolgo subito «on» (lo stato) e tengo «closing» solo per la grafica
   const fadeOut = el => { if (!el || !el.classList.contains('on')) return; el.classList.remove('on'); if (reduceMotion) return; el.classList.add('closing'); clearTimeout(el._ct); el._ct = setTimeout(() => el.classList.remove('closing'), 240); };
-  const openSheet = (h, key) => { curSheet = key || null; const sc = $('#scrim'); clearTimeout(sc._ct); sc.classList.remove('closing'); $('#sheet').style.transform = ''; $('#sheet').innerHTML = '<div class="grab"></div>' + h; sc.classList.add('on'); };
+  let lastTool = null;
+  const TOOL_GRAD = { red: 'red', amber: 'amber', violet: 'violet', green: 'green', blue: 'blue', white: 'red', gray: 'gray' };
+  const openSheet = (h, key) => {
+    curSheet = key || null; const sc = $('#scrim'); clearTimeout(sc._ct); sc.classList.remove('closing'); $('#sheet').style.transform = '';
+    // fogli degli strumenti: in alto l'icona dello strumento, come nella pagina Strumenti
+    const tl = lastTool && Date.now() - lastTool.at < 1500 && /^\s*<h2>/.test(h) ? lastTool.tl : null;
+    $('#sheet').classList.toggle('tsheet', !!tl); if (tl) lastTool = null;
+    $('#sheet').innerHTML = '<div class="grab"></div>' + (tl ? `<div class="ts-hero"><i class="ts-ic ${TOOL_GRAD[tl[2]] || 'red'}">${I(tl[1])}</i></div>` : '') + h;
+    sc.classList.add('on');
+  };
   const closeSheet = () => { fadeOut($('#scrim')); curSheet = null; clearInterval(inviteTimer); };
   // trascina il foglio verso il basso per chiuderlo
   (() => {
@@ -2149,6 +2158,7 @@ export function boot(api, native) {
   document.addEventListener('click', async e => {
     const t = e.target.closest('[data-a]'); if (!t) return;
     const a = t.dataset.a, id = t.dataset.id;
+    { const tl = toolCatalog().find(x => x[0] === a); if (tl) lastTool = { tl, at: Date.now() }; }
     try {
       if (lock && await lock.handle(a, t)) return;
       if (appello && await appello.handle(a, t)) return;

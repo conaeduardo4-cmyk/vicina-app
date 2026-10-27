@@ -519,3 +519,95 @@ nav#nav .nav-sos-in{font-size:14px}
 #s-map .map-msg{top:calc(120px + var(--sat))!important}
 /* velo leggero sotto ora e notifiche: restano leggibili, l'app si vede comunque */
 #app::before{content:'';position:absolute;left:0;right:0;top:0;height:var(--sat);background:linear-gradient(180deg,rgba(9,9,11,.55),rgba(9,9,11,.2));z-index:15;pointer-events:none}
+
+/* =====================================================================================
+   Strumenti: fogli e schermate a tutto schermo con lo stesso stile delle altre pagine
+   ===================================================================================== */
+/* --- fogli degli strumenti --- */
+.ts-hero{display:flex;justify-content:flex-start;margin:6px 0 14px}
+.ts-ic{width:60px;height:60px;border-radius:20px;display:grid;place-items:center;font-style:normal;color:#fff;
+  background:radial-gradient(130% 160% at 0% 0%,#FF5A68 0%,#E8192C 48%,#A10E1F 100%);box-shadow:0 16px 34px -14px rgba(232,25,44,.8),inset 0 1px 0 rgba(255,255,255,.25)}
+.ts-ic .i{width:28px;height:28px;stroke-width:2}
+.ts-ic.violet{background:radial-gradient(130% 160% at 0% 0%,#8B7BFF 0%,#5B43F0 50%,#3B2A9E 100%);box-shadow:0 16px 34px -14px rgba(91,67,240,.8),inset 0 1px 0 rgba(255,255,255,.25)}
+.ts-ic.green{background:radial-gradient(130% 160% at 0% 0%,#4ADE9B 0%,#16A36A 55%,#0D6B47 100%);box-shadow:0 16px 34px -14px rgba(22,163,106,.8),inset 0 1px 0 rgba(255,255,255,.25)}
+.ts-ic.blue{background:radial-gradient(130% 160% at 0% 0%,#7CB8FF 0%,#2F80ED 55%,#1A56B0 100%);box-shadow:0 16px 34px -14px rgba(47,128,237,.8),inset 0 1px 0 rgba(255,255,255,.25)}
+.ts-ic.amber{background:radial-gradient(130% 160% at 0% 0%,#FFCB6B 0%,#F59E0B 55%,#B45309 100%);box-shadow:0 16px 34px -14px rgba(245,158,11,.8),inset 0 1px 0 rgba(255,255,255,.25)}
+.ts-ic.gray{background:linear-gradient(145deg,#3F3F46,#26262C)}
+.sheet{padding:8px 18px calc(22px + var(--sab))!important}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--s4);margin:2px auto 12px}
+.sheet h2{font-size:24px!important;font-weight:800!important;letter-spacing:-.025em!important;line-height:1.15;margin:0!important}
+.sheet>.sub,.sheet .sub{margin:8px 0 0!important;font-size:14px!important;line-height:1.45!important;color:var(--sub)!important}
+.sheet .field{margin-top:18px}
+.sheet .field>span{font-size:12px!important;font-weight:800!important;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)!important;margin:0 4px 8px!important}
+.sheet .field input,.sheet .field select,.sheet .field textarea{min-height:52px;border-radius:16px!important;background:var(--s1)!important;border:1px solid var(--line2)!important;font-size:16px;color:var(--ink)}
+.sheet .field input:focus,.sheet .field textarea:focus{border-color:rgba(255,255,255,.28)!important}
+.sheet .btn{margin-top:18px;min-height:56px;border-radius:20px;font-size:16px}
+.sheet .btn+.btn{margin-top:10px}
+.sheet .btn.sm{min-height:42px;margin-top:12px;border-radius:14px;font-size:13.5px}
+.sheet .note{margin-top:12px;font-size:12.5px;line-height:1.45;color:var(--mute);text-align:center}
+.sheet .label{margin:20px 4px 8px!important}
+.sheet .card{margin-top:14px}
+.sheet .card .row{min-height:58px}
+.sheet .card .row .fl b{font-size:15px;font-weight:700}
+/* scelte (minuti, quando, lingue…) come pillole */
+.choice{display:flex!important;flex-wrap:wrap;gap:8px!important}
+.choice button{flex:1 1 auto;min-width:64px;min-height:44px!important;padding:0 14px;border-radius:22px!important;background:var(--s1)!important;border:1px solid var(--line2)!important;color:var(--ink2)!important;font-size:14px;font-weight:700!important}
+.choice button.on{background:var(--ink)!important;border-color:var(--ink)!important;color:#09090B!important;font-weight:800!important}
+.tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:16px -18px 0;padding:0 18px}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;height:38px;padding:0 15px;border-radius:19px;background:var(--s1);border:1px solid var(--line2);color:var(--ink2);font-size:13.5px;font-weight:700;white-space:nowrap}
+.tabs button.on{background:var(--ink);border-color:var(--ink);color:#09090B;font-weight:800}
+
+/* --- schermate a tutto schermo --- */
+.tool-ov{--tc:255,59,78;--tcl:#FF6B78;padding:calc(var(--sat) + 18px) 18px calc(var(--sab) + 18px)!important;color:var(--ink);
+  background:radial-gradient(90% 50% at 50% 34%,rgba(var(--tc),.26),rgba(var(--tc),0) 72%),var(--bg)}
+.tool-ov.whistle,.tool-ov.x3-qt{--tc:255,181,71;--tcl:#FFB547}
+.tool-ov.compass,.tool-ov.dms,.tool-ov.x3-lock{--tc:156,140,255;--tcl:#B4A8FF}
+.tool-ov.breathe{--tc:52,211,153;--tcl:#6EE7B7}
+.tool-ov.noise,.tool-ov.x3-point,.tool-ov.cover{--tc:96,165,250;--tcl:#60A5FA}
+.tool-ov.whistle,.tool-ov.yell,.tool-ov.cd,.tool-ov.rec,.tool-ov.cpr,.tool-ov.compass{background:radial-gradient(90% 50% at 50% 34%,rgba(var(--tc),.26),rgba(var(--tc),0) 72%),var(--bg)}
+/* etichetta in alto (REGISTRAZIONE IN CORSO, RCP, BUSSOLA…) */
+.tool-ov .cpr-eye{height:34px;padding:0 14px;border-radius:17px;background:rgba(var(--tc),.16);color:var(--tcl)!important;font-size:12px!important;letter-spacing:.1em!important}
+.tool-ov .cpr-n{font-size:84px!important;font-weight:800!important;letter-spacing:-.05em!important;line-height:1}
+.tool-ov .cpr-s{font-size:15px!important;color:var(--sub)!important;line-height:1.45}
+.tool-ov .cpr-in,.tool-ov .cmp-in{gap:18px!important}
+.tool-ov .rec-dot{width:18px;height:18px;background:var(--red3);box-shadow:0 0 0 10px rgba(255,59,78,.15),0 0 30px rgba(255,59,78,.6)}
+/* sirena, fischietto, «grida»: grande disco con l'icona */
+.sr-in{gap:18px!important;text-align:center}
+.sr-in b{flex-direction:column;gap:22px!important;font-size:60px!important;font-weight:800!important;letter-spacing:-.04em!important;line-height:1}
+.sr-in b .i{width:64px!important;height:64px!important;padding:38px;box-sizing:content-box;border-radius:50%;background:rgba(var(--tc),.16);color:var(--tcl);box-shadow:0 0 0 14px rgba(var(--tc),.07),0 0 80px rgba(var(--tc),.35)}
+.sr-in span{font-size:15px!important;font-weight:600!important;color:var(--sub);opacity:1!important;max-width:300px;line-height:1.45}
+.tool-ov.whistle .sr-in b{color:var(--ink)!important;font-size:44px!important}
+.tool-ov.siren .sr-in b .i{background:rgba(255,255,255,.2);color:currentColor;box-shadow:none}
+.tool-ov.siren .sr-in span{color:currentColor}
+@keyframes sirenbg{0%{background:#E8192C;color:#fff}50%{background:#fff;color:#E8192C}}
+/* pulsanti in basso */
+.tool-ov .btn{min-height:56px;border-radius:20px;font-size:16px;font-weight:800}
+.tool-ov .btn.white,.tool-ov>.btn:not(.ghost):not(.red){background:var(--ink);color:#09090B}
+.tool-ov .btn.ghost{background:var(--s1);color:var(--ink);border:1px solid var(--line2)}
+.tool-ov .btn.sm{min-height:50px;border-radius:18px;font-size:14px}
+.tool-ov.siren .btn,.tool-ov.siren .btn.white{background:rgba(0,0,0,.85)!important;color:#fff!important;border:0}
+.lt-acts,.sign-acts{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px!important}
+.lt-acts .btn,.sign-acts .btn{margin:0}
+.tool-ov.light .lt-acts{padding:8px;border-radius:24px;background:rgba(0,0,0,.06)}
+.tool-ov.light.dark .lt-acts{background:rgba(255,255,255,.06)}
+.tool-ov.sign .sign-acts{padding:8px;border-radius:24px;background:rgba(0,0,0,.25)}
+.tool-ov .col-x{border-radius:18px!important}
+/* conto alla rovescia */
+.cd-ring{width:210px!important;height:210px!important}
+.cd-ring circle{stroke:rgba(255,255,255,.08)!important;stroke-width:6!important}
+.cd-ring .cd-arc{stroke:var(--red3)!important;filter:drop-shadow(0 0 8px rgba(255,59,78,.6))}
+.cd-ring b{font-size:84px!important;font-weight:800!important}
+.cd-wrap h1{font-size:28px!important;font-weight:800;letter-spacing:-.03em}
+.cd-wrap p{color:var(--sub)!important}
+/* bussola */
+.cmp-rose{width:250px!important;height:250px!important;border:1px solid var(--line2)!important;background:radial-gradient(circle,#1C1C22,#121216)!important;box-shadow:0 0 0 12px rgba(156,140,255,.06),0 30px 60px -20px rgba(0,0,0,.8)}
+.cmp-rose .n{color:var(--red2)!important}
+.cmp-in::before{border-top-color:var(--violet2)!important}
+/* «se lo lasci suona» / allarme movimento */
+.dms-pad{width:230px!important;height:230px!important;background:radial-gradient(circle,#1C1C22,#141418)!important;border:1px solid var(--line2)!important;box-shadow:0 0 0 14px rgba(156,140,255,.06)}
+.dms-t{font-size:22px!important;font-weight:800!important;letter-spacing:-.02em}
+/* respiro */
+.br-in b{font-size:32px!important;font-weight:800}
+/* chiamata finta: come una chiamata vera */
+.tool-ov.call{background:linear-gradient(180deg,#1B2130 0%,#0B0D12 70%)!important}

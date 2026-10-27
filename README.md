@@ -530,3 +530,6 @@ Esegui **`supabase/aggiornamento-3.3.sql`** (o `ripara.sql`, che lo contiene). S
 
 ## Novità 4.1.1 · A tutto schermo su Android
 L'app si disegna anche sotto la barra di stato (ora, notifiche) e sotto la barra di navigazione, che diventano trasparenti (`scripts/android/EdgeToEdge.java`, applicato da `patch-native.mjs`). Le altezze delle barre arrivano alla pagina come `--sat` e `--sab`; con la tastiera aperta il WebView si accorcia come prima.
+
+## Novità 4.1.2 · Strumenti ridisegnati
+Fogli degli strumenti con l'icona dello strumento in alto, scelte a pillola, campi e pulsanti del nuovo stile; schermate a tutto schermo (sirena, fischietto, registrazione, bussola, conto alla rovescia, RCP…) con lo stesso design: etichetta colorata, numeri grandi, disco con l'icona e pulsanti in basso.
