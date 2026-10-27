@@ -361,7 +361,7 @@ export function boot(api, native) {
     $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
     $('#sos-wrap').classList.toggle('off', !n);
     $('#sos-hint').textContent = n ? 'Tieni premuto' : 'Aggiungi qualcuno';
-    rHomePeople(); rHomeTools();
+    rHomeTools(); if (curScreen === 's-home') homeMap();
     tools?.rWalk(); appello?.refresh();
   }
   /* ---------- Home 4: la cerchia in fila e gli strumenti scelti ---------- */
@@ -384,12 +384,14 @@ export function boot(api, native) {
     });
   }
   addEventListener('resize', () => { fitLabels($('#h-tools')); fitLabels($('#ht-grid')); });
+  // parole lunghe: possono andare a capo con il trattino (Accompa-gnami)
+  const shy = t => curLang() !== 'it' ? t : t.replace(/[A-Za-zÀ-ÿ]{11,}/g, w => w.slice(0, Math.ceil(w.length / 2) + 1) + '\u00AD' + w.slice(Math.ceil(w.length / 2) + 1));
   function rHomeTools() {
     const box = $('#h-tools'); if (!box) return;
     const cat = toolCatalog(), list = homeToolIds().map(id => cat.find(t => t[0] === id)).filter(Boolean);
     box.innerHTML = list.map(([a, ic, c, t]) => a === 'call112'
       ? `<a class="tile white" href="tel:112"><i class="t-ic">${I('phone')}</i><b data-dz="Chiamata rapida">${esc(t)}</b></a>`
-      : `<button class="tile" data-a="${esc(a)}"><i class="t-ic ${TILE_C[c] ?? ''}">${I(ic)}</i><b>${esc(t)}</b></button>`).join('');
+      : `<button class="tile" data-a="${esc(a)}"><i class="t-ic ${TILE_C[c] ?? ''}">${I(ic)}</i><b>${shy(esc(t))}</b></button>`).join('');
     requestAnimationFrame(() => fitLabels(box));
   }
   let htFrom = 's-home';

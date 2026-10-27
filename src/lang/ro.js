@@ -2072,5 +2072,6 @@ export default {
 "Scansiona QR": "Scanează QR",
 "Invita un'amica": "Invită o prietenă",
 "Invita un amico": "Invită un prieten",
-"Aggiungi {0}": "Adaugă {0}"
+"Aggiungi {0}": "Adaugă {0}",
+"Intorno a te": "În jurul tău"
 };

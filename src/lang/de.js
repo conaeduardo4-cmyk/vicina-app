@@ -2090,5 +2090,6 @@ export default {
 "Invita un'amica": "Freundin einladen",
 "Invita un amico": "Freund einladen",
 "Aggiungi {0}": "{0} hinzufügen",
+"Intorno a te": "In deiner Nähe",
 "O": "W"
 };

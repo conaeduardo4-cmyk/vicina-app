@@ -2108,5 +2108,6 @@ export default {
 "Scansiona QR": "Сканувати QR",
 "Invita un'amica": "Запроси подругу",
 "Invita un amico": "Запроси друга",
-"Aggiungi {0}": "Додати {0}"
+"Aggiungi {0}": "Додати {0}",
+"Intorno a te": "Навколо тебе"
 };

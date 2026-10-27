@@ -2085,5 +2085,6 @@ export default {
 "Scansiona QR": "Skano QR",
 "Invita un'amica": "Fto një shoqe",
 "Invita un amico": "Fto një shok",
-"Aggiungi {0}": "Shto {0}"
+"Aggiungi {0}": "Shto {0}",
+"Intorno a te": "Rreth teje"
 };

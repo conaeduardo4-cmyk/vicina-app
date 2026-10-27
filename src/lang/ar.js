@@ -2110,5 +2110,6 @@ export default {
 "Scansiona QR": "مسح QR",
 "Invita un'amica": "ادعُ صديقة",
 "Invita un amico": "ادعُ صديقًا",
-"Aggiungi {0}": "إضافة {0}"
+"Aggiungi {0}": "إضافة {0}",
+"Intorno a te": "من حولك"
 };

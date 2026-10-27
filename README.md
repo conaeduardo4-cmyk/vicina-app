@@ -533,3 +533,8 @@ L'app si disegna anche sotto la barra di stato (ora, notifiche) e sotto la barra
 
 ## Novità 4.1.2 · Strumenti ridisegnati
 Fogli degli strumenti con l'icona dello strumento in alto, scelte a pillola, campi e pulsanti del nuovo stile; schermate a tutto schermo (sirena, fischietto, registrazione, bussola, conto alla rovescia, RCP…) con lo stesso design: etichetta colorata, numeri grandi, disco con l'icona e pulsanti in basso.
+
+## Novità 4.2.0 · Home compatta con l'anteprima della mappa
+- Home più in basso e più compatta; al posto della cerchia c'è «Intorno a te», l'anteprima della mappa con la tua posizione (tocca per aprire la Mappa).
+- Barra in basso: lo sfondo rosso della scheda attiva copre in modo uniforme icona e nome.
+- Android a tutto schermo: l'altezza della barra di stato viene misurata anche dalla finestra e, in ultima riserva, dalle risorse di sistema.

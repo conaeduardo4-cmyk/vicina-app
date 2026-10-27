@@ -2062,5 +2062,6 @@ export default {
 "Scansiona QR": "Escanear QR",
 "Invita un'amica": "Invita a una amiga",
 "Invita un amico": "Invita a un amigo",
-"Aggiungi {0}": "Añadir {0}"
+"Aggiungi {0}": "Añadir {0}",
+"Intorno a te": "A tu alrededor"
 };

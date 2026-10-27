@@ -71,12 +71,33 @@ public class EdgeToEdge {
             ViewCompat.requestApplyInsets(wv);
             // la pagina può caricarsi dopo: ripeto qualche volta
             Handler h = new Handler(Looper.getMainLooper());
-            for (int ms : new int[] { 600, 1500, 3000, 6000, 10000 }) h.postDelayed(() -> push(wv), ms);
+            for (int ms : new int[] { 300, 800, 1500, 3000, 6000, 10000, 20000 }) h.postDelayed(() -> { measure(wv); push(wv); }, ms);
+        } catch (Exception ignored) { }
+    }
+
+    // misura le barre direttamente dalla finestra (se il listener non è stato chiamato)
+    private static void measure(WebView wv) {
+        try {
+            WindowInsetsCompat ins = ViewCompat.getRootWindowInsets(wv);
+            if (ins == null) return;
+            Insets bars = ins.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            Insets ime = ins.getInsets(WindowInsetsCompat.Type.ime());
+            float d = wv.getResources().getDisplayMetrics().density;
+            if (bars.top > 0) top = Math.round(bars.top / d);
+            bottom = ime.bottom > bars.bottom ? 0 : Math.round(bars.bottom / d);
+            left = Math.round(bars.left / d); right = Math.round(bars.right / d);
         } catch (Exception ignored) { }
     }
 
     private static void push(final WebView wv) {
         if (wv == null) return;
+        if (top == 0) measure(wv);
+        if (top == 0) {   // ultima riserva: altezza della barra di stato dalle risorse di sistema
+            try {
+                int id = wv.getResources().getIdentifier("status_bar_height", "dimen", "android");
+                if (id > 0) top = Math.round(wv.getResources().getDimensionPixelSize(id) / wv.getResources().getDisplayMetrics().density);
+            } catch (Exception ignored) { }
+        }
         final String js = "(function(){var e=document.documentElement;if(!e)return;var s=e.style;"
             + "s.setProperty('--sat','" + top + "px');s.setProperty('--sab','" + bottom + "px');"
             + "s.setProperty('--sal','" + left + "px');s.setProperty('--sar','" + right + "px');"

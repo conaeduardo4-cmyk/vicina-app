@@ -611,3 +611,39 @@ nav#nav .nav-sos-in{font-size:14px}
 .br-in b{font-size:32px!important;font-weight:800}
 /* chiamata finta: come una chiamata vera */
 .tool-ov.call{background:linear-gradient(180deg,#1B2130 0%,#0B0D12 70%)!important}
+
+/* ---------- Home 4.2: più in basso e più compatta, anteprima della mappa ---------- */
+.h4{padding-top:22px!important}
+.h4-status{margin-top:12px!important}
+.h4-duo{margin-top:14px!important;gap:10px}
+#s-home.v4 #sos,#s-home.v4 .chk-btn{height:92px!important}
+#s-home.v4 .sos-ring,#s-home.v4 .chk-orb{width:70px!important;height:70px!important}
+#s-home.v4 .chk-orb{--r:35px}
+#s-home.v4 .sos-ring b{width:54px;height:54px;font-size:17px!important}
+.h4-sec{padding-top:20px!important}
+.h4-map{position:relative;display:block;width:calc(100% - 32px);height:138px;margin:12px 16px 0;border-radius:24px;overflow:hidden;background:#161A21;border:1px solid var(--line);padding:0;text-align:left;isolation:isolate}
+.h4-map #home-map{position:absolute;inset:0;pointer-events:none}
+.h4-map::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,9,11,0) 45%,rgba(9,9,11,.65));pointer-events:none;z-index:1}
+.h4-map .mw-empty{z-index:1}
+.h4m-chip{position:absolute;left:12px;bottom:12px;z-index:2;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:15px;background:rgba(20,20,24,.9);border:1px solid rgba(255,255,255,.08);color:var(--ink);font-size:12.5px;font-weight:700}
+.h4m-chip i{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px rgba(96,165,250,.2)}
+.h4-map .mw-state{left:auto!important;right:12px;bottom:auto!important;top:12px;height:28px;padding:0 10px!important;border-radius:14px!important;font-size:12px!important;font-weight:800!important;z-index:2}
+.h4m-go{position:absolute;right:12px;bottom:12px;z-index:2;width:34px;height:34px;border-radius:50%;background:var(--ink);color:#09090B;display:grid;place-items:center}
+.h4m-go .i{width:16px;height:16px;stroke-width:2.4}
+@media (max-width:374px){
+  .h4{padding-top:18px!important}
+  #s-home.v4 #sos,#s-home.v4 .chk-btn{height:84px!important}
+  #s-home.v4 .sos-ring,#s-home.v4 .chk-orb{width:62px!important;height:62px!important}
+  #s-home.v4 .chk-orb{--r:31px}
+  #s-home.v4 .sos-ring b{width:48px;height:48px;font-size:15px!important}
+  .h4-map{height:120px}
+}
+@media (max-height:700px){ .h4-map{height:112px} }
+
+/* ---------- barra: lo sfondo rosso della scheda attiva copre icona e nome ---------- */
+nav#nav>button[data-tab]::before{top:8px!important;bottom:8px;left:50%;width:64px!important;height:auto!important;margin-left:-32px!important;border-radius:18px!important;
+  background:linear-gradient(180deg,rgba(255,59,78,.22),rgba(255,59,78,.12))!important}
+html.dz nav#nav>button[data-tab]::before{background:linear-gradient(180deg,rgba(47,128,237,.24),rgba(47,128,237,.12))!important}
+@media (max-width:374px){ nav#nav>button[data-tab]::before{width:56px!important;margin-left:-28px!important} }
+
+#s-home.v4 .h4-tools .tile b{hyphens:auto;-webkit-hyphens:auto}

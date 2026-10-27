@@ -2078,5 +2078,6 @@ export default {
 "Invita un'amica": "Invite a friend",
 "Invita un amico": "Invite a friend",
 "Aggiungi {0}": "Add {0}",
+"Intorno a te": "Around you",
 "O": "W"
 };

@@ -159,8 +159,14 @@
     <div class="sosin-bar" id="sosin-bar" hidden></div>
     <div class="chk-bar" id="chk-bar" hidden></div>
     <div class="walk-bar" id="walk-bar" hidden></div>
-    <div class="h4-sec"><h2>La tua cerchia</h2><button class="h4-link" data-a="tab" data-tab="circle">Vedi tutti</button></div>
-    <div class="h4-people" id="h-people"></div>
+    <div class="h4-sec"><h2>Intorno a te</h2><button class="h4-link" data-a="tab" data-tab="map">Apri la mappa</button></div>
+    <button class="h4-map" data-a="tab" data-tab="map" aria-label="Apri la mappa">
+      <div id="home-map" aria-hidden="true"></div>
+      <span class="mw-empty" id="mw-empty"><svg class="i"><use href="#i-pin"/></svg><span id="mw-empty-t">Carico la mappa…</span></span>
+      <span class="h4m-chip"><i></i>Posizione live</span>
+      <span class="mw-state" id="mw-state" hidden></span>
+      <span class="h4m-go"><svg class="i"><use href="#i-chev"/></svg></span>
+    </button>
     <div class="h4-sec"><h2>Strumenti</h2><button class="h4-link" data-a="home-tools">Personalizza</button></div>
     <div class="tiles h4-tools" id="h-tools"></div>
     <button class="h4-all" data-a="tab" data-tab="tools"><svg class="i"><use href="#i-grid"/></svg>Tutti gli strumenti<svg class="i chev"><use href="#i-chev"/></svg></button>
