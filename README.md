@@ -541,3 +541,6 @@ Fogli degli strumenti con l'icona dello strumento in alto, scelte a pillola, cam
 
 ## Novità 4.2.1 · Pagina Strumenti ridisegnata
 «In evidenza» in 6 riquadri colorati compatti; ogni gruppo è una griglia di icone (4 per riga) come le app del telefono, con nomi che vanno a capo senza tagliarsi.
+
+## Novità 4.2.2 · Margini corretti sotto la barra di stato
+Su Android la pagina chiede al telefono (plugin VicinaNative → `insets`) l'altezza della barra di stato e di quella di navigazione, all'avvio, quando la finestra cambia e quando torni nell'app; se il telefono non risponde usa un margine sicuro.

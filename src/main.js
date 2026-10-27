@@ -8,6 +8,21 @@ import { native } from './native.js';
 import { init as i18nInit, t, locale } from './i18n.js';
 
 const env = import.meta.env;
+// Android a tutto schermo: le altezze di barra di stato e di navigazione le chiedo al telefono
+if (native.platform === 'android') {
+  const css = (k, v) => document.documentElement.style.setProperty(k, v + 'px');
+  const sync = async () => {
+    const r = await native.vx?.insets?.();
+    if (r && r.top > 0) { css('--sat', r.top); css('--sab', r.bottom || 0); return true; }
+    return false;
+  };
+  sync();
+  [400, 1200, 3000, 6000].forEach(ms => setTimeout(sync, ms));
+  addEventListener('resize', () => setTimeout(sync, 120));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+  // ultima riserva: se il telefono non risponde, un margine sicuro
+  setTimeout(() => { if ((parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0) < 12) { css('--sat', 32); css('--sab', 18); } }, 2500);
+}
 // sicurezza: lo splash nativo non deve mai restare bloccato
 setTimeout(() => native.hideSplash(), 4000);
 // rete di sicurezza: se qualcosa va storto all'avvio non resta uno schermo vuoto

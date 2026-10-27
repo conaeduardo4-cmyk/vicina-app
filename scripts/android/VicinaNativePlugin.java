@@ -55,6 +55,31 @@ public class VicinaNativePlugin extends Plugin {
     }
 
     /* ---------- icona (modalità anonima) ---------- */
+    // altezze delle barre di sistema in dp (= px CSS): la pagina le usa per non finire sotto ora e notifiche
+    @PluginMethod
+    public void insets(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            JSObject r = new JSObject();
+            int t = 0, b = 0;
+            try {
+                android.content.res.Resources res = getContext().getResources();
+                float d = res.getDisplayMetrics().density;
+                android.view.View root = getActivity().getWindow().getDecorView();
+                androidx.core.view.WindowInsetsCompat ins = androidx.core.view.ViewCompat.getRootWindowInsets(root);
+                if (ins != null) {
+                    androidx.core.graphics.Insets s = ins.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() | androidx.core.view.WindowInsetsCompat.Type.displayCutout());
+                    androidx.core.graphics.Insets ime = ins.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime());
+                    t = Math.round(s.top / d);
+                    b = ime.bottom > s.bottom ? 0 : Math.round(s.bottom / d);
+                }
+                if (t == 0) { int id = res.getIdentifier("status_bar_height", "dimen", "android"); if (id > 0) t = Math.round(res.getDimensionPixelSize(id) / d); }
+                if (ins == null) { int id = res.getIdentifier("navigation_bar_height", "dimen", "android"); if (id > 0) b = Math.round(res.getDimensionPixelSize(id) / d); }
+            } catch (Exception ignored) { }
+            r.put("top", t); r.put("bottom", b);
+            call.resolve(r);
+        });
+    }
+
     @PluginMethod
     public void getIcon(PluginCall call) {
         JSObject r = new JSObject();

@@ -281,6 +281,7 @@ export const webNative = {
   // integrazioni con il telefono: nel browser solo quello che il browser sa fare
   vx: {
     native: false,
+    async insets() { return null; },
     async getIcon() { return { name: 'default', supported: false }; },
     async setIcon() { throw new Error('Disponibile solo nell\'app installata'); },
     async glassInfo() { return { supported: false }; },

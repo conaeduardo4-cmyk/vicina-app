@@ -254,6 +254,8 @@ export const native = !isNative ? webNative : {
   // Integrazioni con il telefono: se il pezzo nativo manca (build vecchia) ogni funzione ricade sul browser
   vx: {
     native: true,
+    // Android: altezza della barra di stato e di quella di navigazione (in px CSS)
+    async insets() { if (Capacitor.getPlatform() !== 'android') return null; try { return await VN.insets(); } catch { return null; } },
     async getIcon() { try { return await VN.getIcon(); } catch { return { name: 'default', supported: false }; } },
     setIcon: name => VN.setIcon({ name }),
     // Liquid Glass di iOS 26: barra delle schede nativa (UIGlassEffect). Su iOS < 26 o su Android: non supportato.
