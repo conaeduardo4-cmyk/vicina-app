@@ -5,7 +5,8 @@
   "backgroundColor": "#0B0B10",
   "android": {
     "backgroundColor": "#0B0B10",
-    "useLegacyBridge": true
+    "useLegacyBridge": true,
+    "adjustMarginsForEdgeToEdge": "disable"
   },
   "ios": {
     "backgroundColor": "#0B0B10",
@@ -28,8 +29,8 @@
     },
     "StatusBar": {
       "style": "DARK",
-      "backgroundColor": "#0B0B10",
-      "overlaysWebView": false
+      "backgroundColor": "#00000000",
+      "overlaysWebView": true
     }
   }
 }

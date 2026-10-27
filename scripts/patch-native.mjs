@@ -58,7 +58,7 @@ if (fs.existsSync(man)) {
     }
     log(m.includes('SosSmsPlugin') ? 'SMS automatici ai contatti senza app (plugin SosSms)' : 'ATTENZIONE: plugin SMS non registrato in MainActivity');
     // integrazioni (icona anonima, torcia, batteria, voce, scorciatoie, widget)
-    for (const f of ['VicinaNativePlugin', 'VicinaWidget', 'VicinaCallWidget', 'VicinaActionWidget']) fs.writeFileSync(dir + '/' + f + '.java', read('scripts/android/' + f + '.java').replace('__PACKAGE__', pkg));
+    for (const f of ['VicinaNativePlugin', 'VicinaWidget', 'VicinaCallWidget', 'VicinaActionWidget', 'EdgeToEdge']) fs.writeFileSync(dir + '/' + f + '.java', read('scripts/android/' + f + '.java').replace('__PACKAGE__', pkg));
     if (!m.includes('VicinaNativePlugin') && m.includes('registerPlugin(ApkUpdaterPlugin.class);')) {
       m = m.replace('registerPlugin(ApkUpdaterPlugin.class);', 'registerPlugin(ApkUpdaterPlugin.class);\n        registerPlugin(VicinaNativePlugin.class);');
       fs.writeFileSync(mainAct, m);
@@ -68,6 +68,12 @@ if (fs.existsSync(man)) {
       m = m.replace(/super\.onCreate\(savedInstanceState\);/, 'super.onCreate(savedInstanceState);\n        try { getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false); } catch (Exception ignored) { }');
       fs.writeFileSync(mainAct, m);
     }
+    // a tutto schermo: l'app anche sotto la barra di stato e quella di navigazione
+    if (!m.includes('EdgeToEdge.apply') && /super\.onCreate\(savedInstanceState\);/.test(m)) {
+      m = m.replace(/super\.onCreate\(savedInstanceState\);/, 'super.onCreate(savedInstanceState);\n        EdgeToEdge.apply(this);');
+      fs.writeFileSync(mainAct, m);
+    }
+    log(m.includes('EdgeToEdge.apply') ? 'a tutto schermo (edge-to-edge)' : 'ATTENZIONE: edge-to-edge non attivo');
     // testo sempre al 100%: la dimensione carattere di sistema non deve ingrandire e tagliare l'interfaccia
     if (!m.includes('setTextZoom') && /super\.onCreate\(savedInstanceState\);/.test(m)) {
       m = m.replace(/super\.onCreate\(savedInstanceState\);/, 'super.onCreate(savedInstanceState);\n        try { getBridge().getWebView().getSettings().setTextZoom(100); } catch (Exception ignored) { }');

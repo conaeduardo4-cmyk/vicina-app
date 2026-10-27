@@ -508,3 +508,14 @@ nav#nav>button.nav-sos{top:50%!important;width:56px!important;height:56px!import
   box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 0 12px rgba(255,140,150,.35),0 0 18px rgba(255,59,78,.5)!important}
 nav#nav .nav-sos-ring{inset:0!important;width:56px!important;height:56px!important}
 nav#nav .nav-sos-in{font-size:14px}
+
+/* ---------- a tutto schermo (Android edge-to-edge, iPhone con notch) ----------
+   l'app si disegna anche dietro ora/notifiche e dietro la barra di navigazione */
+#app{padding-top:0!important}
+.screen{padding-top:var(--sat)}
+#s-me{padding-top:0}
+#s-me .sc.v4-me{padding-top:var(--sat)!important}
+.m4-head{padding-top:calc(12px + var(--sat))}
+#s-map .map-msg{top:calc(120px + var(--sat))!important}
+/* velo leggero sotto ora e notifiche: restano leggibili, l'app si vede comunque */
+#app::before{content:'';position:absolute;left:0;right:0;top:0;height:var(--sat);background:linear-gradient(180deg,rgba(9,9,11,.55),rgba(9,9,11,.2));z-index:15;pointer-events:none}

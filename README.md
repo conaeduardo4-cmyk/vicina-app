@@ -527,3 +527,6 @@ Esegui **`supabase/aggiornamento-3.3.sql`** (o `ripara.sql`, che lo contiene). S
 - **Tu**: copertina, «Pronta per un'emergenza», impostazioni raggruppate.
 - **Assistente**: «Bentornata, Nome» con suggerimenti e barra di scrittura nuova; «Le tue chat» in alto.
 - **Strumenti** e **Strumenti in Home** ridisegnati (ordine con trascinamento).
+
+## Novità 4.1.1 · A tutto schermo su Android
+L'app si disegna anche sotto la barra di stato (ora, notifiche) e sotto la barra di navigazione, che diventano trasparenti (`scripts/android/EdgeToEdge.java`, applicato da `patch-native.mjs`). Le altezze delle barre arrivano alla pagina come `--sat` e `--sab`; con la tastiera aperta il WebView si accorcia come prima.
