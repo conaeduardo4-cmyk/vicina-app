@@ -544,3 +544,10 @@ Fogli degli strumenti con l'icona dello strumento in alto, scelte a pillola, cam
 
 ## Novità 4.2.2 · Margini corretti sotto la barra di stato
 Su Android la pagina chiede al telefono (plugin VicinaNative → `insets`) l'altezza della barra di stato e di quella di navigazione, all'avvio, quando la finestra cambia e quando torni nell'app; se il telefono non risponde usa un margine sicuro.
+
+## Novità 4.3.0
+- Barra in basso di nuovo come prima (Home, Mappa, Strumenti, Cerchia, Tu, con la pillola che scorre) ma con i colori nuovi; niente tasto SOS nella barra.
+- Pagina Strumenti, «In evidenza» e strumenti in Home (2 per riga, riquadri grandi) di nuovo come prima; tolto «Tutti gli strumenti» dalla Home.
+- Profilo in Tu: di nuovo la scheda con il banner.
+- Home: le scritte partono sotto ora e notifiche (il margine della Home veniva annullato), anteprima della mappa più grande e senza crediti sovrapposti; sulla mappa grande i crediti partono chiusi.
+- SOS e Appello: al posto dei dischi bianchi, cerchi di luce trasparenti (con onde per l'SOS).

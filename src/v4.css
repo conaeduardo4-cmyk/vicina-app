@@ -108,39 +108,8 @@ button,input,textarea,select{font-family:inherit}
 .v4-empty b{font-size:16px;font-weight:800;margin-top:6px}.v4-empty span{font-size:13px;color:var(--sub)}
 
 /* ---------- barra in basso (proposta A) ---------- */
-nav#nav{left:14px!important;right:14px!important;bottom:calc(16px + var(--sab))!important;height:72px!important;padding:0!important;border-radius:28px!important;
-  background:linear-gradient(180deg,#23232A 0%,#141418 100%)!important;border:1px solid rgba(255,255,255,.09)!important;
-  box-shadow:0 24px 48px -12px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;
-  display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;align-items:center;transform:none!important;overflow:visible!important;max-width:452px;margin:0 auto}
-nav#nav[hidden]{display:none!important}
-nav#nav .nav-pill{display:none!important}
-nav#nav>button{position:relative;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;height:72px!important;min-width:0;padding:0!important;margin:0!important;
-  background:none!important;border-radius:0!important;color:var(--navc)!important;font-size:11px!important;font-weight:700!important;letter-spacing:0!important;box-shadow:none!important}
-nav#nav>button>span{display:block;font-size:11px!important;line-height:1.1;white-space:nowrap}
-nav#nav>button[data-tab] .i{width:21px!important;height:21px!important;position:relative;z-index:1}
-nav#nav>button[data-tab]::before{content:'';position:absolute;top:9px;left:50%;width:46px;height:30px;margin-left:-23px;border-radius:15px;background:rgba(255,59,78,.18);opacity:0;transform:scale(.7);transition:opacity .2s,transform .25s cubic-bezier(.2,1.3,.4,1)}
-html.dz nav#nav>button[data-tab]::before{background:rgba(47,128,237,.2)}
-nav#nav>button.on{color:var(--red2)!important;font-weight:800!important}
-nav#nav>button.on .i{color:var(--red2);stroke-width:2}
-nav#nav>button.on::before{opacity:1;transform:none}
-nav#nav>button[data-tab] .i{margin:4px 0}
-nav#nav .badge{position:absolute!important;top:6px!important;left:50%!important;right:auto!important;margin-left:6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red3)!important;color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;border:0!important;z-index:2}
 /* SOS sempre al centro esatto della barra */
-nav#nav>button.nav-sos{position:absolute!important;left:50%!important;top:-34px!important;width:64px!important;height:64px!important;margin:0 0 0 -32px!important;border-radius:50%!important;
-  background:var(--red)!important;border:4px solid var(--bg)!important;color:#fff!important;font-size:15px!important;font-weight:800!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 0 12px rgba(255,140,150,.35),0 0 24px rgba(255,59,78,.55)!important;
-  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .2s;z-index:3}
-nav#nav>button.nav-sos::before{display:none!important}
-html.dz nav#nav>button.nav-sos{background:#2F80ED!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 0 24px rgba(47,128,237,.5)!important}
-.nav-sos-in{position:relative;z-index:1;font-size:15px;font-weight:800;letter-spacing:-.02em}
-html.dz .nav-sos-in{font-size:0}html.dz .nav-sos-in::after{content:'';display:block;width:14px;height:14px;border-radius:50%;background:#fff}
-.nav-sos-ring{position:absolute;inset:-4px;width:64px;height:64px;transform:rotate(-90deg);pointer-events:none}
-.nav-sos-ring circle{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
-nav#nav>button.nav-sos.hold{transform:scale(1.08)}
 /* la colonna centrale resta vuota: il pulsante è sopra */
-nav#nav>button[data-tab="map"]{grid-column:2}nav#nav>button[data-tab="circle"]{grid-column:4}nav#nav>button[data-tab="me"]{grid-column:5}nav#nav>button[data-tab="home"]{grid-column:1}
-html.lite nav#nav{box-shadow:inset 0 1px 0 rgba(255,255,255,.08)!important}
-html.lite nav#nav>button.nav-sos{box-shadow:inset 0 1px 0 rgba(255,255,255,.3)!important}
 /* sfumatura sotto la barra: il contenuto che scorre non si legge dietro */
 .screen.tabbed::after{content:'';position:fixed;left:0;right:0;bottom:0;height:calc(70px + var(--sab));background:linear-gradient(180deg,rgba(9,9,11,0),rgba(9,9,11,.92) 60%);pointer-events:none;z-index:4}
 #s-map.tabbed::after{display:none}
@@ -210,16 +179,6 @@ html.dz #s-home.v4 .sos-ring b{color:#2F80ED}
 .h4-p span{max-width:68px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .h4-p.add i{width:56px;height:56px;border-radius:50%;border:1.5px dashed rgba(255,255,255,.25);display:grid;place-items:center;color:var(--sub);font-style:normal}
 .h4-p.add{color:var(--sub)}
-#s-home.v4 .h4-tools{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important;padding:12px 16px 0!important;margin:0!important;flex:none!important}
-#s-home.v4 .h4-tools .tile{height:92px!important;min-height:0!important;padding:0 4px!important;border-radius:22px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:8px!important;text-align:center;
-  background:linear-gradient(180deg,#19191E,#121216)!important;border:1px solid var(--line)!important;box-shadow:none!important;color:var(--ink)!important}
-#s-home.v4 .h4-tools .t-ic{width:40px!important;height:40px!important;border-radius:14px!important;display:grid;place-items:center;margin:0!important}
-#s-home.v4 .h4-tools .t-ic .i{width:20px;height:20px}
-#s-home.v4 .h4-tools .tile.white .t-ic{background:#fff!important;color:#09090B!important}
-#s-home.v4 .h4-tools .t-ic.red{background:var(--redbg)!important;color:var(--red2)!important}#s-home.v4 .h4-tools .t-ic.blue{background:var(--bluebg)!important;color:var(--blue)!important}
-#s-home.v4 .h4-tools .t-ic.amber{background:var(--amberbg)!important;color:var(--amber)!important}#s-home.v4 .h4-tools .t-ic.violet{background:var(--violetbg)!important;color:var(--violet2)!important}
-#s-home.v4 .h4-tools .t-ic.green{background:var(--greenbg)!important;color:var(--green)!important}
-#s-home.v4 .h4-tools .tile b{font-size:12px;font-weight:700!important;line-height:1.2;max-width:100%;word-break:normal;overflow-wrap:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .h4-all{display:flex;align-items:center;gap:10px;height:50px;margin:12px 16px 0;padding:0 14px;border-radius:18px;background:var(--s1);border:1px solid var(--line);color:var(--ink);font-size:14px;font-weight:700}
 .h4-all .i{width:18px;height:18px;color:var(--sub)}.h4-all .chev{margin-left:auto}
 
@@ -378,7 +337,6 @@ html.dz .me4-banner:not(.img){background:linear-gradient(135deg,#132A52 0%,#1F4F
 #s-me .v4-card{margin:12px 16px 0}
 
 /* ---------- Strumenti ---------- */
-#s-tools .sc.tl-sc{padding:0 16px calc(120px + var(--sab))!important}
 .tl4-top{padding:12px 0 0!important}
 .tl4-top h1{font-size:30px!important;letter-spacing:-.03em}
 .tl4-n{flex:none;height:28px;padding:0 10px;border-radius:14px;background:var(--s1);color:var(--sub);font-size:12.5px;font-weight:800;display:flex;align-items:center}
@@ -473,12 +431,6 @@ html.dz .ai4-logo{background:linear-gradient(145deg,#56A8FF,#2F80ED 60%,#1A56B0)
   #s-home.v4 .chk-orb{--r:33px}
   #s-home.v4 .sos-text>b,#s-home.v4 .chk-text b{font-size:17px!important}
   #s-home.v4 .sos-sub,#s-home.v4 .chk-text span{font-size:12px!important}
-  #s-home.v4 .h4-tools{gap:8px!important}
-  #s-home.v4 .h4-tools .tile{height:86px!important}
-  #s-home.v4 .h4-tools .tile b{font-size:11px}
-  #s-home.v4 .h4-tools .t-ic{width:36px!important;height:36px!important}
-  nav#nav{left:10px!important;right:10px!important}
-  nav#nav>button>span{font-size:10.5px!important}
   .act4-title{font-size:28px}
   .ai4-greet{font-size:30px}
   .ai4-q{font-size:17px}
@@ -489,7 +441,6 @@ html.dz .ai4-logo{background:linear-gradient(145deg,#56A8FF,#2F80ED 60%,#1A56B0)
 @media (max-width:340px){
   .h4-bell{width:40px;height:40px}
   .h4 .avbtn.av-ring{width:42px!important;height:42px!important}
-  #s-home.v4 .h4-tools{grid-template-columns:repeat(3,minmax(0,1fr))!important}
   .ht-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .act4-tile{font-size:12px}
   .m4-chips button{padding:0 11px;font-size:12.5px}
@@ -504,10 +455,6 @@ html.dz .ai4-logo{background:linear-gradient(145deg,#56A8FF,#2F80ED 60%,#1A56B0)
 #ail-body .ail-item.sw .ail-del,#ail-body .ail-item.open .ail-del{visibility:visible}
 
 /* SOS dentro la barra, centrato in orizzontale e in verticale */
-nav#nav>button.nav-sos{top:50%!important;width:56px!important;height:56px!important;margin:-28px 0 0 -28px!important;border:0!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 0 12px rgba(255,140,150,.35),0 0 18px rgba(255,59,78,.5)!important}
-nav#nav .nav-sos-ring{inset:0!important;width:56px!important;height:56px!important}
-nav#nav .nav-sos-in{font-size:14px}
 
 /* ---------- a tutto schermo (Android edge-to-edge, iPhone con notch) ----------
    l'app si disegna anche dietro ora/notifiche e dietro la barra di navigazione */
@@ -641,12 +588,7 @@ nav#nav .nav-sos-in{font-size:14px}
 @media (max-height:700px){ .h4-map{height:112px} }
 
 /* ---------- barra: lo sfondo rosso della scheda attiva copre icona e nome ---------- */
-nav#nav>button[data-tab]::before{top:8px!important;bottom:8px;left:50%;width:64px!important;height:auto!important;margin-left:-32px!important;border-radius:18px!important;
-  background:linear-gradient(180deg,rgba(255,59,78,.22),rgba(255,59,78,.12))!important}
-html.dz nav#nav>button[data-tab]::before{background:linear-gradient(180deg,rgba(47,128,237,.24),rgba(47,128,237,.12))!important}
-@media (max-width:374px){ nav#nav>button[data-tab]::before{width:56px!important;margin-left:-28px!important} }
 
-#s-home.v4 .h4-tools .tile b{hyphens:auto;-webkit-hyphens:auto}
 
 /* ---------- pagina Strumenti 4.2: griglia di icone come le app ---------- */
 .tl4-feat{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}
@@ -673,3 +615,50 @@ html.dz nav#nav>button[data-tab]::before{background:linear-gradient(180deg,rgba(
   .tl4-big{height:96px}
   .tl4-big b{font-size:12.5px!important}
 }
+
+
+/* =================== 4.3 · richieste: barra e strumenti come prima, Home più in basso =================== */
+/* Home: le scritte partono sotto ora e notifiche (prima il padding della Home annullava il margine) */
+#s-home.v4{padding-top:calc(var(--sat) + 14px)!important}
+.h4{padding-top:8px!important}
+/* strumenti in Home come prima: 2 per riga, riquadri grandi */
+#s-home.v4 .h4-tools{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;padding:12px 16px 0!important;margin:0!important}
+#s-home.v4 .h4-tools .tile{height:92px;padding:14px;border-radius:22px;background:var(--s1);border:1px solid var(--line);box-shadow:none}
+#s-home.v4 .h4-tools .tile.white{background:#fff;color:#09090B;border-color:#fff}
+#s-home.v4 .h4-tools .tile b{font-size:14.5px;font-weight:800;line-height:1.2}
+#s-home.v4 .h4-tools .t-ic{width:34px;height:34px;border-radius:11px}
+#s-home.v4 .h4-tools .tile.white .t-ic{background:#09090B;color:#fff}
+/* pagina Strumenti come prima */
+#s-tools .tl-head{padding-top:14px!important;background:linear-gradient(180deg,var(--bg) 70%,rgba(9,9,11,0))}
+.tool .ic-dot{width:42px!important;height:42px!important;border-radius:14px!important}
+.tool .ic-dot .i{width:21px!important;height:21px!important}
+.tool b{font-size:15px;font-weight:800}
+.tool span{font-size:12.5px;color:var(--sub)}
+/* barra in basso come prima, con i colori nuovi */
+nav#nav{background:linear-gradient(180deg,#1E1E24,#131317)!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 18px 40px -10px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.06)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+nav#nav button{color:var(--navc)}
+nav#nav button.on{color:var(--red2)!important}
+nav#nav .nav-pill{background:linear-gradient(180deg,rgba(255,59,78,.24),rgba(255,59,78,.12))!important;box-shadow:inset 0 0 0 1px rgba(255,107,120,.18)!important}
+html.dz nav#nav .nav-pill{background:linear-gradient(180deg,rgba(86,168,255,.24),rgba(47,128,237,.12))!important}
+nav#nav button.nav-tools .i{color:inherit}
+.tabbed .sc,.tl-body{padding-bottom:calc(100px + var(--sab))!important}
+#s-home.v4{padding-bottom:calc(104px + var(--sab))!important}
+.screen.tabbed::after{height:calc(56px + var(--sab))}
+
+/* mappa nella Home più grande, senza riquadri sopra */
+.h4-map{height:210px!important}
+.h4-map .maplibregl-ctrl-bottom-right,.h4-map .maplibregl-ctrl-bottom-left,.h4-map .maplibregl-ctrl-attrib{display:none!important}
+@media (max-width:374px){ .h4-map{height:180px!important} }
+@media (max-height:700px){ .h4-map{height:160px!important} }
+
+/* SOS e Appello: niente dischi bianchi, cerchi di luce */
+#s-home.v4 .sos-ring{border:0!important;background:radial-gradient(circle,rgba(255,255,255,.28),rgba(255,255,255,.06) 70%)!important;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+#s-home.v4 .sos-ring::before,#s-home.v4 .sos-ring::after{content:'';position:absolute;inset:-7px;border-radius:50%;border:1.5px solid rgba(255,255,255,.22);animation:v4ring 2.4s ease-out infinite}
+#s-home.v4 .sos-ring::after{animation-delay:1.2s}
+#s-home.v4 .sos-ring b{background:none!important;box-shadow:none!important;color:#fff!important;font-size:19px!important;letter-spacing:.02em;text-shadow:0 2px 10px rgba(120,0,10,.45)}
+@keyframes v4ring{0%{transform:scale(.85);opacity:.9}100%{transform:scale(1.25);opacity:0}}
+#s-home.v4 .chk-orb{border:0!important;background:radial-gradient(circle,rgba(255,255,255,.26),rgba(255,255,255,.05) 70%)!important;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.32)}
+#s-home.v4 .chk-orb::before{display:none!important}
+#s-home.v4 .chk-orb>.i{color:#fff!important;width:28px!important;height:28px!important;filter:drop-shadow(0 2px 8px rgba(30,10,120,.5))}
+#s-home.v4 .chk-dot{opacity:.75;background:#fff}
+html.lite #s-home.v4 .sos-ring::before,html.lite #s-home.v4 .sos-ring::after{animation:none;display:none}

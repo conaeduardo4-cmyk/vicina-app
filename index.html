@@ -169,7 +169,6 @@
     </button>
     <div class="h4-sec"><h2>Strumenti</h2><button class="h4-link" data-a="home-tools">Personalizza</button></div>
     <div class="tiles h4-tools" id="h-tools"></div>
-    <button class="h4-all" data-a="tab" data-tab="tools"><svg class="i"><use href="#i-grid"/></svg>Tutti gli strumenti<svg class="i chev"><use href="#i-chev"/></svg></button>
   </section>
 
   <!-- SOS attivo (mio) -->
@@ -289,9 +288,9 @@
   </section>
 
   <nav id="nav" hidden>
-    <button data-a="tab" data-tab="home"><svg class="i"><use href="#i-home"/></svg><span>Home</span></button>
+    <button data-a="tab" data-tab="home" class="sosb"><svg class="i"><use href="#i-shield"/></svg><span>Home</span></button>
     <button data-a="tab" data-tab="map"><svg class="i"><use href="#i-pin"/></svg><span>Mappa</span><b class="badge live" id="map-badge" hidden></b></button>
-    <button class="nav-sos" id="nav-sos" aria-label="SOS: tieni premuto per inviare l'allarme"><span class="nav-sos-in">SOS</span><svg class="nav-sos-ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/></svg></button>
+    <button data-a="tab" data-tab="tools" class="nav-tools"><svg class="i"><use href="#i-grid"/></svg><span>Strumenti</span></button>
     <button data-a="tab" data-tab="circle"><svg class="i"><use href="#i-people"/></svg><span>Cerchia</span><b class="badge" id="badge" hidden></b></button>
     <button data-a="tab" data-tab="me"><svg class="i"><use href="#i-user"/></svg><span>Tu</span></button>
   </nav>

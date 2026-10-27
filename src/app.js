@@ -1593,9 +1593,7 @@ export function boot(api, native) {
     const pr = G() === GG.m ? 'Pronto' : 'Pronta';
     const vers = esc((upd.cur || BUILD).version);
     $('#m-body').innerHTML = `
-      <div class="me4-banner${p.banner ? ' img' : ''}" style="${p.banner ? `background-image:url('${esc(p.banner)}')` : ''}"></div>
-      <div class="me4-id"><button class="me4-av" data-a="my-prof" aria-label="Vedi il tuo profilo">${AV(full, null, 'lg', st.uid)}</button><button class="v4-pill dark" data-a="ed-open">Modifica profilo</button></div>
-      <button class="me4-txt" data-a="my-prof"><h1>${esc(full)}</h1><p>${esc(p.bio || [p.city, st.email].filter(Boolean)[0] || '')}</p></button>
+      ${meCard(p, full)}
       <button class="me4-ready${nOk === 5 ? ' full' : ''}" data-a="ready-sheet"><div class="me4-rh"><div class="fl"><b>${pr} per un'emergenza</b><span>${nOk === 5 ? 'Hai fatto tutto: ottimo lavoro' : todo.length === 1 ? 'Manca: ' + esc(todo[0][1].toLowerCase()) : 'Mancano ' + todo.length + ' passi · tocca per completarli'}</span></div><b class="me4-n">${nOk}/5</b></div>
         <div class="me4-bars">${it.map(x => `<i class="${x[0] ? 'on' : ''}"></i>`).join('')}</div></button>
       <div class="v4-card">

@@ -32,6 +32,8 @@ export async function createMap(el, { onPick, interactive = true, center = null 
   try { ro = new ResizeObserver(() => { if (el.clientWidth && el.clientHeight) map.resize(); }); ro.observe(el); } catch { /* browser vecchio */ }
   await ready;
   map.resize();
+  // crediti della mappa chiusi (resta la piccola «i» per aprirli)
+  try { el.querySelectorAll('.maplibregl-compact-show').forEach(x => x.classList.remove('maplibregl-compact-show')); } catch {}
 
   map.addSource('tracks', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'tracks-glow', type: 'line', source: 'tracks', paint: { 'line-color': '#FF3B4E', 'line-width': 9, 'line-opacity': 0.18 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
