@@ -30,7 +30,7 @@
 <symbol id="i-out" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 8l-4 4 4 4M6 12h10"/></symbol>
 <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></symbol>
 <symbol id="i-qr" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2zM16 16h2v2h-2z"/></symbol>
-<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1z"/></symbol><symbol id="i-ai" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8.2l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1z" fill="currentColor" stroke="none"/></symbol><symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
 <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
 <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></symbol>
@@ -128,47 +128,38 @@
   </section>
 
   <!-- Home / SOS -->
-  <section class="screen tabbed" id="s-home">
-    <header class="hh home-h">
-      <div><p class="eyebrow home-eye" id="h-eye">Vicina</p><h1 class="title" id="h-name">Ciao</h1></div>
+  <section class="screen tabbed v4" id="s-home">
+    <header class="h4">
       <button class="avbtn av-ring" data-a="tab" data-tab="me" id="h-av" aria-label="Il tuo profilo"></button>
+      <div class="h4-txt"><p class="h4-date" id="h-eye">Vicina</p><h1 class="h4-name" id="h-name">Ciao</h1></div>
+      <button class="h4-ask" data-a="ai" aria-label="Apri l'assistente"><i class="ai-logo" aria-hidden="true"><svg class="i"><use href="#i-ai"/></svg></i><span>Chiedi</span></button>
+      <button class="h4-bell" data-a="tab" data-tab="circle" aria-label="Avvisi e chat"><svg class="i"><use href="#i-bell"/></svg><i class="h4-dot" id="h-bell-dot" hidden></i></button>
     </header>
-    <div class="stage sos-wrap" id="sos-wrap">
-      <button id="sos" aria-label="SOS: tieni premuto per inviare l'allarme">
-        <span class="sos-deco a"></span>
-        <span class="sos-ring"><b>SOS</b></span>
-        <span class="sos-text"><b id="sos-hint">Tieni premuto</b><span class="sos-track"><i id="prog"></i></span></span>
-        <span class="sos-n" id="sos-n"></span>
-      </button>
-    </div>
-    <div class="sosin-bar" id="sosin-bar" hidden></div>
-    <div class="map-widget" role="button" tabindex="0" data-a="tab" data-tab="map" aria-label="Apri la mappa">
-      <div id="home-map" aria-hidden="true"></div>
-      <span class="mw-empty" id="mw-empty"><svg class="i"><use href="#i-pin"/></svg><span id="mw-empty-t">Carico la mappa…</span></span>
-      <span class="mw-circle" id="mw-circle" hidden></span>
-      <span class="mw-state" id="mw-state" hidden></span>
-      <span class="mw-open"><svg class="i"><use href="#i-chev"/></svg></span>
-    </div>
-    <div class="home-duo">
-    <!-- Appello «State tutti bene?»: tieni premuto e chiedi a tutta la cerchia come sta -->
+    <div class="h4-status" id="h-status" hidden></div>
+    <div class="h4-duo">
+      <div class="stage sos-wrap" id="sos-wrap">
+        <button id="sos" aria-label="SOS: tieni premuto per inviare l'allarme">
+          <span class="sos-deco a"></span>
+          <span class="sos-ring"><b>SOS</b></span>
+          <span class="sos-text"><b id="sos-hint">Tieni premuto</b><span class="sos-sub" id="sos-sub">Posizione live e foto alla tua cerchia</span><span class="sos-track"><i id="prog"></i></span></span>
+          <span class="sos-n" id="sos-n"></span>
+        </button>
+      </div>
+      <!-- Appello «State tutti bene?»: tieni premuto e chiedi a tutta la cerchia come sta -->
       <button id="chk-btn" class="chk-btn" aria-label="Appello: tieni premuto per chiedere a tutta la cerchia se state bene">
         <span class="chk-fill"></span><span class="chk-deco"></span>
         <span class="chk-orb"><span class="chk-halo"></span><i class="chk-dot" style="--k:0"></i><i class="chk-dot" style="--k:1"></i><i class="chk-dot" style="--k:2"></i><i class="chk-dot" style="--k:3"></i><i class="chk-dot" style="--k:4"></i><i class="chk-dot" style="--k:5"></i><svg class="i"><use href="#i-people"/></svg></span>
         <span class="chk-text"><b id="chk-hint">Appello</b><span id="chk-sub">State tutti bene? · Tieni premuto</span></span>
       </button>
-      <button class="ai-card" data-a="ai" aria-label="Apri l'assistente">
-        <i class="ai-ic"><svg class="i"><use href="#i-spark"/></svg></i>
-        <span class="ai-txt"><b>Assistente</b><span>Chiedi cosa fare</span></span>
-      </button>
     </div>
+    <div class="sosin-bar" id="sosin-bar" hidden></div>
     <div class="chk-bar" id="chk-bar" hidden></div>
     <div class="walk-bar" id="walk-bar" hidden></div>
-    <div class="tiles">
-      <a class="tile white" href="tel:112"><i class="t-ic"><svg class="i"><use href="#i-phone"/></svg></i><b data-dz="Chiamata rapida">Chiama 112</b></a>
-      <button class="tile" data-a="siren"><i class="t-ic amber"><svg class="i"><use href="#i-bell"/></svg></i><b>Sirena</b></button>
-      <button class="tile" data-a="walk"><i class="t-ic violet"><svg class="i"><use href="#i-shield"/></svg></i><b>Accompagnami</b></button>
-      <button class="tile" data-a="fake"><i class="t-ic green"><svg class="i"><use href="#i-phone"/></svg></i><b>Finta chiamata</b></button>
-    </div>
+    <div class="h4-sec"><h2>La tua cerchia</h2><button class="h4-link" data-a="tab" data-tab="circle">Vedi tutti</button></div>
+    <div class="h4-people" id="h-people"></div>
+    <div class="h4-sec"><h2>Strumenti</h2><button class="h4-link" data-a="home-tools">Personalizza</button></div>
+    <div class="tiles h4-tools" id="h-tools"></div>
+    <button class="h4-all" data-a="tab" data-tab="tools"><svg class="i"><use href="#i-grid"/></svg>Tutti gli strumenti<svg class="i chev"><use href="#i-chev"/></svg></button>
   </section>
 
   <!-- SOS attivo (mio) -->
@@ -280,9 +271,9 @@
   </section>
 
   <nav id="nav" hidden>
-    <button data-a="tab" data-tab="home" class="sosb"><svg class="i"><use href="#i-shield"/></svg><span>Home</span></button>
+    <button data-a="tab" data-tab="home"><svg class="i"><use href="#i-home"/></svg><span>Home</span></button>
     <button data-a="tab" data-tab="map"><svg class="i"><use href="#i-pin"/></svg><span>Mappa</span><b class="badge live" id="map-badge" hidden></b></button>
-    <button data-a="tab" data-tab="tools" class="nav-tools"><svg class="i"><use href="#i-grid"/></svg><span>Strumenti</span></button>
+    <button class="nav-sos" id="nav-sos" aria-label="SOS: tieni premuto per inviare l'allarme"><span class="nav-sos-in">SOS</span><svg class="nav-sos-ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/></svg></button>
     <button data-a="tab" data-tab="circle"><svg class="i"><use href="#i-people"/></svg><span>Cerchia</span><b class="badge" id="badge" hidden></b></button>
     <button data-a="tab" data-tab="me"><svg class="i"><use href="#i-user"/></svg><span>Tu</span></button>
   </nav>

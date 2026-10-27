@@ -511,3 +511,9 @@ Apple non permette l'accesso senza un account sviluppatore a pagamento. Se lo ha
 
 ### Passi su Supabase per la 3.3
 Esegui **`supabase/aggiornamento-3.3.sql`** (o `ripara.sql`, che lo contiene). Sul progetto «sos» è già stato applicato.
+
+## Novità 4.0 · Interfaccia nuova
+- **Barra di navigazione fluttuante** con il tasto SOS al centro (tieni premuto 1,5 s: l'anello si riempie e parte l'SOS). La scheda attiva ha icona e scritta rosse.
+- **Home ridisegnata**: «Ciao, Nome» compatto, pulsante «Chiedi» per l'assistente (nuovo logo con scudo), campanella degli avvisi, stato della protezione, SOS e Appello come due fasce uguali, la tua cerchia e gli strumenti.
+- **Strumenti in Home**: scegli quali vedere (fino a 8) e in che ordine da *Tu → Strumenti in Home* o con «Personalizza». Tutti gli strumenti restano in «Tutti gli strumenti».
+- Font Manrope, colori più profondi. Nessun passo su Supabase.

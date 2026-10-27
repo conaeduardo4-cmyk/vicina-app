@@ -354,11 +354,50 @@ export function boot(api, native) {
     const n = recipients().size + smsOn().length;
     { const e = $('#h-eye'); if (e) { let d; try { d = new Date().toLocaleDateString(curLang(), { weekday: 'long', day: 'numeric', month: 'long' }); } catch { d = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }); } e.textContent = d.charAt(0).toUpperCase() + d.slice(1); e.setAttribute('translate', 'no'); } }
     { const b = $('#h-av'); b.innerHTML = AV(st.p.name + ' ' + st.p.surname, null, '', st.uid); b.classList.toggle('ok', !!n); b.setAttribute('aria-label', n ? `Il tuo profilo · ${G().prot}, ${n} ${n === 1 ? 'persona' : 'persone'} nella cerchia` : 'Il tuo profilo · aggiungi qualcuno alla cerchia'); }
-    { const mc = $('#mw-circle'); if (mc) { mc.hidden = !n; mc.innerHTML = n ? `<i></i>${n} ${n === 1 ? 'persona ti protegge' : 'persone ti proteggono'}` : ''; } }
+    { const hs = $('#h-status'); if (hs) { hs.hidden = false; hs.classList.toggle('warn', !n); hs.innerHTML = n ? `<i></i>${G() === GG.m ? 'Protetto' : 'Protetta'} · ${n} ${n === 1 ? 'persona ti raggiunge' : 'persone ti raggiungono'}` : `<i></i>Nessuno da avvisare · tocca + nella Cerchia`; } }
+    { const ss = $('#sos-sub'); if (ss) ss.textContent = n ? `Posizione live e foto a ${n} ${n === 1 ? 'persona' : 'persone'}` : 'Aggiungi qualcuno alla cerchia'; }
+    { const bd = $('#h-bell-dot'); if (bd) bd.hidden = !(convs().some(c => unread(c.id)) || st.sosIn.some(x => !(x.acks || {})[st.uid])); }
     $('#sos-n').textContent = ''; $('#sos-n').hidden = true;
     $('#sos-wrap').classList.toggle('off', !n);
     $('#sos-hint').textContent = n ? 'Tieni premuto' : 'Aggiungi qualcuno';
-    homeMap(); tools?.rWalk(); appello?.refresh();
+    rHomePeople(); rHomeTools();
+    tools?.rWalk(); appello?.refresh();
+  }
+  /* ---------- Home 4: la cerchia in fila e gli strumenti scelti ---------- */
+  function rHomePeople() {
+    const box = $('#h-people'); if (!box) return;
+    const ppl = [...(partner() ? [partner()] : []), ...friends()].slice(0, 4);
+    box.innerHTML = ppl.map(p => `<button class="h4-p" data-a="prof" data-uid="${esc(p.uid)}" data-id="${esc(p.id)}">${AV(p.name, null, '', p.uid)}<span translate="no">${esc(p.name.split(' ')[0])}</span></button>`).join('')
+      + `<button class="h4-p add" data-a="add"><i>${I('plus')}</i><span>Aggiungi</span></button>`;
+  }
+  const HOME_TOOLS0 = ['call112', 'siren', 'walk', 'fake'];
+  const homeToolIds = () => (Array.isArray(prefs.homeTools) && prefs.homeTools.length ? prefs.homeTools : HOME_TOOLS0).slice(0, 8);
+  const toolCatalog = () => [['call112', 'phone', 'white', 'Chiama 112', 'Emergenza'], ...(tools?.catalog?.() || []).filter(t => t[0] !== 'ai')];
+  const TILE_C = { white: '', red: 'red', amber: 'amber', violet: 'violet', green: 'green', blue: 'blue', gray: '' };
+  function rHomeTools() {
+    const box = $('#h-tools'); if (!box) return;
+    const cat = toolCatalog(), list = homeToolIds().map(id => cat.find(t => t[0] === id)).filter(Boolean);
+    box.innerHTML = list.map(([a, ic, c, t]) => a === 'call112'
+      ? `<a class="tile white" href="tel:112"><i class="t-ic">${I('phone')}</i><b data-dz="Chiamata rapida">${esc(t)}</b></a>`
+      : `<button class="tile" data-a="${esc(a)}"><i class="t-ic ${TILE_C[c] ?? ''}">${I(ic)}</i><b>${esc(t)}</b></button>`).join('');
+  }
+  function sheetHomeTools() {
+    const cat = toolCatalog(), ids = homeToolIds(), chosen = ids.map(id => cat.find(t => t[0] === id)).filter(Boolean), rest = cat.filter(t => !ids.includes(t[0]));
+    const row = ([a, ic, c, t, sub], on, i) => `<div class="row ht-row"><i class="ic-dot ${c === 'white' ? 'gray' : c}">${I(ic)}</i><div class="fl"><b>${esc(t)}</b><span>${esc(sub || '')}</span></div>
+      ${on ? `${i > 0 ? `<button class="iconbtn sm" data-a="ht-up" data-k="${esc(a)}" aria-label="Sposta su">${I('back')}</button>` : ''}<button class="pill ht-del" data-a="ht-del" data-k="${esc(a)}" aria-label="Togli ${esc(t)}">Togli</button>`
+        : `<button class="pill ok" data-a="ht-add" data-k="${esc(a)}"${ids.length >= 8 ? ' disabled' : ''}>Aggiungi</button>`}</div>`;
+    openSheet(`<h2>Strumenti in Home</h2><p class="sub">Scegli quali strumenti vedere nella Home (fino a 8) e in che ordine.</p>
+      <div class="label">In Home · ${chosen.length}</div><div class="card">${chosen.map((t, i) => row(t, true, i)).join('') || '<p class="note">Nessuno strumento: aggiungine almeno uno.</p>'}</div>
+      <div class="label">Altri strumenti</div><div class="card">${rest.map(t => row(t, false)).join('')}</div>
+      <button class="btn ghost" data-a="ht-reset">Ripristina quelli predefiniti</button>`, 'home-tools');
+  }
+  function homeToolsEdit(op, k) {
+    let ids = homeToolIds().slice();
+    if (op === 'add' && !ids.includes(k) && ids.length < 8) ids.push(k);
+    if (op === 'del') ids = ids.filter(x => x !== k);
+    if (op === 'up') { const i = ids.indexOf(k); if (i > 0) [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]]; }
+    prefs.homeTools = op === 'reset' ? HOME_TOOLS0.slice() : ids; savePrefs(); native.haptic('light');
+    rHomeTools(); sheetHomeTools();
   }
 
   /* ================= SOS: pressione prolungata ================= */
@@ -379,6 +418,29 @@ export function boot(api, native) {
   sos.addEventListener('contextmenu', e => e.preventDefault());
   sos.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && canSos()) { e.preventDefault(); trigger(); } });
 
+  // SOS al centro della barra: tieni premuto 1,5 s (il cerchio si riempie). Con un SOS già attivo apre la sua schermata.
+  {
+    const nb = $('#nav-sos');
+    if (nb) {
+      let nraf = 0, nt0 = 0, nhold = false;
+      const ring = nb.querySelector('circle'), L = 2 * Math.PI * 29;
+      if (ring) { ring.style.strokeDasharray = L; ring.style.strokeDashoffset = L; }
+      const stop = () => { nhold = false; cancelAnimationFrame(nraf); nb.classList.remove('hold'); if (ring) { ring.style.transition = 'stroke-dashoffset .25s'; ring.style.strokeDashoffset = L; } };
+      const loop = () => {
+        const p = Math.min((performance.now() - nt0) / HOLD, 1); if (ring) ring.style.strokeDashoffset = L * (1 - p);
+        if (p >= 1) { stop(); native.haptic('heavy'); trigger(); } else nraf = requestAnimationFrame(loop);
+      };
+      nb.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        if (st.sosMine) { tab('home'); return; }
+        if (sending) return;
+        if (!canSos()) { toast('Prima aggiungi qualcuno da avvisare'); return sheetAdd(); }
+        nhold = true; nb.classList.add('hold'); native.haptic('light'); if (ring) ring.style.transition = 'none'; nt0 = performance.now(); nraf = requestAnimationFrame(loop);
+      });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(v => nb.addEventListener(v, () => { if (!nhold) return; const short = performance.now() - nt0 < 350; stop(); if (short) toast('Tieni premuto SOS per 1,5 secondi'); }));
+      nb.addEventListener('contextmenu', e => e.preventDefault());
+    }
+  }
   const STEPS = [1, 2, 3, 4, 5];
   // tempo stimato: secondi tipici di ogni passaggio, aggiornati con i tempi reali di questo telefono
   const EST0 = { 1: 4, 2: 2, 3: 3.5, 4: 3.5, 5: 2 };
@@ -1463,6 +1525,7 @@ export function boot(api, native) {
       </div>
       <div class="label">Strumenti</div><div class="card">
         <button class="row" data-a="med"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Scheda medica</b><span>Gruppo sanguigno, allergie, farmaci</span></div>${I('chev', 'chev')}</button>
+        <button class="row" data-a="home-tools"><i class="ic-dot violet">${I('grid')}</i><div class="fl"><b>Strumenti in Home</b><span>${homeToolIds().length} scelti · scegli quali vedere e in che ordine</span></div>${I('chev', 'chev')}</button>
         <button class="row" data-a="tools"><i class="ic-dot blue">${I('shield')}</i><div class="fl"><b>Tutti gli strumenti</b><span>Accompagnami, sirena, finta chiamata…</span></div>${I('chev', 'chev')}</button>
       </div>
       <div class="label">Aiuto</div><div class="card">
@@ -2088,6 +2151,11 @@ export function boot(api, native) {
         case 'delgroup': if (await dialog({ title: 'Eliminare il gruppo?', text: 'Il gruppo e la sua chat verranno cancellati per tutti.', ok: 'Elimina', danger: true })) { await api.call('deleteGroup', { groupId: id }); closeSheet(); } break;
         case 'open': closeSheet(); closeIncoming(); openThread(id); break;
         case 'cf': st.cf = t.dataset.k || 'all'; rCircle(); break;
+        case 'home-tools': sheetHomeTools(); break;
+        case 'ht-add': homeToolsEdit('add', t.dataset.k); break;
+        case 'ht-del': homeToolsEdit('del', t.dataset.k); break;
+        case 'ht-up': homeToolsEdit('up', t.dataset.k); break;
+        case 'ht-reset': homeToolsEdit('reset'); break;
         case 'prof': closeSheet(); openProfile(t.dataset.uid); break;
         case 'my-prof': openProfile(st.uid); break;
         case 't-prof': { const c = convs().find(x => x.id === st.open); if (!c) break; if (c.k === 'g') sheetGroup(c.id); else openProfile(c.uid); break; }

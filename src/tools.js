@@ -847,5 +847,5 @@ export function createTools(ctx) {
   }
   const busy = () => !!ovKind;
   const h = { showOv, closeOv, play, keepAwake, buzz, countdown, startWalk, sheetWalk, siren, light, whistle, fakeRing, sheetWhere, sheetMed, med, diary, sheetDiaryNew, sheetQuick, mmss, ov, sx, get walk() { return walk; }, get ovKind() { return ovKind; } };
-  return { handle, rWalk, restore, medicalLine, prefChanged, syncPref, busy, sheetMed, h, renderScreen, count: () => allTools().reduce((a, g) => a + g[1].length, 0), setExtra: x => { extras.push(x); } };
+  return { handle, rWalk, restore, medicalLine, prefChanged, syncPref, busy, sheetMed, h, renderScreen, count: () => allTools().reduce((a, g) => a + g[1].length, 0), catalog: () => allTools().flatMap(g => g[1]), setExtra: x => { extras.push(x); } };
 }

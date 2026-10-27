@@ -1,4 +1,5 @@
 // Punto di ingresso dell'app. Se le chiavi Supabase non sono configurate parte in modalità DEMO.
+import '@fontsource-variable/manrope';
 import './style.css';
 import './style-dz.css';
 import { boot } from './app.js';
