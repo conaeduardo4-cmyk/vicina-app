@@ -538,3 +538,6 @@ Fogli degli strumenti con l'icona dello strumento in alto, scelte a pillola, cam
 - Home più in basso e più compatta; al posto della cerchia c'è «Intorno a te», l'anteprima della mappa con la tua posizione (tocca per aprire la Mappa).
 - Barra in basso: lo sfondo rosso della scheda attiva copre in modo uniforme icona e nome.
 - Android a tutto schermo: l'altezza della barra di stato viene misurata anche dalla finestra e, in ultima riserva, dalle risorse di sistema.
+
+## Novità 4.2.1 · Pagina Strumenti ridisegnata
+«In evidenza» in 6 riquadri colorati compatti; ogni gruppo è una griglia di icone (4 per riga) come le app del telefono, con nomi che vanno a capo senza tagliarsi.

@@ -696,22 +696,23 @@ export function createTools(ctx) {
   const slug = g => g.toLowerCase().normalize('NFD').replace(/[^a-z]+/g, '-');
   function renderScreen(el) {
     const T = allTools(), n = T.reduce((a, g) => a + g[1].length, 0);
-    const row = ([a, ic, c, t, sub]) => `<button class="v4-row tool" data-a="${a}" data-find="${(t + ' ' + sub).toLowerCase()}"><i class="sq ${c}">${I(ic)}</i><div class="fl"><b>${t}</b><span>${sub}</span></div>${I('chev', 'chev')}</button>`;
+    const shy = t => (globalThis.vLang || 'it') !== 'it' ? t : t.replace(/[A-Za-zÀ-ÿ]{11,}/g, w => w.slice(0, Math.ceil(w.length / 2) + 1) + '\u00AD' + w.slice(Math.ceil(w.length / 2) + 1));
+    const row = ([a, ic, c, t, sub]) => `<button class="tl4-t" data-a="${a}" data-find="${(t + ' ' + sub).toLowerCase()}"><i class="sq ${c}">${I(ic)}</i><span>${shy(t)}</span></button>`;
     el.innerHTML = `<div class="v4-top tl4-top"><button class="v4-round" data-a="tab" data-tab="home" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button><h1>Strumenti</h1><span class="tl4-n">${n}</span></div>
         <label class="v4-search"><svg class="i"><use href="#i-search"/></svg><input id="tl-find" type="search" placeholder="Cerca: casa, taxi, ferita, QR…" autocomplete="off"></label>
         <div class="v4-chips" id="tl-chips"><button class="on" data-g="">Tutti</button>${T.map(([g]) => `<button data-g="${slug(g)}">${g}</button>`).join('')}</div>
       <div class="tl-body" id="tl-body">
         <section class="tl-sec" data-sec="feat"><h2 class="v4-h2">In evidenza</h2>
-          <div class="tl4-feat">${FEATURED.map(([a, ic, c, t, sub]) => `<button class="tl4-big ${c}" data-a="${a}" data-find="${(t + ' ' + sub).toLowerCase()}"><span class="tl4-deco" aria-hidden="true"></span><i>${I(ic)}</i><b>${t}</b><span>${sub}</span></button>`).join('')}</div></section>
-        ${T.map(([g, l]) => `<section class="tl-sec" data-sec="${slug(g)}"><div class="v4-label">${g} · ${l.length}</div><div class="v4-card">${l.map(row).join('')}</div></section>`).join('')}
+          <div class="tl4-feat">${FEATURED.map(([a, ic, c, t, sub]) => `<button class="tl4-big ${c}" data-a="${a}" data-find="${(t + ' ' + sub).toLowerCase()}"><span class="tl4-deco" aria-hidden="true"></span><i>${I(ic)}</i><b>${shy(t)}</b></button>`).join('')}</div></section>
+        ${T.map(([g, l]) => `<section class="tl-sec" data-sec="${slug(g)}"><div class="tl4-sh"><h2>${g}</h2><span>${l.length}</span></div><div class="tl4-grid">${l.map(row).join('')}</div></section>`).join('')}
         <p class="v4-note" id="tl-none" hidden>Nessuno strumento trovato.</p>
         <div class="v4-card"><label class="v4-row"><i class="sq violet">${I('alert')}</i><div class="fl"><b>Scuoti per SOS</b><span>Scuoti forte il telefono: dopo 5 secondi parte l'SOS (con l'app aperta)</span></div><input type="checkbox" class="switch" data-pref="shake" ${prefs.shake ? 'checked' : ''}></label></div>
       </div>`;
     const body = el.querySelector('#tl-body'), find = el.querySelector('#tl-find');
     find.addEventListener('input', () => {
       const q = find.value.trim().toLowerCase(); let k = 0;
-      body.querySelectorAll('.tool,.tl4-big').forEach(b => { const ok = !q || ((b.dataset.find || '') + ' ' + b.textContent.toLowerCase()).includes(q); b.hidden = !ok; if (ok && b.classList.contains('tool')) k++; });
-      body.querySelectorAll('.tl-sec').forEach(sct => { sct.hidden = ![...sct.querySelectorAll('.tool,.tl4-big')].some(b => !b.hidden); });
+      body.querySelectorAll('.tl4-t,.tl4-big').forEach(b => { const ok = !q || ((b.dataset.find || '') + ' ' + b.textContent.toLowerCase()).includes(q); b.hidden = !ok; if (ok && b.classList.contains('tl4-t')) k++; });
+      body.querySelectorAll('.tl-sec').forEach(sct => { sct.hidden = ![...sct.querySelectorAll('.tl4-t,.tl4-big')].some(b => !b.hidden); });
       el.querySelector('#tl-none').hidden = k > 0 || !q;
     });
     el.querySelector('#tl-chips').addEventListener('click', e => {

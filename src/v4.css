@@ -647,3 +647,29 @@ html.dz nav#nav>button[data-tab]::before{background:linear-gradient(180deg,rgba(
 @media (max-width:374px){ nav#nav>button[data-tab]::before{width:56px!important;margin-left:-28px!important} }
 
 #s-home.v4 .h4-tools .tile b{hyphens:auto;-webkit-hyphens:auto}
+
+/* ---------- pagina Strumenti 4.2: griglia di icone come le app ---------- */
+.tl4-feat{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}
+.tl4-big{min-height:0!important;height:104px;padding:12px!important;border-radius:22px!important;justify-content:flex-end!important}
+.tl4-big i{left:12px!important;top:12px!important;width:34px!important;height:34px!important;border-radius:11px!important}
+.tl4-big i .i{width:17px!important;height:17px!important}
+.tl4-big b{font-size:13.5px!important;line-height:1.15!important;hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word}
+.tl4-deco{right:-30px!important;top:-40px!important;width:96px!important;height:96px!important;border-width:18px!important}
+.tl4-sh{display:flex;align-items:baseline;justify-content:space-between;margin:24px 4px 10px}
+.tl4-sh h2{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.tl4-sh span{font-size:12.5px;font-weight:700;color:var(--mute)}
+.tl4-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px;border-radius:24px;background:var(--s1);border:1px solid var(--line)}
+.tl4-t{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:7px;min-width:0;padding:10px 2px 8px;border-radius:16px;color:var(--ink);text-align:center;background:none}
+.tl4-t:active{background:var(--s2)}
+.tl4-t .sq{width:44px;height:44px;border-radius:15px}
+.tl4-t .sq .i{width:21px;height:21px}
+.tl4-t span{font-size:11.5px;font-weight:700;line-height:1.2;max-width:100%;hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#s-tools .v4-chips{margin-top:12px}
+#s-tools .tl-sec:first-child .v4-h2{margin-top:18px}
+@media (max-width:374px){
+  .tl4-grid{gap:4px;padding:8px}
+  .tl4-t .sq{width:40px;height:40px;border-radius:13px}
+  .tl4-t span{font-size:10.5px}
+  .tl4-big{height:96px}
+  .tl4-big b{font-size:12.5px!important}
+}
