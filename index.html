@@ -6,6 +6,10 @@
 <title>Vicina</title>
 </head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-locate" viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></symbol>
+<symbol id="i-siren" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
 <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2H9l-5 4z"/></symbol>
 <symbol id="i-sms" viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 012 2v9a2 2 0 01-2 2h-8l-5 4v-4H5a2 2 0 01-2-2V6a2 2 0 012-2z"/><path d="M8 10.5h.01M12 10.5h.01M16 10.5h.01"/></symbol>
@@ -149,7 +153,7 @@
       <button id="chk-btn" class="chk-btn" aria-label="Appello: tieni premuto per chiedere a tutta la cerchia se state bene">
         <span class="chk-fill"></span><span class="chk-deco"></span>
         <span class="chk-orb"><span class="chk-halo"></span><i class="chk-dot" style="--k:0"></i><i class="chk-dot" style="--k:1"></i><i class="chk-dot" style="--k:2"></i><i class="chk-dot" style="--k:3"></i><i class="chk-dot" style="--k:4"></i><i class="chk-dot" style="--k:5"></i><svg class="i"><use href="#i-people"/></svg></span>
-        <span class="chk-text"><b id="chk-hint">Appello</b><span id="chk-sub">State tutti bene? · Tieni premuto</span></span>
+        <span class="chk-text"><b id="chk-hint">Appello</b><span id="chk-sub">«State tutti bene?» a tutta la cerchia</span></span>
       </button>
     </div>
     <div class="sosin-bar" id="sosin-bar" hidden></div>
@@ -164,23 +168,20 @@
 
   <!-- SOS attivo (mio) -->
   <section class="screen" id="s-active">
-    <div class="sc act">
-      <section class="act-card">
-        <span class="sos-deco a"></span>
-        <div class="act-top"><span class="act-chip"><i class="dot"></i>SOS ATTIVO</span><span class="act-timer" id="a-timer">0:00</span></div>
-        <h1 class="act-title" id="a-title">Avviso inviato.</h1>
-        <p class="act-sub" id="a-since"></p>
-        <div class="act-live" id="a-live"></div>
-      </section>
-      <div class="act-list" id="a-info"></div>
+    <div class="sc act4">
+      <div class="act4-top"><span class="act4-chip"><i></i>SOS ATTIVO</span><span class="act4-timer" id="a-timer">0:00</span></div>
+      <h1 class="act4-title" id="a-title">Avviso inviato.</h1>
+      <p class="act4-sub" id="a-since"></p>
+      <div id="a-resp"></div>
       <div class="a-circle" id="a-circle" hidden></div>
+      <div class="act4-tiles"><a class="act4-tile white" href="tel:112"><svg class="i"><use href="#i-phone"/></svg>Chiama 112</a><button class="act4-tile" data-a="siren"><svg class="i"><use href="#i-siren"/></svg>Sirena</button><button class="act4-tile" data-a="voice-start" id="a-vtile"><svg class="i"><use href="#i-mic"/></svg>Vocale</button></div>
+      <div class="vcard" id="a-voice" aria-live="polite" hidden></div>
+      <div class="act4-more"><button data-a="tab" data-tab="map"><svg class="i"><use href="#i-pin"/></svg>Mappa</button><button data-a="active-chat"><svg class="i"><use href="#i-chat"/></svg>Chat</button></div>
+      <div id="a-info"></div>
+      <div class="act-live" id="a-live" hidden></div>
       <div class="cx-act" id="a-centrale"></div>
-      <div class="vcard" id="a-voice" aria-live="polite"></div>
     </div>
-    <div class="foot">
-      <button class="btn green big" data-a="safe"><svg class="i"><use href="#i-check"/></svg>Sono al sicuro</button>
-      <div class="row3"><a class="btn ghost" href="tel:112"><svg class="i"><use href="#i-phone"/></svg>112</a><button class="btn ghost" data-a="tab" data-tab="map"><svg class="i"><use href="#i-pin"/></svg>Mappa</button><button class="btn ghost" data-a="active-chat"><svg class="i"><use href="#i-chat"/></svg>Chat</button></div>
-    </div>
+    <div class="act4-foot"><button class="act4-safe" id="a-safe" aria-label="Sono al sicuro: tieni premuto per chiudere l'SOS"><span class="act4-fill" aria-hidden="true"></span><svg class="i"><use href="#i-check"/></svg>Sono al sicuro</button><p>Tieni premuto per chiudere l'SOS e avvisare tutti</p></div>
   </section>
 
   <!-- Chat (la lista delle conversazioni è nella Cerchia) -->
@@ -222,16 +223,25 @@
 
   <!-- Assistente: le tue chat -->
   <section class="screen" id="s-ailist">
-    <div class="topbar"><button class="iconbtn round" data-a="ail-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button><span class="fl"></span><button class="btn sm ai-new" data-a="ai-new"><svg class="i"><use href="#i-plus"/></svg>Nuova chat</button></div>
+    <div class="v4-top"><button class="v4-round" data-a="ail-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button><h1>Le tue chat</h1><button class="v4-pill" data-a="ai-new">Nuova</button></div>
     <div class="sc" id="ail-body"></div>
+  </section>
+
+  <!-- Strumenti in Home -->
+  <section class="screen" id="s-htools">
+    <div class="v4-top"><button class="v4-round" data-a="ht-back" aria-label="Indietro"><svg class="i"><use href="#i-back"/></svg></button><h1>Strumenti in Home</h1><button class="v4-pill" data-a="ht-back">Fatto</button></div>
+    <div class="sc" id="ht-body"></div>
   </section>
 
   <!-- Mappa: posizione live di chi chiede aiuto -->
   <section class="screen tabbed" id="s-map">
     <div class="map-wrap">
       <div id="map" aria-label="Mappa"></div>
-      <div class="map-head"><div><p class="eyebrow">Posizioni live</p><h1 class="title">Mappa</h1></div>
-        <div class="map-tools"><button class="iconbtn solid" data-a="map-all" aria-label="Mostra tutti"><svg class="i"><use href="#i-people"/></svg></button><button class="iconbtn solid" data-a="map-me" aria-label="La mia posizione"><svg class="i"><use href="#i-pin"/></svg></button><button class="iconbtn solid map-safe-btn" id="map-safe-btn" data-a="map-safe" aria-label="Luoghi sicuri sulla mappa" aria-pressed="false"><svg class="i"><use href="#i-shield"/></svg></button></div></div>
+      <div class="m4-head">
+        <div class="m4-bar"><label class="m4-search"><svg class="i"><use href="#i-search"/></svg><input id="map-q" type="search" placeholder="Farmacia, Carabinieri, ospedale…" autocomplete="off" enterkeyhint="search" aria-label="Cerca un luogo sicuro"><button class="m4-clear" data-a="map-q-clear" aria-label="Cancella" hidden><svg class="i"><use href="#i-x"/></svg></button></label>
+          <button class="m4-round" data-a="map-me" aria-label="Centra su di me"><svg class="i"><use href="#i-locate"/></svg></button></div>
+        <div class="m4-chips"><button class="on" id="map-c-all" data-a="map-all">Cerchia</button><button id="map-safe-btn" data-a="map-safe" aria-pressed="false">Luoghi sicuri</button><button data-a="home">Percorsi</button></div>
+      </div>
       <div class="map-msg" id="map-msg" hidden></div>
     </div>
     <div class="map-list" id="map-list"></div>
@@ -242,14 +252,13 @@
 
   <!-- Cerchia -->
   <section class="screen tabbed" id="s-circle">
-    <header class="hh"><div><p class="eyebrow">La tua cerchia</p><h1 class="title count" id="c-count">Cerchia</h1></div><button class="iconbtn white" data-a="add" aria-label="Aggiungi"><svg class="i"><use href="#i-plus"/></svg></button></header>
+    <header class="v4-hh"><h1 id="c-count">Cerchia</h1><button class="v4-plus" data-a="add" aria-label="Aggiungi persona"><svg class="i"><use href="#i-plus"/></svg></button></header>
     <div class="sc" id="p-list"></div>
   </section>
 
   <!-- Profilo -->
   <section class="screen tabbed" id="s-me">
-    <header class="hh"><div><p class="eyebrow">Profilo e app</p><h1 class="title">Impostazioni</h1></div></header>
-    <div class="sc" id="m-body"></div>
+    <div class="sc v4-me" id="m-body"></div>
   </section>
 
   <!-- Guida rapida interattiva -->
@@ -261,13 +270,16 @@
 
   <!-- Assistente (IA) -->
   <section class="screen" id="s-ai">
-    <div class="th"><button class="iconbtn round" data-a="ai-back" aria-label="Le tue chat"><svg class="i"><use href="#i-back"/></svg></button>
-      <span class="ai-orb md" aria-hidden="true"></span>
-      <div class="fl"><b id="ai-title">Assistente</b><span id="ai-sub">Salvata sul tuo account</span></div>
-      <button class="iconbtn round" data-a="ai-new" aria-label="Nuova chat"><svg class="i"><use href="#i-pen"/></svg></button></div>
-    <div class="ai-warn"><svg class="i"><use href="#i-alert"/></svg><span>In pericolo adesso?</span><button data-a="ai-sos">SOS</button><a href="tel:112">112</a></div>
+    <div class="ai4-top"><button class="ai4-list" data-a="ai-list"><svg class="i"><use href="#i-menu"/></svg>Le tue chat</button>
+      <div class="ai4-ttl" id="ai-ttl" hidden><b id="ai-title">Assistente</b><span id="ai-sub"></span></div>
+      <button class="ai4-new" data-a="ai-new" aria-label="Nuova chat"><svg class="i"><use href="#i-edit"/></svg></button></div>
     <div id="ai-msgs"></div>
-    <div class="cin chat-cin"><div class="cin-box"><input type="text" id="ai-txt" placeholder="Chiedi all'assistente…" maxlength="1500" enterkeyhint="send"></div><button class="sendb ai" data-a="ai-send" aria-label="Invia"><svg class="i"><use href="#i-send"/></svg></button></div>
+    <div class="ai4-foot">
+      <div class="ai4-in"><input type="text" id="ai-txt" placeholder="Chiedi qualcosa…" maxlength="1500" enterkeyhint="send" aria-label="Chiedi all'assistente">
+        <button class="ai4-mic" data-a="ai-mic" id="ai-mic" aria-label="Detta a voce" hidden><svg class="i"><use href="#i-mic"/></svg></button>
+        <button class="ai4-send" data-a="ai-send" aria-label="Invia"><svg class="i"><use href="#i-send"/></svg></button></div>
+      <p class="ai4-note">In pericolo adesso? <button data-a="ai-sos">Tieni premuto SOS</button> o <a href="tel:112">chiama il 112</a></p>
+    </div>
   </section>
 
   <nav id="nav" hidden>

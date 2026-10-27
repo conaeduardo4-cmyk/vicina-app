@@ -2,6 +2,7 @@
 import '@fontsource-variable/manrope';
 import './style.css';
 import './style-dz.css';
+import './v4.css';
 import { boot } from './app.js';
 import { native } from './native.js';
 import { init as i18nInit, t, locale } from './i18n.js';

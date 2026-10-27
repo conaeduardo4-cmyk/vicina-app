@@ -68,6 +68,11 @@ if (fs.existsSync(man)) {
       m = m.replace(/super\.onCreate\(savedInstanceState\);/, 'super.onCreate(savedInstanceState);\n        try { getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false); } catch (Exception ignored) { }');
       fs.writeFileSync(mainAct, m);
     }
+    // testo sempre al 100%: la dimensione carattere di sistema non deve ingrandire e tagliare l'interfaccia
+    if (!m.includes('setTextZoom') && /super\.onCreate\(savedInstanceState\);/.test(m)) {
+      m = m.replace(/super\.onCreate\(savedInstanceState\);/, 'super.onCreate(savedInstanceState);\n        try { getBridge().getWebView().getSettings().setTextZoom(100); } catch (Exception ignored) { }');
+      fs.writeFileSync(mainAct, m);
+    }
     log(m.includes('VicinaNativePlugin') ? 'integrazioni Vicina (plugin VicinaNative + widget)' : 'ATTENZIONE: plugin VicinaNative non registrato');
   }
   // risorse: icona celeste (modalità anonima) e widget

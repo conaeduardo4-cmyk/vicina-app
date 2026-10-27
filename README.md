@@ -517,3 +517,13 @@ Esegui **`supabase/aggiornamento-3.3.sql`** (o `ripara.sql`, che lo contiene). S
 - **Home ridisegnata**: «Ciao, Nome» compatto, pulsante «Chiedi» per l'assistente (nuovo logo con scudo), campanella degli avvisi, stato della protezione, SOS e Appello come due fasce uguali, la tua cerchia e gli strumenti.
 - **Strumenti in Home**: scegli quali vedere (fino a 8) e in che ordine da *Tu → Strumenti in Home* o con «Personalizza». Tutti gli strumenti restano in «Tutti gli strumenti».
 - Font Manrope, colori più profondi. Nessun passo su Supabase.
+
+## Novità 4.1 · Interfaccia identica ai render
+- Nuovo design system (`src/v4.css`): stessi colori, font Manrope, raggi e misure dei render, adattato agli schermi da 320 a 430 px. Su Android il testo resta al 100% anche con la dimensione carattere di sistema aumentata.
+- Barra in basso con il tasto SOS al centro della barra.
+- **Mappa**: ricerca dei luoghi sicuri («farmacia», «carabinieri», «ospedale»…), filtri Cerchia / Luoghi sicuri / Percorsi, scheda in basso con Percorso, Chiama e Chat, segnaposti con avatar.
+- **SOS attivo**: chi sta arrivando, la tua cerchia con il pulsante Percorso, Chiama 112 / Sirena / Vocale, «Sono al sicuro» da tenere premuto.
+- **Cerchia**: ricerca, schede Chat / Persone / Gruppi, partner in evidenza.
+- **Tu**: copertina, «Pronta per un'emergenza», impostazioni raggruppate.
+- **Assistente**: «Bentornata, Nome» con suggerimenti e barra di scrittura nuova; «Le tue chat» in alto.
+- **Strumenti** e **Strumenti in Home** ridisegnati (ordine con trascinamento).

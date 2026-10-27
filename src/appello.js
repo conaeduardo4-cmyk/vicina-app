@@ -58,7 +58,7 @@ export function createAppello(ctx) {
       btn.classList.toggle('alarm', !!s.help);
     } else {
       hint.textContent = 'Appello';
-      sub.textContent = ctx.canCheck() ? 'State tutti bene? · Tieni premuto' : 'Aggiungi qualcuno alla cerchia';
+      sub.textContent = ctx.canCheck() ? '«State tutti bene?» a tutta la cerchia' : 'Aggiungi qualcuno alla cerchia';
       btn.style.removeProperty('--done'); btn.classList.remove('alarm');
     }
   }

@@ -111,7 +111,7 @@ export async function createMap(el, { onPick, interactive = true, center = null 
         m = new maplibregl.Marker({ element: e, anchor: 'bottom' }).setLngLat([p.lng, p.lat]).addTo(map);
         markers.set(p.id, m);
       }
-      m.getElement().innerHTML = `<span class="pin-ring"></span><span class="pin-head">${esc(p.ini)}${p.img ? `<img src="${esc(p.img)}" alt="" onerror="this.remove()">` : ''}</span><span class="pin-tail"></span>${p.label ? `<span class="pin-label">${esc(p.label)}</span>` : ''}`;
+      m.getElement().innerHTML = `<span class="pin-ring"></span><span class="pin-head"${p.bg ? ` style="background:${esc(p.bg)};color:${esc(p.ink || '#111')}"` : ''}>${esc(p.ini)}${p.img ? `<img src="${esc(p.img)}" alt="" onerror="this.remove()">` : ''}</span><span class="pin-tail"></span>${p.label ? `<span class="pin-label">${esc(p.label)}</span>` : ''}`;
       m.getElement().classList.toggle('stale', !!p.stale);
       m.getElement().classList.remove('ok', 'help'); if (p.cls) m.getElement().classList.add(p.cls);   // appello: verde «sta bene», rosso «chiede aiuto»
       m.setLngLat([p.lng, p.lat]);

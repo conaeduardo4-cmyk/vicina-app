@@ -9,7 +9,7 @@ import { createLock } from './lock.js';
 import { createAppello } from './appello.js';
 import { createCentrale } from './centrale.js';
 import { createInterprete } from './interprete.js';
-import { LANGS, setLang, current as curLang } from './i18n.js';
+import { LANGS, setLang, current as curLang, locale } from './i18n.js';
 import { createDisguise } from './disguise.js';
 import { qrSvg, openScanner, inviteLink, parseInvite } from './qr.js';
 export function boot(api, native) {
@@ -17,14 +17,15 @@ export function boot(api, native) {
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   const I = (n, c = '') => `<svg class="i ${c}"><use href="#i-${n}"/></svg>`;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const COL = ['#FF7A59', '#9C8CFF', '#4DA3FF', '#2FD27A', '#FF5C8A', '#FFB547', '#3DD6D0'];
+  const COL = ['#F4A261', '#9C8CFF', '#60A5FA', '#34D399', '#F472B6', '#FFB547', '#5EEAD4'];
+  const INK = { '#F4A261': '#3A1E05', '#9C8CFF': '#1E1450', '#60A5FA': '#0B2440', '#34D399': '#052E1F', '#F472B6': '#3B0A24', '#FFB547': '#3A2400', '#5EEAD4': '#053330' };
   const col = n => COL[[...String(n)].reduce((a, c) => a + c.charCodeAt(0), 0) % COL.length];
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   // avatar: la foto profilo se c'è (visibile a tutta la cerchia), altrimenti le iniziali. Se la foto non si carica restano le iniziali.
   const avUrl = uid => (uid && (st.av[uid] || (uid === st.uid ? st.p?.avatar : ''))) || '';
   const AV = (n, k, cls = '', uid = null) => k === 'g'
     ? `<div class="av ${cls}" style="background:linear-gradient(145deg,#9C8CFF,#5B4BD6)">${I('group')}</div>`
-    : `<div class="av ${cls}${avUrl(uid) ? ' ph' : ''}" style="background:${col(n)}">${esc(initials(n))}${avUrl(uid) ? `<img src="${esc(avUrl(uid))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
+    : `<div class="av ${cls}${avUrl(uid) ? ' ph' : ''}" style="background:${col(n)};color:${INK[col(n)]}">${esc(initials(n))}${avUrl(uid) ? `<img src="${esc(avUrl(uid))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
   const wait = ms => new Promise(r => setTimeout(r, ms));
   let tools = null, extra = null, lock = null, lockAfter = null, appello = null, centrale = null;   // strumenti (tools.js, tools-extra.js), creati più sotto
   const dz = createDisguise({ native, api });
@@ -218,7 +219,7 @@ export function boot(api, native) {
     const prev = curScreen; curScreen = id;
     if (prev === 's-thread' && id !== 's-thread') closeLive();
     $$('.screen').forEach(s => s.classList.toggle('on', s.id === id));
-    $('#nav').hidden = !$('#' + id).classList.contains('tabbed') && id !== 's-active';
+    $('#nav').hidden = !$('#' + id).classList.contains('tabbed');
     $$('#nav button').forEach(b => b.classList.toggle('on', TABS[b.dataset.tab] === id || (id === 's-active' && b.dataset.tab === 'home')));
     navPill();
     if (reduceMotion || prev === id) return;
@@ -248,7 +249,7 @@ export function boot(api, native) {
     show(TABS[t], how); render();
     if (t === 'tools') { const r = $('#tl-root'); if (!r.dataset.n || Number(r.dataset.n) !== tools.count()) r.dataset.n = tools.renderScreen(r); tools.syncPref('shake'); }
     if (t === 'map') openMapTab(); else closeMapTab();
-    if (t === 'home') setTimeout(() => homeApi?.resize(), 80);
+    if (t === 'home') setTimeout(() => { homeApi?.resize(); fitLabels($('#h-tools')); }, 80);
   }
   const render = () => { rHome(); rChats(); rCircle(); rMe(); rBadge(); if (st.sosMine) rActive(); };
 
@@ -374,30 +375,71 @@ export function boot(api, native) {
   const homeToolIds = () => (Array.isArray(prefs.homeTools) && prefs.homeTools.length ? prefs.homeTools : HOME_TOOLS0).slice(0, 8);
   const toolCatalog = () => [['call112', 'phone', 'white', 'Chiama 112', 'Emergenza'], ...(tools?.catalog?.() || []).filter(t => t[0] !== 'ai')];
   const TILE_C = { white: '', red: 'red', amber: 'amber', violet: 'violet', green: 'green', blue: 'blue', gray: '' };
+  // etichette lunghe (es. «Accompagnami»): rimpicciolisce il testo finché la parola entra intera
+  function fitLabels(root) {
+    if (!root || !root.offsetParent) return;
+    root.querySelectorAll('.tile b,.ht-tile span').forEach(b => {
+      b.style.fontSize = ''; let f = parseFloat(getComputedStyle(b).fontSize) || 12;
+      while (b.scrollWidth > b.clientWidth + 1 && f > 9) { f -= 0.5; b.style.fontSize = f + 'px'; }
+    });
+  }
+  addEventListener('resize', () => { fitLabels($('#h-tools')); fitLabels($('#ht-grid')); });
   function rHomeTools() {
     const box = $('#h-tools'); if (!box) return;
     const cat = toolCatalog(), list = homeToolIds().map(id => cat.find(t => t[0] === id)).filter(Boolean);
     box.innerHTML = list.map(([a, ic, c, t]) => a === 'call112'
       ? `<a class="tile white" href="tel:112"><i class="t-ic">${I('phone')}</i><b data-dz="Chiamata rapida">${esc(t)}</b></a>`
       : `<button class="tile" data-a="${esc(a)}"><i class="t-ic ${TILE_C[c] ?? ''}">${I(ic)}</i><b>${esc(t)}</b></button>`).join('');
+    requestAnimationFrame(() => fitLabels(box));
   }
+  let htFrom = 's-home';
   function sheetHomeTools() {
-    const cat = toolCatalog(), ids = homeToolIds(), chosen = ids.map(id => cat.find(t => t[0] === id)).filter(Boolean), rest = cat.filter(t => !ids.includes(t[0]));
-    const row = ([a, ic, c, t, sub], on, i) => `<div class="row ht-row"><i class="ic-dot ${c === 'white' ? 'gray' : c}">${I(ic)}</i><div class="fl"><b>${esc(t)}</b><span>${esc(sub || '')}</span></div>
-      ${on ? `${i > 0 ? `<button class="iconbtn sm" data-a="ht-up" data-k="${esc(a)}" aria-label="Sposta su">${I('back')}</button>` : ''}<button class="pill ht-del" data-a="ht-del" data-k="${esc(a)}" aria-label="Togli ${esc(t)}">Togli</button>`
-        : `<button class="pill ok" data-a="ht-add" data-k="${esc(a)}"${ids.length >= 8 ? ' disabled' : ''}>Aggiungi</button>`}</div>`;
-    openSheet(`<h2>Strumenti in Home</h2><p class="sub">Scegli quali strumenti vedere nella Home (fino a 8) e in che ordine.</p>
-      <div class="label">In Home · ${chosen.length}</div><div class="card">${chosen.map((t, i) => row(t, true, i)).join('') || '<p class="note">Nessuno strumento: aggiungine almeno uno.</p>'}</div>
-      <div class="label">Altri strumenti</div><div class="card">${rest.map(t => row(t, false)).join('')}</div>
-      <button class="btn ghost" data-a="ht-reset">Ripristina quelli predefiniti</button>`, 'home-tools');
+    closeSheet();
+    if (curScreen !== 's-htools') { htFrom = curScreen; show('s-htools', 'in-push'); }
+    rHT();
   }
+  function rHT() {
+    const box = $('#ht-body'); if (!box) return;
+    const cat = toolCatalog(), ids = homeToolIds(), chosen = ids.map(id => cat.find(t => t[0] === id)).filter(Boolean), rest = cat.filter(t => !ids.includes(t[0]));
+    box.innerHTML = `<p class="ht-p">Scegli fino a 8 strumenti da avere a portata di mano. Tieni premuto e trascina per cambiare l'ordine.</p>
+      <div class="ht-grid" id="ht-grid">${chosen.map(([a, ic, c, t]) => `<div class="ht-tile" data-k="${esc(a)}"><i class="sq ${c}">${I(ic)}</i><span>${esc(t)}</span><button class="ht-x" data-a="ht-del" data-k="${esc(a)}" aria-label="Togli ${esc(t)}">${I('x')}</button></div>`).join('') || '<p class="v4-note">Nessuno strumento: aggiungine almeno uno.</p>'}</div>
+      <div class="v4-label">Altri strumenti</div>
+      <div class="v4-card">${rest.map(([a, ic, c, t]) => `<div class="v4-row"><i class="sq ${c}">${I(ic)}</i><div class="fl"><b>${esc(t)}</b></div><button class="ht-add" data-a="ht-add" data-k="${esc(a)}" aria-label="Aggiungi ${esc(t)}"${ids.length >= 8 ? ' disabled' : ''}>${I('plus')}</button></div>`).join('')}</div>
+      <button class="v4-btn ghost" data-a="ht-reset">Ripristina quelli predefiniti</button>`;
+    htDrag($('#ht-grid')); requestAnimationFrame(() => fitLabels($('#ht-grid')));
+  }
+  // tieni premuto e trascina per riordinare
+  function htDrag(grid) {
+    if (!grid) return;
+    let d = null, tm = 0, p0 = null;
+    const end = () => {
+      clearTimeout(tm); tm = 0; p0 = null; if (!d) return;
+      const t = d.t; d = null; t.classList.remove('drag'); t.style.transform = '';
+      prefs.homeTools = [...grid.querySelectorAll('.ht-tile')].map(x => x.dataset.k); savePrefs(); rHomeTools(); native.haptic('light');
+    };
+    grid.addEventListener('pointerdown', e => {
+      const t = e.target.closest('.ht-tile'); if (!t || e.target.closest('.ht-x')) return;
+      p0 = [e.clientX, e.clientY];
+      tm = setTimeout(() => { const r = t.getBoundingClientRect(); d = { t, ox: p0[0] - r.left, oy: p0[1] - r.top }; t.classList.add('drag'); try { t.setPointerCapture(e.pointerId); } catch {} native.haptic('light'); }, 230);
+    });
+    grid.addEventListener('pointermove', e => {
+      if (!d) { if (p0 && Math.hypot(e.clientX - p0[0], e.clientY - p0[1]) > 8) { clearTimeout(tm); p0 = null; } return; }
+      e.preventDefault();
+      const t = d.t; t.style.visibility = 'hidden'; const under = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ht-tile'); t.style.visibility = '';
+      if (under && under !== t && under.parentNode === grid) { const all = [...grid.children]; grid.insertBefore(t, all.indexOf(t) < all.indexOf(under) ? under.nextSibling : under); }
+      t.style.transform = 'none'; const r = t.getBoundingClientRect();
+      t.style.transform = `translate(${e.clientX - d.ox - r.left}px,${e.clientY - d.oy - r.top}px) scale(1.08)`;
+    });
+    ['pointerup', 'pointercancel'].forEach(v => grid.addEventListener(v, end));
+    grid.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  const htBack = () => { const k = TABS_BY_SCREEN[htFrom]; if (k) tab(k, 'in-pop'); else show(htFrom || 's-home', 'in-pop'); };
   function homeToolsEdit(op, k) {
     let ids = homeToolIds().slice();
     if (op === 'add' && !ids.includes(k) && ids.length < 8) ids.push(k);
     if (op === 'del') ids = ids.filter(x => x !== k);
-    if (op === 'up') { const i = ids.indexOf(k); if (i > 0) [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]]; }
     prefs.homeTools = op === 'reset' ? HOME_TOOLS0.slice() : ids; savePrefs(); native.haptic('light');
-    rHomeTools(); sheetHomeTools();
+    rHomeTools(); rHT();
   }
 
   /* ================= SOS: pressione prolungata ================= */
@@ -579,29 +621,28 @@ export function boot(api, native) {
   /* ================= SOS attivo (mio) ================= */
   let activeTimer;
   const mmss = ms => { const t = Math.max(0, Math.round(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+  const mm2 = ms => mmss(ms).padStart(5, '0');
+  const uidName = uid => { const l = st.links.find(x => x.other === uid); if (l) return l.otherName; for (const g of st.groups) { const m = (g.members || []).find(x => x.uid === uid); if (m) return m.name; } return ''; };
   function rActive() {
     const s = st.sosMine; if (!s) return;
-    const n = s.recipients.length, acks = Object.values(s.acks || {});
+    const n = s.recipients.length + smsOn().length, ackNames = Object.entries(s.acks || {});
     const liveOn = live.sosId === s.id && live.until > Date.now();
-    $('#a-title').innerHTML = `Avvisat${n === 1 ? (G() === GG.m ? 'o' : 'a') : 'e'}<br>${n} ${n === 1 ? 'persona' : 'persone'}.`;
-    $('#a-since').textContent = `Inviato alle ${hhmm(s.at)}${s.lat != null ? ' con la tua posizione' : ''}${s.photos.length ? ' e ' + s.photos.length + (s.photos.length === 1 ? ' foto' : ' foto') : ''}.`;
-    $('#a-timer').textContent = mmss(Date.now() - s.at);
-    $('#a-live').innerHTML = liveOn
-      ? `${I('live')}<div><b id="a-live-left">Posizione live · ${liveAge(s)}</b><span>Resta attiva finché non tocchi «Sono al sicuro»</span></div>`
-      : `${I('pin')}<div><b>${s.lat != null ? 'Posizione inviata' : 'Posizione non disponibile'}</b><span>${s.lat != null ? 'Attivo la posizione live…' : 'Controlla che il GPS sia acceso'}</span></div>`;
-    const ackNames = Object.entries(s.acks || {});
-    const others = Math.max(0, n - ackNames.length);
-    $('#a-info').innerHTML = (ackNames.length ? ackNames.map(([auid, nm]) => `<div class="row">${AV(nm, null, '', auid)}<div class="fl"><b>${esc(nm)}</b><span>Se ne sta occupando</span></div><span class="tag green">Ho visto, arrivo</span></div>`).join('') : '')
-      + (others ? `<div class="row"><div class="av more">+${others}</div><div class="fl"><b>${ackNames.length ? 'Gli altri' : 'La tua cerchia'}</b><span>Avvisati · in attesa di risposta</span></div></div>` : '')
-      + (smsOn().length ? `<div class="row sms-act"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>${smsOn().length} ${smsOn().length === 1 ? 'contatto' : 'contatti'} via SMS</b><span>Senza app · posizione e link alle foto</span></div></div>
-        <div class="row2 sms-btns"><button class="btn ghost sm" data-a="sms-resend">${I('sms')}Rimanda SMS</button>${lastSms.imgs.length ? `<button class="btn ghost sm" data-a="sms-photos">${I('camera')}Invia le foto</button>` : ''}</div>` : '');
+    $('#a-title').innerHTML = ackNames.length ? `${ackNames.length === 1 ? 'Aiuto in arrivo.' : 'Stanno arrivando.'}<br>Resta dove sei.` : 'Avviso inviato.<br>Resta al sicuro.';
+    const sub = () => [`${n} ${n === 1 ? (G() === GG.m ? 'persona avvisata' : 'persona avvisata') : 'persone avvisate'}`, ackNames.length ? `${ackNames.length} ${ackNames.length === 1 ? 'ha visto' : 'hanno visto'}` : '',
+      liveOn ? 'posizione live attiva' : s.lat != null ? 'posizione inviata' : 'GPS in attesa'].filter(Boolean).join(' · ');
+    $('#a-since').textContent = sub();
+    $('#a-timer').textContent = mm2(Date.now() - s.at);
+    const me = s.lat != null ? s : st.myPos, pos = uid => (st.circlePos || []).find(f => f.uid === uid);
+    $('#a-resp').innerHTML = ackNames.map(([auid, nm]) => { const f = pos(auid), first = esc(String(nm).split(' ')[0]);
+      return `<div class="act4-resp">${AV(nm, null, '', auid)}<div class="fl"><b>${first} sta arrivando</b><span>${f && me ? 'a ' + dist(km(me, f)) + ' · ' : ''}ha visto il tuo SOS</span></div><span class="act4-tag">In arrivo</span></div>`; }).join('');
+    $('#a-live').innerHTML = '';
+    $('#a-info').innerHTML = smsOn().length ? `<div class="v4-card"><div class="v4-row"><i class="sq green">${I('sms')}</i><div class="fl"><b>${smsOn().length} ${smsOn().length === 1 ? 'contatto' : 'contatti'} via SMS</b><span>Senza app · posizione e link alle foto</span></div></div>
+        <div class="act4-smsb"><button class="v4-btn ghost sm" data-a="sms-resend">${I('sms')}Rimanda SMS</button>${lastSms.imgs.length ? `<button class="v4-btn ghost sm" data-a="sms-photos">${I('camera')}Invia le foto</button>` : ''}</div></div>` : '';
     rCirclePos();
     rVoice(s); centrale?.renderActive();
     clearInterval(activeTimer); activeTimer = setInterval(() => {
       if (!st.sosMine) return clearInterval(activeTimer);
-      const l = $('#a-live-left'); if (l) l.textContent = 'Posizione live · ' + liveAge(st.sosMine);
-      const tm = $('#a-timer'); if (tm) tm.textContent = mmss(Date.now() - st.sosMine.at);
-      $('#a-since').textContent = `Inviato ${ago(st.sosMine.at)} a ${st.sosMine.recipients.length} ${st.sosMine.recipients.length === 1 ? 'persona' : 'persone'}`;
+      const tm = $('#a-timer'); if (tm) tm.textContent = mm2(Date.now() - st.sosMine.at);
     }, 1000);
   }
   /* ---------- 3.3: durante il mio SOS, dove sono le persone della cerchia ---------- */
@@ -617,13 +658,32 @@ export function boot(api, native) {
   }
   function rCirclePos() {
     const box = $('#a-circle'); if (!box) return;
-    const list = (st.circlePos || []).slice(), me = st.sosMine?.lat != null ? st.sosMine : st.myPos;
+    const s = st.sosMine, list = (st.circlePos || []).slice(), me = s?.lat != null ? s : st.myPos;
     if (me) list.sort((a, b) => km(me, a) - km(me, b));
-    box.hidden = !st.sosMine;
-    box.innerHTML = `<div class="label">La tua cerchia adesso</div><div class="card">${list.length ? list.map(f => `<div class="row cp-row">${AV(f.name, null, '', f.uid)}<div class="fl"><b>${esc(f.name)}</b><span>${me ? 'A ' + dist(km(me, f)) + ' · ' : ''}${ageTxt(f.at)}</span></div>
-        <button class="pill ic" data-a="cp-map" data-id="f-${esc(f.uid)}" aria-label="Vedi sulla mappa">${I('pin')}</button><button class="pill ok" data-a="map-nav" data-id="f-${esc(f.uid)}">${I('send')}Percorso</button></div>`).join('')
-      : `<div class="row"><i class="ic-dot blue">${I('pin')}</i><div class="fl wrap"><b>In attesa delle posizioni</b><span>Appena chi riceve il tuo SOS apre Vicina, qui vedi dov'è e puoi impostare il percorso per raggiungerlo.</span></div></div>`}</div>`;
+    box.hidden = !s;
+    if (!s) return;
+    const acked = s.acks || {};
+    const waiting = (s.recipients || []).filter(u => !list.some(f => f.uid === u) && !acked[u]).map(u => ({ uid: u, name: uidName(u) })).filter(x => x.name);
+    const rows = list.map(f => `<div class="v4-row">${AV(f.name, null, '', f.uid)}<div class="fl"><b>${esc(f.name)}</b><span>${me ? 'a ' + dist(km(me, f)) + ' · ' : ''}${ageTxt(f.at)}</span></div>
+        <button class="act4-go" data-a="map-nav" data-id="f-${esc(f.uid)}">${I('locate')}Percorso</button></div>`)
+      .concat(waiting.slice(0, 6).map(x => `<div class="v4-row">${AV(x.name, null, '', x.uid)}<div class="fl"><b>${esc(x.name)}</b><span>in attesa che apra Vicina</span></div></div>`));
+    box.innerHTML = rows.length ? `<h2 class="v4-h2">La tua cerchia adesso</h2><div class="v4-card">${rows.join('')}</div>` : '';
   }
+  // «Sono al sicuro»: tieni premuto 1 secondo (un tocco breve chiede conferma)
+  (() => {
+    const b = $('#a-safe'); if (!b) return;
+    let t0 = 0, raf = 0, done = false;
+    const fill = b.querySelector('.act4-fill');
+    const stop = () => { cancelAnimationFrame(raf); raf = 0; b.classList.remove('hold'); fill.style.transform = 'scaleX(0)'; };
+    b.addEventListener('pointerdown', e => {
+      if (!st.sosMine) return; e.preventDefault(); done = false; t0 = performance.now(); b.classList.add('hold'); native.haptic('light');
+      const step = () => { const k = Math.min(1, (performance.now() - t0) / 1000); fill.style.transform = `scaleX(${k})`;
+        if (k >= 1) { done = true; stop(); native.haptic('medium'); markSafe(b, true); return; } raf = requestAnimationFrame(step); };
+      raf = requestAnimationFrame(step);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(v => b.addEventListener(v, () => { if (!raf) return; const short = performance.now() - t0 < 300; stop(); if (short && !done && v === 'pointerup') markSafe(b); }));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  })();
   // chi RICEVE un SOS attivo manda la sua posizione (solo con l'app aperta e se l'opzione è attiva)
   let shareBusy = false, shareKey = '';
   async function shareMyPosForSos() {
@@ -637,8 +697,8 @@ export function boot(api, native) {
     } finally { shareBusy = false; }
   }
   setInterval(shareMyPosForSos, 20000);
-  async function markSafe(btn) {
-    if (!(await dialog({ title: 'Sei al sicuro?', text: 'Avviseremo la tua cerchia che stai bene e chiuderemo l\'SOS.', ok: 'Sì, sto bene', cancel: 'Non ancora' }))) return;
+  async function markSafe(btn, held) {
+    if (!held && !(await dialog({ title: 'Sei al sicuro?', text: 'Avviseremo la tua cerchia che stai bene e chiuderemo l\'SOS.', ok: 'Sì, sto bene', cancel: 'Non ancora' }))) return;
     await busy(btn, async () => {
       try { await api.call('resolveSos', { sosId: st.sosMine.id }); if (voice.rec) { try { voice.rec.cancel(); } catch {} voice.rec = null; clearInterval(voice.timer); } stopLive(false); st.sosMine = null; watchCirclePos(); native.haptic('medium'); toast('Bene così. Abbiamo avvisato tutti.'); tab('home', 'in-f'); }
       catch (e) { toast(errMsg(e)); }
@@ -686,9 +746,10 @@ export function boot(api, native) {
   function rVoice(s = st.sosMine) {
     const v = $('#a-voice'); if (!v || !s) return;
     const sent = s.audio || voice.sentFor === s.id;
-    v.hidden = !prefs.voice && !sent;
-    if (v.hidden) return;
     const state = sent ? 'sent' : voice.up ? 'up' : voice.rec ? 'rec' : 'idle';
+    v.hidden = state === 'idle';
+    const vt = $('#a-vtile'); if (vt) vt.classList.toggle('on', state === 'rec');
+    if (v.hidden) { v.dataset.state = 'idle'; return; }
     if (v.dataset.state === state && state !== 'sent') return;
     if (state === 'sent' && v.dataset.state === 'sent' && v.dataset.p === (s.audio || '')) return;
     v.dataset.state = state; v.dataset.p = s.audio || '';
@@ -844,6 +905,8 @@ export function boot(api, native) {
     // 3.3: durante il MIO SOS vedo dove sono le persone della cerchia (solo finché l'SOS è attivo)
     if (m) for (const f of st.circlePos || []) out.push({ id: 'f-' + f.uid, uid: f.uid, name: f.name, ini: initials(f.name), lat: f.lat, lng: f.lng, acc: f.acc, track: [], locAt: f.at, at: f.at, live: true, friend: true, cls: 'friend', stale: Date.now() - f.at > 3 * 60e3, label: f.name.split(' ')[0], img: avUrl(f.uid) });
     if (m && m.lat != null) out.push({ id: m.id, name: 'Tu', ini: 'TU', lat: m.lat, lng: m.lng, acc: m.acc, track: m.track || [], audio: m.audio, locAt: m.locAt || m.at, at: m.at, live: true, mine: true, label: 'Il tuo SOS', img: avUrl(st.uid) });
+    out.forEach(p => { if (p.friend) { p.bg = col(p.name); p.ink = INK[p.bg]; } });
+    if (st.myPos) out.forEach(p => { if (!p.mine && p.label && p.lat != null) p.label += ' · ' + dist(km(st.myPos, p)); });
     return out;
   }
   async function refreshMyPos(force) {
@@ -881,11 +944,22 @@ export function boot(api, native) {
       if (fly) { if (me) mapApi.zoomTo(me.lat, me.lng, 14.6); toast('Cerco i luoghi sicuri intorno…'); }
       const items = await extra.safeForMap(at);
       if (!safeOn()) return;
-      mapApi.setSafe(items.map(x => ({ ...x, dist: me ? dist(km(me, x)) : '' })));
+      const q = ($('#map-q')?.value || '').trim().toLowerCase();
+      const all = items.map(x => ({ ...x, dist: me ? dist(km(me, x)) : '' })), hit = q ? all.filter(x => mapMatch(x, q)) : all;
+      mapApi.setSafe(hit);
+      if (q) { if (hit.length) { const n = me ? hit.slice().sort((a, b) => km(me, a) - km(me, b))[0] : hit[0]; mapApi.zoomTo(n.lat, n.lng, 15.5); toast(`${hit.length} ${hit.length === 1 ? 'risultato' : 'risultati'} per «${q}»`); } else toast(`Niente per «${q}» entro 3 km`); return; }
       if (fly) toast(items.length ? `${items.length} luoghi sicuri entro 3 km: tocca un'icona per le indicazioni` : 'Nessun luogo sicuro trovato entro 3 km');
     } catch (e) { console.warn('luoghi sulla mappa', e); toast(extra.safeErr(e) + ' Riprova tra poco.'); }
     finally { safeBusy = false; }
   }
+  const MAP_KW = { police: ['polizia', 'carabinieri', 'questura', 'police', 'commissariato'], hospital: ['ospedale', 'pronto soccorso', 'hospital', 'emergenza'], pharmacy: ['farmacia', 'pharmacy', 'farmaci'], defib: ['defibrillatore', 'dae', 'aed'], open: ['aperto', '24'] };
+  const mapMatch = (x, q) => (x.name || '').toLowerCase().includes(q) || (MAP_KW[x.cat] || []).some(k => k.startsWith(q) || q.startsWith(k));
+  setTimeout(() => {
+    const q = $('#map-q'); if (!q) return;
+    let tm = 0;
+    q.addEventListener('input', () => { $('.m4-clear').hidden = !q.value; clearTimeout(tm); tm = setTimeout(() => { if (q.value.trim().length >= 3 || !q.value) { if (q.value && !safeOn()) { prefs.mapSafe = true; savePrefs(); } mapSafe(false); } }, 500); });
+    q.addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(tm); if (!safeOn()) { prefs.mapSafe = true; savePrefs(); } mapSafe(false); q.blur(); } });
+  });
   // mini mappa nella Home (widget): stessa mappa, ferma, solo da guardare
   let homeApi = null, homeLoading = false, homeFailAt = 0;
   const savedPos = () => { try { const p = JSON.parse(ls.get('lastPos') || 'null'); return p && isFinite(p.lat) && isFinite(p.lng) ? p : null; } catch { return null; } };
@@ -926,29 +1000,27 @@ export function boot(api, native) {
     const navName = native.platform === 'ios' ? 'Apple Mappe' : 'Google Maps';
     if (!people.length) {
       el.dataset.k = '';
-      el.innerHTML = `<div class="map-empty">${I('shield')}<div><b>Nessun SOS in corso</b><span>Quando qualcuno della tua cerchia chiede aiuto, qui vedi la sua posizione live e il percorso, fino a quando non dice di essere al sicuro.</span></div></div>`;
+      el.innerHTML = `<div class="m4-card m4-empty"><div class="m4-grab"></div><div class="m4-ch"><i class="sq green">${I('shield')}</i><div class="fl"><b>Nessun SOS in corso</b><span>Se qualcuno della tua cerchia chiede aiuto, qui vedi dov'è e il percorso per raggiungerlo.</span></div></div></div>`;
       return;
     }
     const status = p => {
-      const d = st.myPos && !p.mine ? ' · a ' + dist(km(st.myPos, p)) : '';
-      return p.mine ? `<span class="live-badge"><i class="dot"></i>LIVE</span> la tua cerchia vede questa posizione`
-        : p.stale ? `Ultima posizione ${ageTxt(p.locAt)}${d}` : `<span class="live-badge"><i class="dot"></i>LIVE</span> aggiornata ${ageTxt(p.locAt)}${d}`;
+      const d = st.myPos && !p.mine ? 'a ' + dist(km(st.myPos, p)) + ' · ' : '';
+      return p.mine ? `<span class="live-badge"><i class="dot"></i>LIVE</span> la tua cerchia vede dove sei`
+        : p.stale ? `${d}ultima posizione ${ageTxt(p.locAt)}` : `<span class="live-badge"><i class="dot"></i>LIVE</span> ${d}aggiornata ${ageTxt(p.locAt)}`;
     };
     // se le persone non cambiano aggiorna solo i testi (non interrompe un vocale in ascolto)
     const key = people.map(p => [p.id, p.audio, p.phone, p.mine].join('|')).join(';');
     if (el.dataset.k === key) { people.forEach(p => { const x = el.querySelector(`.map-card[data-id="${p.id}"] .st`); if (x) x.innerHTML = status(p); }); return; }
     el.dataset.k = key;
-    el.innerHTML = people.map(p => {
+    el.innerHTML = `<div class="m4-card"><div class="m4-grab"></div>` + people.map(p => {
+      const c = p.friend ? convs().find(x => x.uid === p.uid) : null;
+      const acts = p.mine ? '' : p.friend
+        ? `<div class="m4-acts"><button class="m4-b red" data-a="map-nav" data-id="${p.id}">Percorso</button>${c ? `<button class="m4-b" data-a="open" data-id="${c.id}">Chat</button>` : ''}</div>`
+        : `<div class="m4-acts"><button class="m4-b red" data-a="map-nav" data-id="${p.id}">Percorso</button>${p.phone ? `<a class="m4-b" href="tel:${esc(p.phone.replace(/[^\d+]/g, ''))}">Chiama</a>` : ''}<button class="m4-b" data-a="in-chat" data-id="${p.id}">Chat</button></div>`;
       return `<div class="map-card${p.mine ? ' mine' : ''}" data-id="${p.id}">
-        <button class="map-card-h" data-a="map-focus" data-id="${p.id}">${p.mine ? `<div class="av" style="background:var(--red)">TU</div>` : AV(p.name, null, '', p.src?.from || p.uid)}<div class="fl"><b>${p.mine ? 'Il tuo SOS' : esc(p.name)}</b><span class="st">${status(p)}</span></div>${I('chev', 'chev')}</button>
-        ${p.audio ? `<div class="voice-in sm">${I('mic')}<audio controls preload="none" data-p="${esc(p.audio)}"></audio></div>` : ''}
-        ${p.friend ? `<div class="map-acts"><button class="btn red sm" data-a="map-nav" data-id="${p.id}">${I('send')}Percorso</button>${(() => { const c = convs().find(x => x.uid === p.uid); return c ? `<button class="btn ghost sm" data-a="open" data-id="${c.id}">${I('chat')}Chat</button>` : ''; })()}</div>`
-        : p.mine ? '' : `<div class="map-acts"><button class="btn red sm" data-a="map-nav" data-id="${p.id}">${I('send')}Raggiungi</button>
-          ${p.phone ? `<a class="btn ghost sm" href="tel:${esc(p.phone.replace(/[^\d+]/g, ''))}">${I('phone')}Chiama</a>` : ''}
-          <button class="btn ghost sm" data-a="in-chat" data-id="${p.id}">${I('chat')}Chat</button></div>
-          <p class="map-note">«Raggiungi» apre le indicazioni in ${navName}</p>`}
-      </div>`;
-    }).join('');
+        <button class="m4-ch" data-a="map-focus" data-id="${p.id}">${p.mine ? `<div class="av" style="background:var(--red)">TU</div>` : AV(p.name, null, '', p.src?.from || p.uid)}<div class="fl"><b>${p.mine ? 'Il tuo SOS' : esc(p.name)}</b><span class="st">${status(p)}</span></div></button>
+        ${p.audio ? `<div class="voice-in sm">${I('mic')}<audio controls preload="none" data-p="${esc(p.audio)}"></audio></div>` : ''}${acts}</div>`;
+    }).join('') + `</div>`;
     hydrate(el);
   }
 
@@ -1210,45 +1282,56 @@ export function boot(api, native) {
   /* ================= cerchia ================= */
   function rCircle() {
     const p = partner(), f = friends(), g = groups(), appN = recipients().size, sl = smsList(), smsN = smsOn().length, n = appN + smsN;
-    { const el = $('#c-count'); if (el) el.innerHTML = `${String(n).padStart(2, '0')}<small> ${n === 1 ? 'persona' : 'persone'}</small>`; }
+    { const el = $('#c-count'); if (el) el.textContent = 'Cerchia'; }
     const ini = n => esc(initials(n));
     const cf = st.cf || 'all';
     const last = id => (st.threads[id] || []).slice(-1)[0];
     const status = n
-      ? `<div class="c-status"><i class="st-dot"></i><div class="fl"><b>Sei ${G().prot}</b><span>${n} ${n === 1 ? 'persona riceve' : 'persone ricevono'} il tuo SOS${smsN ? ` · ${appN} in app, ${smsN} via SMS` : ''}</span></div></div>`
-      : `<div class="c-status warn"><i class="st-dot warn"></i><div class="fl"><b>Nessuno da avvisare</b><span>Aggiungi almeno una persona: il tasto SOS si attiva subito.</span></div></div>`;
+      ? `<div class="c4-status"><i></i>${n} ${n === 1 ? 'persona riceve' : 'persone ricevono'} il tuo SOS${smsN ? ` · ${smsN} via SMS` : ''}</div>`
+      : `<div class="c4-status warn"><i></i>Nessuno da avvisare · aggiungi una persona</div>`;
     const live = st.sosIn.filter(s => Date.now() - s.at < 12 * 36e5);
     const alerts = live.map(s => `<button class="sos-alert" data-a="in-open" data-id="${s.id}"><span class="deco"></span><span class="hero-av">${ini(s.fromName)}</span><span class="fl"><small>SOS IN CORSO</small><b>${esc(s.fromName)}</b><span>Ha chiesto aiuto ${ago(s.at)}${s.audio ? ' · vocale' : ''}</span></span>${I('chev', 'chev')}</button>`).join('');
-    const chips = `<div class="c-chips" role="tablist">${[['all', 'Tutti'], ['friends', G() === GG.m ? 'Amici' : 'Amiche e amici'], ['groups', 'Gruppi'], ['sms', 'Via SMS']].map(([k, t]) => `<button class="chip ${cf === k ? 'on' : ''}" role="tab" aria-selected="${cf === k}" data-a="cf" data-k="${k}">${t}</button>`).join('')}</div>`;
+    const tabK = cf === 'sms' ? 'friends' : cf;
+    const search = `<label class="v4-search">${I('search')}<input id="c-q" type="search" placeholder="Cerca persone e chat" value="${esc(st.cq || '')}" autocomplete="off"></label>`;
+    const chips = search + `<div class="v4-seg" role="tablist">${[['all', 'Chat'], ['friends', 'Persone'], ['groups', 'Gruppi']].map(([k, t]) => `<button class="${tabK === k ? 'on' : ''}" role="tab" aria-selected="${tabK === k}" data-a="cf" data-k="${k}">${t}</button>`).join('')}</div>`;
+    const tm = l => l ? `<span class="c4-time">${when(l.at)}</span>` : '';
+    const ub = u => u ? `<b class="c4-badge">${u > 9 ? '9+' : u}</b>` : '';
     const conv = c => { const l = last(c.id), u = unread(c.id);
-      return `<button class="row conv" data-a="open" data-id="${c.id}">${AV(c.name, c.k, '', c.uid)}<div class="fl"><b>${esc(c.name)}</b><span>${l ? preview(l) : esc(c.sub)}</span></div><div class="cv-meta">${l ? `<span class="meta">${when(l.at)}</span>` : ''}${u ? `<b class="badge">${u > 9 ? '9+' : u}</b>` : ''}</div></button>`; };
+      return `<button class="c4-row conv" data-a="open" data-id="${c.id}">${c.k === 'g' ? `<span class="c4-gav">${ini(c.name)}</span>` : AV(c.name, c.k, '', c.uid)}<span class="fl"><b>${esc(c.name)}</b><span>${l ? preview(l) : esc(c.sub)}</span></span><span class="c4-meta">${tm(l)}${ub(u)}</span></button>`; };
     const hero = p
       ? (() => { const l = last(p.id), u = unread(p.id);
-        return `<button class="hero-card conv-hero" data-a="open" data-id="${p.id}"><span class="hero-av">${ini(p.name)}${avUrl(p.uid) ? `<img src="${esc(avUrl(p.uid))}" alt="" onerror="this.remove()">` : ''}</span><span class="fl"><small>PARTNER</small><b>${esc(p.name)}</b><span>${l ? preview(l) : 'Riceve sempre i tuoi SOS'}</span></span>${u ? `<b class="badge">${u > 9 ? '9+' : u}</b>` : I('chev', 'chev')}</button>`; })()
-      : `<button class="hero-card empty-hero" data-a="invite" data-k="partner"><span class="hero-av">${I('heart')}</span><span class="fl"><small>PARTNER</small><b>Aggiungi il partner</b><span>Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
+        return `<button class="c4-partner hero-card" data-a="open" data-id="${p.id}"><span class="c4-pav">${AV(p.name, 'p', '', p.uid)}</span><span class="fl"><span class="c4-pn"><b>${esc(p.name)}</b><em>PARTNER</em></span><span class="c4-pl">${l ? preview(l) : 'Riceve sempre i tuoi SOS'}</span></span><span class="c4-meta">${tm(l)}${ub(u)}</span></button>`; })()
+      : `<button class="c4-partner empty hero-card" data-a="invite" data-k="partner"><span class="c4-pav"><span class="c4-heart">${I('heart')}</span></span><span class="fl"><span class="c4-pn"><b>Aggiungi il partner</b><em>PARTNER</em></span><span class="c4-pl">Riceve sempre i tuoi SOS</span></span>${I('plus', 'chev')}</button>`;
     const grpCard = x => {
       const ms = (x.members || []).filter(m => m.uid !== st.uid).slice(0, 3);
       return `<button class="grp-card" data-a="grp" data-id="${x.id}">
         <span class="grp-top"><span class="grp-stack">${ms.map(m => `<i style="background:${col(m.name)}">${ini(m.name)}${avUrl(m.uid) ? `<img src="${esc(avUrl(m.uid))}" alt="" onerror="this.remove()">` : ''}</i>`).join('')}</span><span class="grp-st ${x.on ? 'on' : ''}">${x.on ? '● Attivo' : 'In pausa'}</span></span>
         <span class="grp-name">${esc(x.name)}</span><span class="grp-sub">${x.members.length} di 8 persone${x.admin && x.req.length ? ` · <b>${x.req.length} richieste</b>` : ''}</span></button>`;
     };
-    const smsRow = c => `<div class="row sms-row"><button class="sms-who" data-a="sms-edit" data-id="${c.id}">${AV(c.name)}<div class="fl"><b>${esc(c.name)}</b><span>${esc(c.phone)}</span></div></button><input type="checkbox" class="switch" data-sms="${c.id}" ${c.on ? 'checked' : ''} aria-label="Avvisa ${esc(c.name)} ad SOS"></div>`;
-    const smsBlock = `<div class="label">Senza app · via SMS · ${sl.length}</div><div class="card">${sl.map(smsRow).join('')}<button class="row add" data-a="sms-add"><i class="ic-dot green">${I('sms')}</i><div class="fl"><b>Aggiungi contatto</b><span>Basta il numero: riceve posizione e foto via SMS</span></div></button></div>`;
-    const person = x => `<button class="row" data-a="prof" data-uid="${x.uid}" data-id="${x.id}">${AV(x.name, null, '', x.uid)}<div class="fl"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div>${I('chev', 'chev')}</button>`;
+    const smsRow = c => `<div class="v4-row sms-row"><button class="sms-who" data-a="sms-edit" data-id="${c.id}">${AV(c.name)}<div class="fl"><b>${esc(c.name)}</b><span>${esc(c.phone)}</span></div></button><input type="checkbox" class="switch" data-sms="${c.id}" ${c.on ? 'checked' : ''} aria-label="Avvisa ${esc(c.name)} ad SOS"></div>`;
+    const smsBlock = `<div class="v4-label">Senza app · via SMS</div><div class="v4-card">${sl.map(smsRow).join('')}<button class="v4-row" data-a="sms-add"><i class="sq green">${I('sms')}</i><div class="fl"><b>Aggiungi contatto</b><span>Basta il numero: riceve posizione e foto via SMS</span></div>${I('plus', 'chev')}</button></div>`;
+    const person = x => `<button class="v4-row" data-a="prof" data-uid="${x.uid}" data-id="${x.id}">${AV(x.name, null, '', x.uid)}<div class="fl"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div>${I('chev', 'chev')}</button>`;
     let body = '';
-    if (cf === 'all') {
+    if (tabK === 'all') {
       const others = [...f, ...g].map(c => ({ ...c, l: last(c.id) })).sort((a, b) => (b.l?.at || 0) - (a.l?.at || 0));
-      body = hero + (others.length ? `<div class="label">Conversazioni</div><div class="card">${others.map(conv).join('')}</div>`
-        : !p ? `<div class="empty sm"><i class="ic-dot violet">${I('people')}</i><b>Nessuno con l'app</b>Aggiungi il partner, ${G().amico} o crea un gruppo.<button class="btn" data-a="add">Aggiungi persona</button></div>` : '')
-        + (sl.length ? smsBlock : '');
-    } else if (cf === 'friends') {
-      body = `<div class="card">${[...(p ? [p] : []), ...f].map(person).join('')}<button class="row add" data-a="invite" data-k="friend"><i class="ic-dot violet">${I('plus')}</i><span>Invita ${G().amico}</span></button></div>`;
-    } else if (cf === 'groups') {
+      body = hero + (others.length ? `<div class="v4-label">Conversazioni</div><div class="c4-list">${others.map(conv).join('')}</div>`
+        : !p ? `<div class="v4-empty"><i class="sq violet">${I('people')}</i><b>Nessuno con l'app</b><span>Aggiungi il partner, ${G().amico} o crea un gruppo.</span><button class="v4-btn" data-a="add">Aggiungi persona</button></div>` : '');
+    } else if (tabK === 'friends') {
+      body = status + `<div class="v4-label">Con l'app</div><div class="v4-card">${[...(p ? [p] : []), ...f].map(person).join('')}<button class="v4-row" data-a="invite" data-k="friend"><i class="sq violet">${I('plus')}</i><div class="fl"><b>Invita ${G().amico}</b><span>Con il codice o il QR</span></div>${I('chev', 'chev')}</button></div>`
+        + smsBlock
+        + `<div class="c4-qr"><button class="v4-btn white" data-a="invite" data-k="friend">${I('qr')}Il mio QR</button><button class="v4-btn ghost" data-a="qr-scan">${I('camera')}Scansiona QR</button></div>
+        <p class="v4-note">L'SOS arriva a tutte le persone della cerchia, ai gruppi attivi e ai contatti SMS con la spunta.</p>`;
+    } else {
       body = `<div class="grp-grid">${g.map(grpCard).join('')}<button class="grp-card add" data-a="newgroup"><span class="grp-plus">${I('plus')}</span><span class="grp-name">Nuovo gruppo</span><span class="grp-sub">Fino a 8 persone</span></button></div>`;
-    } else body = smsBlock;
-    $('#p-list').innerHTML = alerts + status + chips + body
-      + `<div class="circle-acts"><button class="btn" data-a="invite" data-k="friend">${I('qr')}Il mio QR</button><button class="btn ghost" data-a="qr-scan">${I('camera')}Scansiona QR</button></div>
-        <p class="note">L'SOS arriva a tutte le persone della cerchia, ai gruppi attivi e ai contatti SMS con la spunta.</p>`;
+    }
+    const hadQ = document.activeElement?.id === 'c-q', qPos = hadQ ? document.activeElement.selectionStart : 0;
+    $('#p-list').innerHTML = alerts + chips + body;
+    const qi = $('#c-q');
+    if (qi) { qi.oninput = () => { st.cq = qi.value; circleFilter(); }; circleFilter(); if (hadQ) { qi.focus(); try { qi.setSelectionRange(qPos, qPos); } catch {} } }
+  }
+  function circleFilter() {
+    const q = (st.cq || '').trim().toLowerCase(), box = $('#p-list'); if (!box) return;
+    box.querySelectorAll('.conv,.hero-card,.grp-card:not(.add),.sms-row,.v4-row[data-a=prof]').forEach(e => { e.hidden = !!q && !e.textContent.toLowerCase().includes(q); });
   }
   // contatto senza app: aggiungi / modifica
   const sheetSms = id => {
@@ -1498,57 +1581,66 @@ export function boot(api, native) {
       toast(warn[0] || 'Profilo salvato');
     });
   }
+  const medDone = () => { try { const m = JSON.parse(ls.get('medical:' + st.uid) || 'null'); return !!(m && ((m.blood && m.blood !== 'Non so') || m.allergies || m.meds || m.conditions || m.notes)); } catch { return false; } };
+  const meRow = (a, ic, c, t, v = '', extra = '') => `<button class="v4-row" data-a="${a}"${extra}><i class="sq ${c}">${I(ic)}</i><div class="fl"><b>${t}</b></div>${v ? `<span class="v4-val">${v}</span>` : ''}${I('chev', 'chev')}</button>`;
   function rMe() {
     if (!st.p) return;
     const p = st.p, full = p.name + ' ' + p.surname, pc = permCount();
     const LG = LANGS.find(l => l.code === curLang()) || LANGS[0];
+    const it = readyItems(), nOk = it.filter(x => x[0]).length, todo = it.filter(x => !x[0]);
+    const pr = G() === GG.m ? 'Pronto' : 'Pronta';
+    const vers = esc((upd.cur || BUILD).version);
     $('#m-body').innerHTML = `
-      ${meCard(p, full)}
-      ${readyCard()}
-      <div class="card lang-card"><button class="row" data-a="lang-sheet"><i class="ic-dot blue">${I('globe')}</i><div class="fl"><b>Lingua</b><span translate="no">${LG.flag} ${esc(LG.name)}</span></div>${I('chev', 'chev')}</button></div>
-      <div class="label">SOS</div><div class="card">
-        <div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Sempre attiva dopo l'SOS, finché non tocchi «Sono al sicuro»</span></div></div>
+      <div class="me4-banner${p.banner ? ' img' : ''}" style="${p.banner ? `background-image:url('${esc(p.banner)}')` : ''}"></div>
+      <div class="me4-id"><button class="me4-av" data-a="my-prof" aria-label="Vedi il tuo profilo">${AV(full, null, 'lg', st.uid)}</button><button class="v4-pill dark" data-a="ed-open">Modifica profilo</button></div>
+      <button class="me4-txt" data-a="my-prof"><h1>${esc(full)}</h1><p>${esc(p.bio || [p.city, st.email].filter(Boolean)[0] || '')}</p></button>
+      <button class="me4-ready${nOk === 5 ? ' full' : ''}" data-a="ready-sheet"><div class="me4-rh"><div class="fl"><b>${pr} per un'emergenza</b><span>${nOk === 5 ? 'Hai fatto tutto: ottimo lavoro' : todo.length === 1 ? 'Manca: ' + esc(todo[0][1].toLowerCase()) : 'Mancano ' + todo.length + ' passi · tocca per completarli'}</span></div><b class="me4-n">${nOk}/5</b></div>
+        <div class="me4-bars">${it.map(x => `<i class="${x[0] ? 'on' : ''}"></i>`).join('')}</div></button>
+      <div class="v4-card">
+        ${meRow('sos-set', 'shield', 'red', 'Impostazioni SOS')}
+        ${meRow('home-tools', 'grid', 'violet', 'Strumenti in Home', homeToolIds().length + ' scelti')}
+        ${meRow('med', 'heart', 'red', 'Scheda medica', medDone() ? 'Compilata' : 'Da compilare')}
+        ${meRow('priv-set', 'eye', 'blue', 'Privacy e anonimato')}
+        ${meRow('lang-sheet', 'globe', 'green', 'Lingua', `<span translate="no">${esc(LG.name)}</span>`)}
+        ${meRow('lite-set', 'spark', 'amber', 'Modalità leggera', prefs.lite ? 'Attiva' : 'Spenta')}
+      </div>
+      <div class="v4-card">
+        ${meRow('perm-sheet', 'lock', pc >= 3 ? 'green' : 'red', 'Permessi', pc + ' di 4')}
+        ${meRow('lock-sheet', 'key', 'gray', 'Blocco dell\'app', esc(lock?.enabled() ? 'Attivo' : 'Spento'))}
+        ${meRow('upd-open', 'share', updNewer() ? 'red' : 'blue', 'Aggiornamenti', updNewer() ? '<span class="tag red">Nuova</span>' : vers)}
+      </div>
+      <div class="v4-card">
+        ${meRow('guide', 'book', 'violet', 'Guida rapida')}
+        ${meRow('ai', 'ai', 'red', 'Assistente')}
+        ${meRow('terms-read', 'alert', 'amber', 'Termini d\'uso e limiti')}
+      </div>
+      <div class="v4-card">
+        <button class="v4-row" data-a="logout"><i class="sq gray">${I('out')}</i><div class="fl"><b>Esci</b></div></button>
+        <button class="v4-row danger" data-a="delete"><i class="sq red">${I('trash')}</i><div class="fl"><b>Elimina account</b></div></button>
+      </div>
+      <p class="v4-note center">Vicina ${vers} · Non sostituisce il 112</p>`;
+  }
+  const sheetReady = () => { const it = readyItems(), todo = it.filter(x => !x[0]);
+    openSheet(`<h2>${G() === GG.m ? 'Pronto' : 'Pronta'} per un'emergenza</h2><p class="sub">${todo.length ? 'Completa questi passi: chi ti aiuta arriva prima.' : 'Hai fatto tutto: ottimo lavoro.'}</p>
+      <div class="v4-card">${it.map(x => `<button class="v4-row" data-a="${x[2]}"><i class="sq ${x[0] ? 'green' : 'gray'}">${I(x[0] ? 'check' : x[3])}</i><div class="fl"><b>${esc(x[1])}</b></div>${x[0] ? '<span class="v4-val">Fatto</span>' : '<span class="pill ok">Fai ora</span>'}</button>`).join('')}</div>`, 'ready'); };
+  const sheetSosSet = () => openSheet(`<h2>Impostazioni SOS</h2><p class="sub">Cosa succede quando chiedi aiuto.</p><div class="v4-card">
+        <div class="row"><i class="ic-dot blue">${I('live')}</i><div class="fl wrap"><b>Posizione live</b><span>Sempre attiva dopo l'SOS, finché non dici di essere al sicuro</span></div></div>
         ${toggleRow('diretta', 'camera', 'red', 'Diretta durante l\'SOS', 'Chi ti aiuta sente l\'audio e vede la fotocamera dal vivo; tutto viene salvato come prova')}
         ${toggleRow('voice', 'mic', 'amber', 'Messaggio vocale', 'Dopo l\'SOS puoi registrarne uno (facoltativo)')}
         ${toggleRow('shake', 'alert', 'violet', 'Scuoti per SOS', 'Scuoti forte il telefono: dopo 5 secondi parte l\'SOS (con l\'app aperta)')}
         ${toggleRow('quiet', 'eye', 'gray', 'SOS discreto', 'Niente vibrazioni e flash mentre l\'SOS parte')}
         ${toggleRow('shareSosPos', 'pin', 'blue', 'Posizione a chi ha un SOS attivo', 'Se qualcuno della tua cerchia chiede aiuto, vede dove sei per raggiungerti. Solo finché il suo SOS è attivo e Vicina è aperta')}
         ${prefs.diretta === false ? toggleRow('autoAudio', 'mic', 'red', 'Registra audio dopo l\'SOS', 'Dopo le foto registra 30 secondi di quello che succede intorno e lo manda alla cerchia') : ''}
-        <button class="row" data-a="my-proofs"><i class="ic-dot violet">${I('shield')}</i><div class="fl wrap"><b>Prove dei miei SOS</b><span>Audio, foto e posizioni certificate · PDF per la denuncia</span></div>${I('chev', 'chev')}</button>
-      </div>
-      <div class="label">Privacy</div><div class="card">
+        <button class="row" data-a="my-proofs"><i class="ic-dot violet">${I('shield')}</i><div class="fl wrap"><b>Prove dei miei SOS</b><span>Audio, foto e posizioni certificate · PDF per la denuncia</span></div>${I('chev', 'chev')}</button></div>`, 'sos-set');
+  const sheetPrivSet = () => openSheet(`<h2>Privacy e anonimato</h2><p class="sub">Chi vede cosa, e come appare l'app.</p><div class="v4-card">
         ${toggleRow('disguise', 'eye', 'blue', prefs.disguise ? 'Tema celeste' : 'Anonimizza l\'app', prefs.disguise ? 'Attivo: icona e colori celesti. Spegnilo per tornare al tema normale' : 'Icona celeste, colori blu e nessuna parola «SOS»: se qualcuno guarda il telefono non capisce a cosa serve')}
-      </div>
-      <div class="label">Chat</div><div class="card">
         ${toggleRow('typingPreview', 'chat', 'green', 'Anteprima mentre scrivi', 'Chi è in chat con te vede cosa stai scrivendo prima che lo invii')}
-        ${glass.os26 ? toggleRow('glass', 'spark', 'blue', 'Liquid Glass', glass.supported ? `La barra in basso usa il vetro nativo di iOS (hai iOS ${esc(glass.ios)})` : `Hai iOS ${esc(glass.ios)}: serve la prossima versione di Vicina, compilata con Xcode 26`) : ''}
-      </div>
-      <div class="label">Strumenti</div><div class="card">
-        <button class="row" data-a="med"><i class="ic-dot red">${I('heart')}</i><div class="fl"><b>Scheda medica</b><span>Gruppo sanguigno, allergie, farmaci</span></div>${I('chev', 'chev')}</button>
-        <button class="row" data-a="home-tools"><i class="ic-dot violet">${I('grid')}</i><div class="fl"><b>Strumenti in Home</b><span>${homeToolIds().length} scelti · scegli quali vedere e in che ordine</span></div>${I('chev', 'chev')}</button>
-        <button class="row" data-a="tools"><i class="ic-dot blue">${I('shield')}</i><div class="fl"><b>Tutti gli strumenti</b><span>Accompagnami, sirena, finta chiamata…</span></div>${I('chev', 'chev')}</button>
-      </div>
-      <div class="label">Aiuto</div><div class="card">
-        <button class="row" data-a="guide"><i class="ic-dot violet">${I('book')}</i><div class="fl"><b>Guida rapida</b><span>5 passi interattivi, 1 minuto</span></div>${I('chev', 'chev')}</button>
-        <button class="row" data-a="ai"><i class="ic-dot amber">${I('spark')}</i><div class="fl"><b>Assistente</b><span>Domande sull'app e sulla sicurezza</span></div>${I('chev', 'chev')}</button>
-        <button class="row" data-a="terms-read"><i class="ic-dot red">${I('alert')}</i><div class="fl"><b>Termini d'uso e limiti</b><span>Vicina non sostituisce il 112</span></div>${I('chev', 'chev')}</button>
-      </div>
-      <div class="label">App</div><div class="card">
-        ${toggleRow('lite', 'spark', 'green', 'Modalità leggera', lowEnd ? 'Consigliata su questo telefono: niente sfocature e animazioni continue, tutto più fluido' : 'Meno effetti grafici, più fluida sui telefoni lenti')}
-        <button class="row" data-a="upd-open"><i class="ic-dot ${updNewer() ? 'red' : 'blue'}">${I('share')}</i><div class="fl"><b>Aggiornamenti</b><span>${updNewer() ? 'Nuova versione ' + esc(lastVersion()) + ' disponibile' : 'Versione ' + esc((upd.cur || BUILD).version) + ' · tocca per controllare'}</span></div>${updNewer() ? '<span class="tag red">Nuova</span>' : I('chev', 'chev')}</button>
-      </div>
-      <div class="label">Telefono</div><div class="card">
-        <button class="row" data-a="lock-sheet"><i class="ic-dot ${lock?.enabled() ? 'green' : 'gray'}">${I('lock')}</i><div class="fl"><b>Blocco dell'app</b><span>${esc(lock?.label() || 'Disattivato')}</span></div>${I('chev', 'chev')}</button>
-        <button class="row" data-a="perm-sheet"><i class="ic-dot ${pc >= 3 ? 'green' : 'red'}">${I('lock')}</i><div class="fl"><b>Permessi</b><span>${pc} di 4 attivi</span></div>${I('chev', 'chev')}</button>
-      </div>
-      <div class="label">Account</div><div class="card">
-        <button class="row" data-a="logout"><i class="ic-dot gray">${I('out')}</i><div class="fl"><b>Esci</b></div></button>
-        <button class="row danger" data-a="delete"><i class="ic-dot red">${I('trash')}</i><div class="fl"><b style="color:var(--red)">Elimina account</b></div></button>
-      </div>
-      <p class="note" style="text-align:center;margin-top:22px">Vicina ${esc((upd.cur || BUILD).version)} · Non sostituisce il 112</p>`;
-  }
-  $('#m-body').addEventListener('change', e => {
+        ${glass.os26 ? toggleRow('glass', 'spark', 'blue', 'Liquid Glass', glass.supported ? `La barra in basso usa il vetro nativo di iOS (hai iOS ${esc(glass.ios)})` : `Hai iOS ${esc(glass.ios)}: serve la prossima versione di Vicina, compilata con Xcode 26`) : ''}</div>`, 'priv-set');
+  const sheetLiteSet = () => openSheet(`<h2>Modalità leggera</h2><p class="sub">${lowEnd ? 'Consigliata su questo telefono.' : 'Utile sui telefoni lenti.'}</p><div class="v4-card">
+        ${toggleRow('lite', 'spark', 'amber', 'Modalità leggera', 'Niente sfocature, ombre e animazioni continue: tutto più fluido')}</div>`, 'lite-set');
+  const onPref = e => {
     const k = e.target.dataset.pref; if (!k) return;
+    if (k === 'lite') { prefs.lite = e.target.checked; savePrefs(); native.haptic('light'); document.documentElement.classList.toggle('lite', !!prefs.lite); toast(prefs.lite ? 'Modalità leggera attiva: l\'app è più fluida' : 'Effetti grafici completi riattivati'); rMe(); return; }
     prefs[k] = e.target.checked; savePrefs(); native.haptic('light');
     if (k === 'voice') toast(prefs.voice ? 'Messaggio vocale attivo' : 'Messaggio vocale disattivato');
     else if (k === 'autoAudio') toast(prefs.autoAudio ? 'Dopo l\'SOS registrerò 30 secondi di audio' : 'Audio automatico spento');
@@ -1560,7 +1652,9 @@ export function boot(api, native) {
       syncGlass(true); toast(prefs.glass ? 'Liquid Glass attivo' : 'Liquid Glass disattivato');
     }
     else tools.prefChanged(k, prefs[k], e.target);
-  });
+    rMe();
+  };
+  $('#m-body').addEventListener('change', onPref);
   const sheetPerms = () => openSheet(`<h2>Permessi</h2><p class="sub">Servono perché l'SOS parta subito, senza richieste.</p><div class="card" style="margin-top:14px">${permRows()}</div>
     <button class="btn" data-a="perms">Attiva quelli mancanti</button>`, 'perms');
 
@@ -1721,7 +1815,7 @@ export function boot(api, native) {
       ${g.admin ? `<button class="btn danger" data-a="delgroup" data-id="${id}">Elimina gruppo</button>` : `<button class="btn danger" data-a="leave" data-id="${id}">Esci dal gruppo</button>`}`, 'group:' + id);
   }
   $('#sheet').addEventListener('change', async e => {
-    if (e.target.dataset.pref) { const k = e.target.dataset.pref; prefs[k] = e.target.checked; savePrefs(); native.haptic('light'); if (k === 'lite') { document.documentElement.classList.toggle('lite', !!prefs.lite); toast(prefs.lite ? 'Modalità leggera attiva: l\'app è più fluida' : 'Effetti grafici completi riattivati'); } tools.prefChanged(k, prefs[k], e.target); rMe(); return; }
+    if (e.target.dataset.pref) { onPref(e); if (curSheet === 'sos-set') { const y = $('#sheet').scrollTop; sheetSosSet(); $('#sheet').scrollTop = y; } return; }
     const id = e.target.dataset.mute; if (!id) return;
     try { await api.setMuted(st.uid, id, !e.target.checked); } catch (x) { toast(errMsg(x)); e.target.checked = !e.target.checked; }
   });
@@ -1785,9 +1879,7 @@ export function boot(api, native) {
   function rAIList() {
     const box = $('#ail-body'); if (!box) return;
     const q = ai.q.trim().toLowerCase(), list = (ai.chats || []).filter(c => !q || (c.title || '').toLowerCase().includes(q));
-    let html = `<div class="ail-hero"><span class="ai-orb md" aria-hidden="true"></span><div><span class="eyebrow">Assistente Vicina</span><h1 class="ai-greet sm"><span>${G() === GG.m ? 'Bentornato' : 'Bentornata'}${st.p ? ',' : ''}</span>${st.p ? ` <b translate="no">${esc(st.p.name)}</b>` : ''}</h1></div></div>
-      <label class="search ail-search">${I('search')}<input id="ail-q" type="search" placeholder="Cerca nelle chat" value="${esc(ai.q)}"></label>
-      <button class="card ai-start" data-a="ai-new"><span class="ai-orb" aria-hidden="true"></span><div class="fl"><b>Nuova chat</b><span>Chiedi come usare Vicina o cosa fare in una situazione</span></div>${I('chev', 'chev')}</button>`;
+    let html = `<label class="v4-search">${I('search')}<input id="ail-q" type="search" placeholder="Cerca nelle chat" value="${esc(ai.q)}"></label>`;
     if (ai.chats == null) html += `<p class="note">Carico le tue chat…</p>`;
     else if (!list.length) html += `<p class="note">${q ? 'Nessuna chat trovata' : 'Non hai ancora chat con l\'assistente.'}</p>`;
     else {
@@ -1809,11 +1901,11 @@ export function boot(api, native) {
     row.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; dx = 0; drag = false; row.style.transition = 'none'; });
     row.addEventListener('pointermove', e => {
       if (x0 == null) return; const mx = e.clientX - x0;
-      if (!drag && Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(e.clientY - y0)) { drag = true; try { row.setPointerCapture(e.pointerId); } catch {} }
+      if (!drag && Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(e.clientY - y0)) { drag = true; item.classList.add('sw'); try { row.setPointerCapture(e.pointerId); } catch {} }
       if (!drag) return; const base = item.classList.contains('open') ? -96 : 0; dx = Math.max(-140, Math.min(0, base + mx)); row.style.transform = `translateX(${dx}px)`;
     });
     const end = () => {
-      if (x0 == null) return; x0 = null; row.style.transition = ''; row.style.transform = '';
+      if (x0 == null) return; x0 = null; row.style.transition = ''; row.style.transform = ''; setTimeout(() => item.classList.remove('sw'), 300);
       if (drag) { document.querySelectorAll('.ail-item.open').forEach(o => o !== item && o.classList.remove('open')); item.classList.toggle('open', dx < -48); row.dataset.swiped = '1'; setTimeout(() => delete row.dataset.swiped, 50); }
     };
     row.addEventListener('pointerup', end); row.addEventListener('pointercancel', end);
@@ -1822,10 +1914,9 @@ export function boot(api, native) {
     ai.cur = id || null; aiMsgs = []; aiLeft = null;
     const c = (ai.chats || []).find(x => x.id === id); ai.title = c?.title || '';
     $('#ai-title').textContent = ai.title || 'Nuova chat';
-    $('#ai-sub').textContent = ai.local ? 'Assistente · salvata su questo telefono' : 'Assistente · salvata sul tuo account';
+    $('#ai-sub').textContent = ai.local ? 'Salvata su questo telefono' : 'Salvata sul tuo account';
     show('s-ai', 'in-push'); rAI();
     if (id) { try { aiMsgs = await aiStore.msgs(id); } catch (e) { toast(errMsg(e)); } if (ai.cur === id) rAI(); }
-    else setTimeout(() => $('#ai-txt').focus(), 250);
   }
   async function aiDelete(id) {
     if (!(await dialog({ title: 'Eliminare la chat?', text: 'La conversazione sarà cancellata da tutti i tuoi telefoni.', ok: 'Elimina', danger: true }))) { $$('.ail-item.open').forEach(o => o.classList.remove('open')); return; }
@@ -1834,15 +1925,35 @@ export function boot(api, native) {
   const DANGER = /(aiuto|pericolo|mi segu|seguit|pedin|aggredi|aggression|minacc|picchi|violen|ferit|sangue|svenut|non respira|stupr|molest|rapin|ho paura|mi stanno|mi vuole|mi ha toccat)/i;
   const AI_CHIPS = ['Come aggiungo una persona alla cerchia?', 'Mi sento seguita/o: cosa faccio?', 'Perché non mi arrivano le notifiche?', "Cosa succede quando premo SOS?"];
   const mdLite = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\n)- (.+)/g, '$1• $2').replace(/\n/g, '<br>');
-  function openAI() { openAIList(); }
+  function openAI() { openAIChat(null); aiMigrate().then(() => aiStore.list()).then(l => { ai.chats = l; }).catch(() => {}); }
+  // nome da mostrare nei saluti: profilo, poi nome dell'account (Google), poi niente
+  const myFirst = () => (st.p?.name || st.meta?.given_name || st.meta?.full_name?.split(' ')[0] || st.meta?.name?.split(' ')[0] || '').trim();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let aiRec = null;
+  function aiDictate() {
+    if (!SR) return;
+    if (aiRec) { try { aiRec.stop(); } catch {} return; }
+    try {
+      aiRec = new SR(); aiRec.lang = locale(); aiRec.interimResults = true;
+      const inp = $('#ai-txt'), base = inp.value ? inp.value + ' ' : '';
+      $('#ai-mic').classList.add('on');
+      aiRec.onresult = e => { inp.value = base + [...e.results].map(r => r[0].transcript).join(''); };
+      aiRec.onend = aiRec.onerror = () => { aiRec = null; $('#ai-mic').classList.remove('on'); };
+      aiRec.start();
+    } catch { aiRec = null; $('#ai-mic').classList.remove('on'); }
+  }
+  setTimeout(() => { const m = $('#ai-mic'); if (m) m.hidden = !SR; });
+  const AI_SUGG = [['Mi sento seguita/o: cosa faccio?', 'shield', 'red'], ['Come aggiungo una persona?', 'plus', 'violet'], ['Perché non mi arrivano le notifiche?', 'siren', 'amber']];
   function rAI() {
-    const box = $('#ai-msgs');
-    if (!aiMsgs.length && !aiBusy) {
-      box.innerHTML = `<div class="ai-hero"><span class="ai-orb lg" aria-hidden="true"></span>
-        <h1 class="ai-greet"><span>${G() === GG.m ? 'Bentornato' : 'Bentornata'}${st.p ? ',' : ''}</span>${st.p ? ` <b translate="no">${esc(st.p.name)}</b>` : ''}</h1>
-        <p>Come posso aiutarti oggi?</p></div>
-        <div class="ai-sugg">${AI_CHIPS.map((c, k) => `<button class="ai-sug" data-a="ai-chip" data-q="${esc(c)}"><i>${I(['people', 'shield', 'bell', 'alert'][k] || 'spark')}</i><span>${esc(c)}</span></button>`).join('')}</div>
-        <p class="ai-priv">${I('lock')}Non vedo la tua posizione né le tue chat</p>`;
+    const box = $('#ai-msgs'), empty = !aiMsgs.length && !aiBusy;
+    $('#s-ai').classList.toggle('ai4-empty', empty);
+    const tt = $('#ai-ttl'); if (tt) tt.hidden = empty;
+    if (empty) {
+      const nm = myFirst();
+      box.innerHTML = `<div class="ai4-hero"><span class="ai4-logo" aria-hidden="true">${I('ai')}</span>
+        <h1 class="ai4-greet"><span>${G() === GG.m ? 'Bentornato' : 'Bentornata'}${nm ? ',' : ''}</span>${nm ? `<br><b translate="no">${esc(nm)}</b>` : ''}</h1>
+        <p class="ai4-q">Come posso aiutarti oggi?</p>
+        <div class="ai4-sugg">${AI_SUGG.map(([q, ic, c]) => `<button class="ai4-sug" data-a="ai-chip" data-q="${esc(q)}"><i class="sq ${c}">${I(ic)}</i><span>${esc(q)}</span>${I('chev', 'chev')}</button>`).join('')}</div></div>`;
       return;
     }
     box.innerHTML = aiMsgs.map(m => m.role === 'user' ? `<div class="msg me" translate="no">${esc(m.text)}</div>`
@@ -2155,6 +2266,7 @@ export function boot(api, native) {
         case 'ht-add': homeToolsEdit('add', t.dataset.k); break;
         case 'ht-del': homeToolsEdit('del', t.dataset.k); break;
         case 'ht-up': homeToolsEdit('up', t.dataset.k); break;
+        case 'ht-back': htBack(); break;
         case 'ht-reset': homeToolsEdit('reset'); break;
         case 'prof': closeSheet(); openProfile(t.dataset.uid); break;
         case 'my-prof': openProfile(st.uid); break;
@@ -2198,6 +2310,7 @@ export function boot(api, native) {
         case 'map-nav': case 'map-open': { const p = mapPeople().find(x => x.id === id) || (() => { const x = st.sosIn.find(y => y.id === id); return x && { lat: x.lat, lng: x.lng, name: x.fromName }; })(); if (p && p.lat != null) native.openMaps(p.lat, p.lng, p.name, a === 'map-nav'); else toast('Posizione non disponibile'); break; }
         case 'map-me': { const me = await refreshMyPos(true); if (me && mapApi) mapApi.center(me.lat, me.lng); else if (!me) toast('Posizione non disponibile: attiva il GPS'); break; }
         case 'map-all': if (mapApi) mapApi.showAll(mapPeople(), st.myPos); break;
+        case 'map-q-clear': { const q = $('#map-q'); q.value = ''; t.hidden = true; mapSafe(false); break; }
         case 'map-safe': prefs.mapSafe = !safeOn(); savePrefs(); native.haptic('light'); if (!safeOn()) toast('Luoghi sicuri nascosti'); await mapSafe(safeOn()); break;
         case 'map-retry': mapFailed = false; openMapTab(); break;
         case 'voice-send': await voiceSend(); break;
@@ -2207,18 +2320,23 @@ export function boot(api, native) {
         case 'in-open': { const s = st.sosIn.find(x => x.id === id); if (s) { st.dismissed.delete(id); showIncoming(s); } break; }
         case 'cx-open': { const s = st.sosIn.find(x => x.id === id); if (s) { st.dismissed.delete(id); showIncoming(s); } break; }
         case 'my-proofs': sheetMyProofs(); break;
+        case 'ready-sheet': sheetReady(); break;
+        case 'sos-set': sheetSosSet(); break;
+        case 'priv-set': sheetPrivSet(); break;
+        case 'lite-set': sheetLiteSet(); break;
         case 'lang-sheet': openSheet(`<h2>Lingua</h2><p class="sub">Tutta l'app cambia lingua: schermate, strumenti, avvisi e notifiche.</p><div class="card lang-list" translate="no">${LANGS.map(l => `<button class="row${l.code === curLang() ? ' on' : ''}" data-a="lang-set" data-l="${l.code}"><span class="lang-flag">${l.flag}</span><div class="fl"><b>${esc(l.name)}</b></div>${l.code === curLang() ? I('check', 'lang-ok') : ''}</button>`).join('')}</div>`, 'lang'); break;
         case 'lang-set': { const c = t.dataset.l; if (c === curLang()) { closeSheet(); break; } prefs.lang = c; savePrefs(); if (st.uid) await api.setLang?.(c).catch(() => {}); setLang(c); break; }
         case 'in-ack': await busy(t, async () => { await api.call('ackSos', { sosId: id }); st.dismissed.add(id); closeIncoming(); toast('Abbiamo avvisato che te ne occupi tu'); }); break;
         case 'in-chat': { const s = st.sosIn.find(x => x.id === id); st.dismissed.add(id); closeIncoming(); const c = s?.chats?.find(c => convs().some(x => x.id === c)); if (c) openThread(c); else tab('chat'); break; }
         case 'ai': closeSheet(); openAI(); break;
-        case 'ai-back': show('s-ailist', 'in-pop'); rAIList(); break;
-        case 'ail-back': tab(st.tab || 'home', 'in-pop'); break;
+        case 'ai-back': case 'ai-list': openAIList(); break;
+        case 'ail-back': show('s-ai', 'in-pop'); rAI(); break;
         case 'ai-new': if (aiBusy) break; if (curScreen === 's-ai' && !ai.cur) { $('#ai-txt').focus(); break; } openAIChat(null); break;
         case 'ai-open': { if (t.dataset.swiped) break; const it = t.closest('.ail-item'); if (it?.classList.contains('open')) { it.classList.remove('open'); break; } openAIChat(id); break; }
         case 'ai-del': await aiDelete(id); break;
         case 'ai-send': sendAI($('#ai-txt').value); break;
         case 'ai-chip': sendAI(t.dataset.q); break;
+        case 'ai-mic': aiDictate(); break;
         case 'ai-diag': await diagAI(t); break;
         case 'ai-sos': tab('home'); toast('Tieni premuto il pulsante SOS'); break;
         case 'ai-clear': if (await dialog({ title: 'Nuova conversazione?', text: 'La conversazione con l\'assistente verrà cancellata da questo telefono.', ok: 'Cancella', danger: true })) { aiMsgs = []; aiSave(); rAI(); } break;
@@ -2349,8 +2467,9 @@ export function boot(api, native) {
     if ($('#ov-in').classList.contains('on')) { st.dismissed.add(st.shownIn); closeIncoming(); return true; }
     if (appello?.back()) return true;
     if ($('#zoom')?.classList.contains('on')) { $('#zoom .zoom-x')?.click(); return true; }
-    if ($('#s-ai').classList.contains('on')) { show('s-ailist', 'in-pop'); rAIList(); return true; }
-    if ($('#s-ailist').classList.contains('on')) { tab(st.tab || 'home', 'in-pop'); return true; }
+    if ($('#s-ai').classList.contains('on')) { tab(st.tab || 'home', 'in-pop'); return true; }
+    if ($('#s-htools').classList.contains('on')) { htBack(); return true; }
+    if ($('#s-ailist').classList.contains('on')) { show('s-ai', 'in-pop'); rAI(); return true; }
     if ($('#s-prof').classList.contains('on')) { $('[data-a="pf-back"]')?.click(); return true; }
     if ($('#s-edit').classList.contains('on')) { $('[data-a="ed-cancel"]')?.click(); return true; }
     if ($('#s-guide').classList.contains('on')) { if (gi > 0) guideGo(gi - 1); else closeGuide(); return true; }
