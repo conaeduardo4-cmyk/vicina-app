@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vicina Extra · servizi sociali, aiuti e diritti</title>
+<meta name="description" content="App gratuita per trovare servizi sociali, aiuti e diritti, luoghi dove stare in compagnia e sapere come tutelarsi. La sorella di Vicina.">
+<meta name="theme-color" content="#0D1015">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0D1015;--s1:#151922;--s2:#1D222C;--line:rgba(255,255,255,.08);--ink:#ECEFF4;--sub:#A3ABB9;--acc:#B4A8FF;--grad:radial-gradient(130% 160% at 0% 0%,#8B7BFF 0%,#5B43F0 52%,#3B2A9E 100%)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc)}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+header{display:flex;align-items:center;gap:10px;padding:22px 0}
+.logo{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;flex:none}
+.logo svg{width:19px;height:19px}
+header b{font-size:17px;font-weight:800;flex:1}
+header a{font-size:14px;font-weight:700;text-decoration:none}
+.hero{position:relative;overflow:hidden;margin-top:12px;padding:44px 28px;border-radius:24px;background:var(--grad)}
+.hero::after{content:'';position:absolute;right:-80px;top:-90px;width:300px;height:300px;border-radius:50%;border:44px solid rgba(255,255,255,.07)}
+.hero>*{position:relative}
+h1{margin:0;font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:800;max-width:640px}
+.hero p{margin:14px 0 0;font-size:17px;max-width:560px;color:rgba(255,255,255,.9)}
+.dl{display:inline-flex;align-items:center;gap:10px;margin-top:24px;height:54px;padding:0 22px;border-radius:14px;background:#fff;color:#1A1240;font-weight:800;text-decoration:none}
+.dl svg{width:20px;height:20px}
+.note{margin-top:10px;font-size:13.5px;color:rgba(255,255,255,.85)}
+h2{margin:48px 0 14px;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--sub)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{padding:18px;border-radius:16px;background:var(--s1);border:1px solid var(--line)}
+.card i{width:38px;height:38px;border-radius:10px;background:var(--s2);color:#C9C1FF;display:grid;place-items:center}
+.card i svg{width:19px;height:19px}
+.card b{display:block;margin-top:12px;font-size:16.5px}
+.card p{margin:4px 0 0;font-size:14.5px;color:var(--sub)}
+.row{display:flex;gap:14px;align-items:center;padding:16px 18px;border-radius:16px;background:var(--s1);border:1px solid var(--line);text-decoration:none;color:var(--ink)}
+.row .sq{width:42px;height:42px;border-radius:11px;background:#E5484D;display:grid;place-items:center;flex:none}
+.row b{display:block}.row span{color:var(--sub);font-size:14.5px}
+footer{margin:56px 0 40px;font-size:13.5px;color:var(--sub)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="hands" viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.5-7 10-7 10zM9.5 11.5l2 2 3-3.5"/></symbol>
+  <symbol id="pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 10-14 0c0 6 7 12 7 12zM12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></symbol>
+  <symbol id="doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
+  <symbol id="people" viewBox="0 0 24 24"><path d="M9 11a3 3 0 100-6 3 3 0 000 6zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3 3 0 010 6M21 20c0-2.6-1.7-4.8-4-5.6"/></symbol>
+  <symbol id="chat" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2H9l-5 4z"/></symbol>
+  <symbol id="dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+</svg>
+<div class="wrap">
+  <header><span class="logo"><svg fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#hands"/></svg></span><b>Vicina Extra</b><a href="/">Vicina</a></header>
+  <section class="hero">
+    <h1>Servizi sociali, aiuti e diritti vicino a te.</h1>
+    <p>Trova consultori, servizi sociali, centri per l’impiego, centri giovani e anziani. Scopri cosa ti spetta e come tutelarti. Gratis, senza pubblicità.</p>
+    <a class="dl" href="/VicinaExtra.apk"><svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#dl"/></svg>Scarica per Android</a>
+    <p class="note">File APK. Dopo il download aprilo e consenti l’installazione da questa fonte.</p>
+  </section>
+  <h2>Cosa trovi</h2>
+  <div class="grid">
+    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#pin"/></svg></i><b>Luoghi vicino a te</b><p>Servizi sociali, Comuni, consultori, centri antiviolenza, patronati, biblioteche, centri di quartiere, mense.</p></div>
+    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#doc"/></svg></i><b>Aiuti e diritti</b><p>16 guide: a chi spetta ogni aiuto, cosa serve e dove si chiede. Con le fonti ufficiali.</p></div>
+    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#shield"/></svg></i><b>Come tutelarti</b><p>Truffe, violenza nella coppia, sfratto, debiti, bullismo: i segnali, cosa fare, chi chiamare.</p></div>
+    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#people"/></svg></i><b>Non sentirti solo</b><p>Posti dove fare qualcosa con altre persone e linee di ascolto gratuite.</p></div>
+    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#chat"/></svg></i><b>Assistente</b><p>Fai una domanda su servizi, aiuti e diritti e ricevi una risposta semplice.</p></div>
+  </div>
+  <h2>In emergenza</h2>
+  <a class="row" href="/"><span class="sq"><svg width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#shield"/></svg></span><span><b>Vicina</b><span>L’app per l’SOS: avvisa le persone di cui ti fidi con la tua posizione.</span></span></a>
+  <footer>Vicina Extra non sostituisce il 112. Dati dei luoghi © contributori di OpenStreetMap. Codice: <a href="https://github.com/conaeduardo4-cmyk/vicina-extra">GitHub</a>.</footer>
+</div>
+</body>
+</html>

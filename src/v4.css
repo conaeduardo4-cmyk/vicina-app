@@ -662,3 +662,5 @@ nav#nav button.nav-tools .i{color:inherit}
 #s-home.v4 .chk-orb>.i{color:#fff!important;width:28px!important;height:28px!important;filter:drop-shadow(0 2px 8px rgba(30,10,120,.5))}
 #s-home.v4 .chk-dot{opacity:.75;background:#fff}
 html.lite #s-home.v4 .sos-ring::before,html.lite #s-home.v4 .sos-ring::after{animation:none;display:none}
+#s-home.v4 .h4-extra{margin:14px 16px 0;width:auto;background:linear-gradient(120deg,rgba(124,108,255,.16),rgba(124,108,255,.04) 60%),var(--s1);border-color:rgba(156,140,255,.22)}
+.h4-extra .sq{background:linear-gradient(145deg,#8B7BFF,#5B43F0)!important;color:#fff!important}.h4-extra .v4-row .chev{width:17px;height:17px;color:var(--mute,#8B8B94)}

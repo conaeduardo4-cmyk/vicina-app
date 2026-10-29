@@ -18,6 +18,9 @@ if (fs.existsSync(man)) {
     if (!s.includes(`"${f}"`)) s = s.replace('</manifest>', `    <uses-feature android:name="${f}" android:required="false" />\n</manifest>`);
   if (!s.includes('default_notification_channel_id'))
     s = s.replace(/(<application[^>]*>)/, `$1\n        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="messages" />`);
+  // Vicina Extra: per sapere se è installata e aprirla dalla Home (Android 11+ chiede di dichiararlo)
+  if (!s.includes('it.vicina.extra')) s = s.includes('</queries>') ? s.replace('</queries>', '    <package android:name="it.vicina.extra" />\n    </queries>')
+    : s.replace('</manifest>', '    <queries>\n        <package android:name="it.vicina.extra" />\n    </queries>\n</manifest>');
   fs.writeFileSync(man, s); log('permessi e canale notifiche');
 
   // Aggiornamenti automatici: plugin nativo che scarica il nuovo APK e apre l'installer

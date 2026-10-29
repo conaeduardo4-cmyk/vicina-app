@@ -2273,6 +2273,7 @@ export function boot(api, native) {
         case 'open': closeSheet(); closeIncoming(); openThread(id); break;
         case 'cf': st.cf = t.dataset.k || 'all'; rCircle(); break;
         case 'home-tools': sheetHomeTools(); break;
+        case 'open-extra': native.openApp('it.vicina.extra', 'https://vicina.netlify.app/extra'); break;
         case 'ht-add': homeToolsEdit('add', t.dataset.k); break;
         case 'ht-del': homeToolsEdit('del', t.dataset.k); break;
         case 'ht-up': homeToolsEdit('up', t.dataset.k); break;
