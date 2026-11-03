@@ -129,8 +129,19 @@ export const native = !isNative ? webNative : {
   // Apre un link fuori dall'app (pagina di download, ecc.)
   async openUrl(url) { try { await AppLauncher.openUrl({ url }); } catch { window.open(url, '_system'); } },
   // un'altra app (per nome del pacchetto su Android): c'è? Se sì la apre, se no apre il sito
-  async appInstalled(pkg) { if (Capacitor.getPlatform() !== 'android') return false; try { return !!(await AppLauncher.canOpenUrl({ url: pkg })).value; } catch { return false; } },
-  async openApp(pkg, web) { if (await this.appInstalled(pkg)) { try { await AppLauncher.openUrl({ url: pkg }); return; } catch { /* sito */ } } await this.openUrl(web); },
+  async appInstalled(pkg) {
+    if (Capacitor.getPlatform() !== 'android') return false;
+    try { return !!(await VN.installed({ pkg })).value; } catch { /* plugin vecchio */ }
+    try { return !!(await AppLauncher.canOpenUrl({ url: pkg })).value; } catch { return false; }
+  },
+  // apre l'app con un link (vicinaextra://…); se non c'è il link, la sua schermata principale; altrimenti il sito
+  async openApp(pkg, web, url) {
+    if (await this.appInstalled(pkg)) {
+      try { await VN.openApp({ pkg, url: url || '' }); return true; } catch { /* sotto */ }
+      try { await AppLauncher.openUrl({ url: url || pkg }); return true; } catch { /* sito */ }
+    }
+    if (web) await this.openUrl(web); return false;
+  },
   // accesso con Google / Apple: pagina di login dentro l'app (Safari View Controller / Chrome Custom Tabs), poi torna con vicina://auth
   async openAuth(url) { try { await Browser.open({ url, presentationStyle: 'popover' }); } catch { await this.openUrl(url); } },
   closeAuth() { Browser.close().catch(() => {}); },

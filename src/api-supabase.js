@@ -237,6 +237,16 @@ export function createApi(env) {
       const r = await sb.from('messages').insert({ chat_id: id, type: 'loc', from_uid: uid, lat, lng });
       if (r.error) throw Object.assign(rerr(r.error), /type_chk|check constraint|column/i.test(r.error.message || '') ? { code: 'v31-setup' } : {});
     },
+    // SOS degli ultimi giorni (mandati e ricevuti): per gli aggiornamenti con Vicina Extra
+    async recentSos(uid, days = 30) {
+      const since = new Date(Date.now() - days * 864e5).toISOString();
+      const [a, b] = await Promise.all([
+        sb.from('sos').select('id, created_at, resolved_at, active').eq('from_uid', uid).gte('created_at', since).order('created_at', { ascending: false }).limit(8),
+        sb.from('sos').select('id, from_name, created_at, resolved_at, active').contains('recipients', [uid]).gte('created_at', since).order('created_at', { ascending: false }).limit(8)
+      ]);
+      if (a.error) throw rerr(a.error);
+      return { mine: a.data || [], got: b.data || [] };
+    },
     async fileUrl(p, secs = 3600) {
       const { data, error } = await sb.storage.from('chat').createSignedUrl(p, secs);
       if (error) throw rerr(error); return data.signedUrl;

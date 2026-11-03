@@ -57,6 +57,32 @@ public class VicinaNativePlugin extends Plugin {
     /* ---------- icona (modalità anonima) ---------- */
     // altezze delle barre di sistema in dp (= px CSS): la pagina le usa per non finire sotto ora e notifiche
     @PluginMethod
+    public void installed(PluginCall call) {
+        String pkg = call.getString("pkg", "");
+        android.content.pm.PackageManager pm = getContext().getPackageManager();
+        boolean ok = false;
+        try { pm.getPackageInfo(pkg, 0); ok = true; } catch (Exception e) { try { ok = pm.getLaunchIntentForPackage(pkg) != null; } catch (Exception ignored) { } }
+        JSObject r = new JSObject(); r.put("value", ok); call.resolve(r);
+    }
+
+    // apre un'altra app (Vicina Extra) con un link: l'intent va solo a quell'app
+    @PluginMethod
+    public void openApp(PluginCall call) {
+        String pkg = call.getString("pkg", ""), url = call.getString("url", "");
+        android.content.Context ctx = getContext();
+        try {
+            android.content.Intent i;
+            if (url.length() > 0) { i = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)); i.setPackage(pkg); }
+            else i = ctx.getPackageManager().getLaunchIntentForPackage(pkg);
+            if (i == null) { call.reject("App non installata"); return; }
+            i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            try { ctx.startActivity(i); }
+            catch (Exception e) { android.content.Intent l = ctx.getPackageManager().getLaunchIntentForPackage(pkg); if (l == null) throw e; l.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK); ctx.startActivity(l); }
+            call.resolve();
+        } catch (Exception e) { call.reject("Non riesco ad aprire l'app: " + e.getMessage()); }
+    }
+
+    @PluginMethod
     public void insets(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             JSObject r = new JSObject();

@@ -698,3 +698,14 @@ html.lite #s-home.v4 .sos-ring::before,html.lite #s-home.v4 .sos-ring::after{ani
 @media (prefers-reduced-motion:reduce){.x-phone,.x-scr img,.x-step,.x-ic::after,.x-ic .i{animation:none!important}.x-scr img:first-child{opacity:1}}
 html.lite .x-phone,html.lite .x-ic::after{animation:none}
 #s-extra .fl span,#s-extra .fl b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;display:block}
+
+/* 4.5: invito a Vicina Extra in chat, aggiornamenti tra le app */
+.mapp{display:flex;gap:10px;align-items:center;min-width:220px;padding:4px 0 6px}
+.ma-ic{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#8B7BFF,#5B43F0);color:#fff;display:grid;place-items:center;flex:none;font-style:normal}
+.ma-ic .i{width:21px;height:21px}
+.mapp b{display:block;font-size:15px}.mapp .fl span{display:block;font-size:12.5px;opacity:.75}
+.ma-go{margin-top:8px;width:100%;min-height:42px!important;border-radius:14px!important;background:linear-gradient(180deg,#7563F6,#5B43F0)!important;color:#fff!important;border:0!important;display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px}
+.ma-go .i{width:17px;height:17px}
+.x-ai{padding-bottom:12px}
+.x-ai-t{margin:0 14px;padding:12px 14px;border-radius:16px;background:var(--s2,#1C1C22);font-size:14px;line-height:1.5}
+.x-ai-b{margin:10px 14px 0!important;width:calc(100% - 28px)!important}

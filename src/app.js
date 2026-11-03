@@ -396,7 +396,7 @@ export function boot(api, native) {
   }
   /* ================= Vicina Extra: l'app sorella ================= */
   // Le due app si aprono a vicenda con un link e si passano le informazioni (sul telefono, senza server).
-  const EXTRA = { pkg: 'it.vicina.extra', scheme: 'vicinaextra://', apk: 'https://github.com/conaeduardo4-cmyk/vicina-extra/releases/latest/download/VicinaExtra.apk', web: 'https://vicina.netlify.app/extra' };
+  const EXTRA = { pkg: 'it.vicina.extra', scheme: 'vicinaextra://', apk: 'https://github.com/conaeduardo4-cmyk/vicina-extra/releases/latest/download/VicinaExtra.apk', ipa: 'https://github.com/conaeduardo4-cmyk/vicina-extra/releases/latest/download/VicinaExtra.ipa', web: 'https://vicina.netlify.app/extra' };
   const xPack = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const xUnpack = s => { try { return JSON.parse(decodeURIComponent(escape(atob(String(s).replace(/-/g, '+').replace(/_/g, '/'))))); } catch { return null; } };
   const fromExtra = () => { try { return JSON.parse(ls.get('extra:info') || 'null'); } catch { return null; } };
@@ -405,7 +405,7 @@ export function boot(api, native) {
   let xInstalled = false, xFrom = 's-home';
   async function openExtra(path) {
     const url = EXTRA.scheme + path + (path.includes('?') ? '&' : '?') + 'd=' + xPack(forExtra());
-    if (await native.appInstalled?.(EXTRA.pkg)) { try { await native.openUrl(url); return; } catch {} }
+    if (await native.openApp?.(EXTRA.pkg, '', url)) return;
     openExtraScreen();
   }
   async function installExtra(btn) {
@@ -417,10 +417,25 @@ export function boot(api, native) {
     } catch (e) { toast(e?.message || 'Download non riuscito, riprova'); }
     finally { btn.disabled = false; btn.innerHTML = lab; }
   }
+  // tasto «Installa» dell'invito in chat: Android installa subito, iPhone scarica l'IPA, nel browser il sito
+  async function appInvite(btn) {
+    if (await native.openApp?.(EXTRA.pkg, '', EXTRA.scheme + 'vicina?d=' + xPack(forExtra()))) return;
+    const plat = native.isNative ? (native.update?.autoInstall ? 'android' : 'ios') : 'web';
+    if (plat === 'android') return installExtra(btn);
+    if (plat === 'ios' && native.update?.saveIpa) {
+      const lab = btn.innerHTML; btn.disabled = true;
+      try { const f = await native.update.saveIpa(EXTRA.ipa, 'VicinaExtra.ipa', p => { btn.textContent = `Scarico… ${Math.round(p)}%`; }); toast('Scaricata in File › Vicina › Aggiornamenti'); await native.update.shareFile?.(f.uri, 'Vicina Extra'); }
+      catch (e) { toast(e?.message || 'Download non riuscito'); native.openUrl(EXTRA.web); }
+      finally { btn.disabled = false; btn.innerHTML = lab; }
+      return;
+    }
+    native.openUrl(EXTRA.web);
+  }
   const xShots = ['home', 'luoghi', 'aiuti', 'lettere'].map(n => `altra/extra-${n}.webp`);
   const xRow = (ic, c, t, s, a = '', u = '') => `<${a ? 'button' : 'div'} class="v4-row"${a ? ` data-a="${a}"` : ''}${u ? ` data-u="${u}"` : ''}><i class="sq ${c}">${I(ic)}</i><div class="fl"><b>${t}</b><span>${s}</span></div>${a ? I('chev', 'chev') : ''}</${a ? 'button' : 'div'}>`;
   async function rExtra() {
     xInstalled = !!(await native.appInstalled?.(EXTRA.pkg));
+    if (!xAgg && st.uid) setTimeout(xLoadAgg, 0);
     const x = fromExtra(), go = xInstalled ? 'x-open' : '';
     $('#x-chip').textContent = xInstalled ? 'Installata' : native.update?.autoInstall ? 'Non installata' : 'App per Android';
     $('#x-chip').classList.toggle('ok', xInstalled);
@@ -432,6 +447,8 @@ export function boot(api, native) {
       ${xInstalled ? `<button class="btn x-btn" data-a="x-open" data-u="home">${I('heart')}Apri Vicina Extra</button>` : `<button class="btn x-btn" data-a="x-install">${I('share')}${native.update?.autoInstall ? 'Installa Vicina Extra' : 'Scarica Vicina Extra'}</button>`}
       ${x ? `<div class="v4-card">${xRow('check', 'green', 'Collegata' + (x.got ? ' · ' + new Date(x.got).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : ''), (x.saved ? x.saved + ' luoghi salvati · ' : '') + (x.sit?.length ? 'guide scelte per te qui sotto' : 'le due app si sono scambiate le informazioni'))}
         ${(x.sit || []).map(([id, t]) => xRow('book', 'violet', esc(t), 'Apri la guida in Vicina Extra', go || 'open-extra', 'aiuto/' + esc(id))).join('')}</div>` : ''}
+      <h2 class="x-h">Aggiornamenti tra le due app</h2>
+      <div id="x-agg">${xAggHtml()}</div>
       <h2 class="x-h">Vai subito a</h2>
       <div class="v4-card">
         ${xRow('shield', 'violet', 'Centri antiviolenza', 'Il più vicino, con telefono e percorso', go || 'open-extra', 'luoghi/antiviolenza')}
@@ -453,6 +470,42 @@ export function boot(api, native) {
         ${xRow('user', 'green', 'Stesso account', 'Nome, foto e banner sono gli stessi.')}
       </div>
       <p class="v4-note center">L'APK arriva dalle release ufficiali su GitHub.</p>`;
+  }
+  // aggiornamenti: SOS recenti (da qui) + cosa arriva da Vicina Extra, con l'assistente che fa da ponte
+  let xAgg = null, xAi = (() => { try { return JSON.parse(ls.get('x:aggai') || 'null'); } catch { return null; } })();
+  const xWhen = t => new Date(t).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const xDur = (a, b) => { const m = Math.round((new Date(b) - new Date(a)) / 60000); return m < 60 ? m + ' min' : Math.round(m / 60) + ' ore'; };
+  function xEvents() {
+    const ev = [], x = fromExtra();
+    for (const s of xAgg?.mine || []) ev.push(['alert', 'red', s.active ? 'SOS in corso' : 'Hai mandato un SOS', xWhen(s.created_at) + (s.resolved_at ? ' · chiuso dopo ' + xDur(s.created_at, s.resolved_at) : '')]);
+    for (const s of xAgg?.got || []) ev.push(['people', 'red', `${esc(s.from_name || 'Qualcuno')} ha chiesto aiuto`, xWhen(s.created_at) + (s.resolved_at ? ' · ora è al sicuro' : '')]);
+    for (const [t, due] of x?.dead || []) { const d = Math.ceil((due - Date.now()) / 864e5); if (d >= 0) ev.push(['clock', 'amber', esc(t), d === 0 ? 'Scade oggi (da Vicina Extra)' : `Scade tra ${d} giorni (da Vicina Extra)`]); }
+    for (const t of x?.docs || []) ev.push(['file', 'violet', esc(t), 'Documento creato in Vicina Extra']);
+    return ev;
+  }
+  function xAggHtml() {
+    const ev = xEvents();
+    return `<div class="v4-card x-ai"><div class="v4-row"><i class="sq violet">${I('spark')}</i><div class="fl"><b>L’assistente fa da ponte</b><span>${xAi?.at ? 'Aggiornato il ' + new Date(xAi.at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : 'Legge cosa è successo e ti suggerisce i prossimi passi, anche in Vicina Extra.'}</span></div></div>
+      ${xAi?.text ? `<div class="x-ai-t">${esc(xAi.text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>')}</div>` : ''}
+      <button class="btn ghost x-ai-b" data-a="x-agg-ai">${I('spark')}${xAi?.text ? 'Aggiorna il consiglio' : 'Cosa posso fare adesso?'}</button></div>
+      ${ev.length ? `<div class="v4-card">${ev.slice(0, 8).map(([ic, c, t, s]) => xRow(ic, c, t, s)).join('')}</div>` : `<p class="v4-note">Qui compaiono gli SOS degli ultimi 30 giorni e quello che arriva da Vicina Extra (scadenze, documenti).</p>`}`;
+  }
+  async function xLoadAgg() {
+    try { xAgg = await api.recentSos?.(st.uid, 30) || null; } catch { xAgg = null; }
+    const box = $('#x-agg'); if (box) box.innerHTML = xAggHtml();
+  }
+  async function xAggAI(btn) {
+    btn.disabled = true; btn.textContent = 'L’assistente sta leggendo…';
+    const ev = xEvents().map(e => `- ${e[2].replace(/&#39;/g, "'")}: ${e[3]}`);
+    const ctx = ev.length ? 'Cosa è successo di recente (dal più recente):\n' + ev.join('\n') : 'Nessun SOS di recente. La persona vuole sapere come prepararsi e cosa offre Vicina Extra.';
+    try {
+      const base = String(import.meta.env.VITE_SUPABASE_URL || '').replace(/\/+$/, ''), key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+      const r = await fetch(base + '/functions/v1/extra-assistente', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: key, Authorization: 'Bearer ' + key }, body: JSON.stringify({ mode: 'update', context: ctx, device: 'vicina-' + (st.uid || '').slice(0, 8) }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.reply) throw new Error(j.error || 'L’assistente non risponde, riprova');
+      xAi = { text: j.reply, at: Date.now() }; ls.set('x:aggai', JSON.stringify(xAi));
+    } catch (e) { toast(e.message); }
+    const box = $('#x-agg'); if (box) box.innerHTML = xAggHtml();
   }
   function openExtraScreen() { if (curScreen !== 's-extra') { xFrom = curScreen; show('s-extra', 'in-push'); } rExtra(); }
   const xBack = () => { const k = TABS_BY_SCREEN[xFrom]; if (k) tab(k, 'in-pop'); else show(xFrom || 's-home', 'in-pop'); };
@@ -1101,7 +1154,7 @@ export function boot(api, native) {
     const b = $('#badge'); b.hidden = !n; b.textContent = n > 9 ? '9+' : n; if (glass.supported) syncGlass();
     const hb = $('#h-badge'); if (hb) { hb.hidden = !n; hb.textContent = n > 9 ? '9+' : n; }
   }
-  const preview = m => !m ? '' : m.type === 'image' ? `${m.from === st.uid ? 'Tu: ' : ''}📷 Foto` : m.type === 'file' ? `📎 <span translate="no">${esc(m.fileName || 'File')}</span>` : m.type === 'voice' ? `🎤 Messaggio vocale · ${mmss((m.dur || 0) * 1000)}` : m.type === 'loc' ? '📍 Posizione' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw" translate="no">${esc(m.text)}</span>`;
+  const preview = m => !m ? '' : m.type === 'image' ? `${m.from === st.uid ? 'Tu: ' : ''}📷 Foto` : m.type === 'file' && /^app:/.test(m.file || '') ? '📲 Invito a Vicina Extra' : m.type === 'file' ? `📎 <span translate="no">${esc(m.fileName || 'File')}</span>` : m.type === 'voice' ? `🎤 Messaggio vocale · ${mmss((m.dur || 0) * 1000)}` : m.type === 'loc' ? '📍 Posizione' : m.type === 'sos' ? `<span class="tag red">SOS</span> ${m.from === st.uid ? 'Inviato da te' : esc(m.fromName)}` : m.type === 'safe' ? `<span class="tag green">OK</span> ${esc(m.fromName)} è al sicuro` : `<span class="raw" translate="no">${esc(m.text)}</span>`;
   // «Avvisi» non è più una scheda: conversazioni e SOS in arrivo stanno nella Cerchia
   function rChats() { if (curScreen === 's-circle') rCircle(); }
   const nameIn = (cid, uid) => st.groups.find(g => g.id === cid)?.members.find(m => m.uid === uid)?.name || '';
@@ -1125,6 +1178,10 @@ export function boot(api, native) {
     const tt = `<div class="t">${hhmm(m.at)}${tk}</div>`;
     const cap = m.text ? `<span class="raw cap" translate="no">${esc(m.text)}</span>` : '';
     if (m.type === 'image') return `<div class="msg media ${mine ? '' : 'in'} ${cls}">${who}<button class="mimg" data-a="img-open" data-f="${esc(m.file)}" aria-label="Apri la foto"><img data-f="${esc(m.file)}" alt=""></button>${cap}${tt}</div>`;
+    // invito a un'app (mandato da Vicina Extra): card con il tasto Installa
+    if (m.type === 'file' && /^app:/.test(m.file || '')) {
+      return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<div class="mapp"><i class="ma-ic">${I('heart')}</i><span class="fl"><b>Vicina Extra</b><span>Servizi sociali, aiuti e diritti</span></span></div>${cap}${mine ? '' : `<button class="btn ma-go" data-a="app-install">${I('share')}Installa</button>`}${tt}</div>`;
+    }
     if (m.type === 'file') {
       const ext = (String(m.fileName).match(/\.([a-z0-9]{1,5})$/i)?.[1] || 'file').toUpperCase().slice(0, 4);
       return `<div class="msg ${mine ? '' : 'in'} ${cls}">${who}<button class="mfile" data-a="file-open" data-f="${esc(m.file)}" data-n="${esc(m.fileName)}"><i class="mf-ic">${esc(ext)}</i><span class="fl"><b translate="no">${esc(m.fileName || 'File')}</b><span>${fsize(m.fileSize)}</span></span></button>${cap}${tt}</div>`;
@@ -2349,6 +2406,8 @@ export function boot(api, native) {
         case 'x-back': xBack(); break;
         case 'x-open': openExtra(t.dataset.u || 'vicina'); break;
         case 'x-install': installExtra(t); break;
+        case 'app-install': appInvite(t); break;
+        case 'x-agg-ai': xAggAI(t); break;
         case 'ht-add': homeToolsEdit('add', t.dataset.k); break;
         case 'ht-del': homeToolsEdit('del', t.dataset.k); break;
         case 'ht-up': homeToolsEdit('up', t.dataset.k); break;
