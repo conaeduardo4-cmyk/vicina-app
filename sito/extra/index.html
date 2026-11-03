@@ -1,74 +1,482 @@
 <!doctype html>
-<html lang="it">
+<html lang="it" data-app="extra">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Vicina Extra · servizi sociali, aiuti e diritti</title>
-<meta name="description" content="App gratuita per trovare servizi sociali, aiuti e diritti, luoghi dove stare in compagnia e sapere come tutelarsi. La sorella di Vicina.">
-<meta name="theme-color" content="#0D1015">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<meta name="description" content="App gratuita per trovare servizi sociali, aiuti e diritti, luoghi dove stare in compagnia e sapere come tutelarsi. Lettere, guide e corsi su misura con l'AI. La sorella di Vicina.">
+<meta name="theme-color" content="#07070A">
+<meta property="og:title" content="Vicina Extra · servizi sociali, aiuti e diritti">
+<meta property="og:description" content="Consultori, servizi sociali, aiuti, tutele e un assistente che scrive per te. Gratis.">
+<meta property="og:image" content="/img/x/home.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
 <style>
-:root{--bg:#0D1015;--s1:#151922;--s2:#1D222C;--line:rgba(255,255,255,.08);--ink:#ECEFF4;--sub:#A3ABB9;--acc:#B4A8FF;--grad:radial-gradient(130% 160% at 0% 0%,#8B7BFF 0%,#5B43F0 52%,#3B2A9E 100%)}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:var(--acc)}
-.wrap{max-width:980px;margin:0 auto;padding:0 20px}
-header{display:flex;align-items:center;gap:10px;padding:22px 0}
-.logo{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;flex:none}
-.logo svg{width:19px;height:19px}
-header b{font-size:17px;font-weight:800;flex:1}
-header a{font-size:14px;font-weight:700;text-decoration:none}
-.hero{position:relative;overflow:hidden;margin-top:12px;padding:44px 28px;border-radius:24px;background:var(--grad)}
-.hero::after{content:'';position:absolute;right:-80px;top:-90px;width:300px;height:300px;border-radius:50%;border:44px solid rgba(255,255,255,.07)}
-.hero>*{position:relative}
-h1{margin:0;font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:800;max-width:640px}
-.hero p{margin:14px 0 0;font-size:17px;max-width:560px;color:rgba(255,255,255,.9)}
-.dl{display:inline-flex;align-items:center;gap:10px;margin-top:24px;height:54px;padding:0 22px;border-radius:14px;background:#fff;color:#1A1240;font-weight:800;text-decoration:none}
-.dl svg{width:20px;height:20px}
-.note{margin-top:10px;font-size:13.5px;color:rgba(255,255,255,.85)}
-h2{margin:48px 0 14px;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--sub)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.card{padding:18px;border-radius:16px;background:var(--s1);border:1px solid var(--line)}
-.card i{width:38px;height:38px;border-radius:10px;background:var(--s2);color:#C9C1FF;display:grid;place-items:center}
-.card i svg{width:19px;height:19px}
-.card b{display:block;margin-top:12px;font-size:16.5px}
-.card p{margin:4px 0 0;font-size:14.5px;color:var(--sub)}
-.row{display:flex;gap:14px;align-items:center;padding:16px 18px;border-radius:16px;background:var(--s1);border:1px solid var(--line);text-decoration:none;color:var(--ink)}
-.row .sq{width:42px;height:42px;border-radius:11px;background:#E5484D;display:grid;place-items:center;flex:none}
-.row b{display:block}.row span{color:var(--sub);font-size:14.5px}
-footer{margin:56px 0 40px;font-size:13.5px;color:var(--sub)}
+/* ---------- ricerca dal vivo ---------- */
+.livesearch{position:relative;margin-top:30px;max-width:560px}
+.livesearch .inp{height:62px;padding-left:52px;font-size:17px;border-radius:18px;background:rgba(20,20,26,.8)}
+.livesearch>svg{position:absolute;left:18px;top:20px;width:22px;height:22px;color:var(--acc2)}
+.res{display:flex;flex-direction:column;gap:6px;margin-top:10px;min-height:20px}
+.res a{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--s1);border:1px solid var(--line);animation:pop .35s var(--ease)}
+.res a .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(124,108,255,.18);color:var(--acc2);flex:none}
+.res a b{display:block;font-size:14.5px}.res a span{font-size:12.5px;color:var(--sub)}
+.res a em{margin-left:auto;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--mute)}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}}
+/* ---------- domande dal vivo ---------- */
+.quiz{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:start}
+.qbox{padding:28px;min-height:420px}
+.qprog{display:flex;gap:4px;margin-bottom:20px}.qprog i{flex:1;height:5px;border-radius:3px;background:var(--s3);transition:background .4s}.qprog i.on{background:var(--acc2)}
+.qbox h3{font-size:26px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+.qbox .sub{color:var(--sub);margin-top:6px}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:20px}
+.opt{display:flex;align-items:center;gap:12px;min-height:54px;padding:0 16px;border-radius:14px;background:var(--bg2);border:1px solid var(--line2);font-weight:700;text-align:left;transition:all .25s var(--ease)}
+.opt:hover{border-color:var(--acc2);transform:translateX(4px)}
+.opt.on{background:rgba(124,108,255,.18);border-color:var(--acc2)}
+.opt .bx{width:20px;height:20px;border-radius:6px;border:2px solid var(--s3);display:grid;place-items:center}
+.opt.on .bx{background:var(--accd);border-color:var(--accd)}
+.opt .bx svg{width:13px;height:13px;stroke-width:3;opacity:0}.opt.on .bx svg{opacity:1}
+.qres .grp{margin-top:16px}
+.qres h4{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:8px}
+.pillx{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;margin:0 6px 6px 0;border-radius:14px;background:var(--s2);font-weight:700;font-size:14px;animation:pop .4s var(--ease) both}
+.pillx svg{width:16px;height:16px;color:var(--acc2)}
+.qside{padding:28px;display:flex;flex-direction:column;gap:14px}
+.branch{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--sub);line-height:1.8}
+.branch b{color:var(--acc2)}
+/* ---------- mappa ---------- */
+.mapbox{position:relative;height:520px;border-radius:30px;overflow:hidden;background:#11151C;border:1px solid var(--line)}
+.mapbox svg.streets{position:absolute;inset:0;width:100%;height:100%}
+.mpin{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:11px;display:grid;place-items:center;background:var(--accd);border:2px solid #11151C;color:#fff;box-shadow:0 8px 20px -6px #000;transition:transform .4s var(--ease),opacity .4s;cursor:pointer}
+.mpin svg{width:16px;height:16px;stroke-width:2.2}
+.mpin.off{transform:scale(0);opacity:0}
+.mpin:hover{transform:scale(1.25);z-index:3}
+.me-dot{position:absolute;left:50%;top:52%;width:20px;height:20px;margin:-10px;border-radius:50%;background:#5B9DFF;border:3px solid #fff;box-shadow:0 0 0 0 rgba(91,157,255,.5);animation:me 2s infinite}
+@keyframes me{70%{box-shadow:0 0 0 30px rgba(91,157,255,0)}}
+.mapui{position:absolute;left:16px;right:16px;top:16px;display:flex;flex-direction:column;gap:10px}
+.mapui .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.mapui .chip{flex:none;background:rgba(20,20,26,.92)}.mapui .chip.on{background:var(--ink)}
+.mapcard{position:absolute;left:16px;right:16px;bottom:16px;padding:16px;border-radius:20px;background:rgba(14,14,18,.94);backdrop-filter:blur(10px);border:1px solid var(--line2);display:flex;gap:12px;align-items:center;transition:transform .4s var(--ease)}
+.mapcard .ic{width:44px;height:44px;border-radius:13px;background:var(--grad);display:grid;place-items:center;color:#fff;flex:none}
+.mapcard b{display:block}.mapcard span{font-size:13px;color:var(--sub)}
+.mapcard .go{margin-left:auto;height:40px;padding:0 14px;border-radius:12px;background:var(--ink);color:#09090B;font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px}
+/* ---------- crea con l'AI ---------- */
+.ai2{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
+.kinds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kind{padding:12px;border-radius:14px;background:var(--bg2);border:1px solid var(--line2);text-align:left;transition:all .25s}
+.kind b{display:block;font-weight:800}.kind span{font-size:11.5px;color:var(--sub);line-height:1.3;display:block;margin-top:2px}
+.kind.on{border-color:var(--acc2);background:rgba(124,108,255,.16)}
+.prompts{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.prompts button{padding:11px 13px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);text-align:left;font-size:14px;font-weight:600;transition:all .2s}
+.prompts button:hover,.prompts button.on{border-color:var(--acc2)}
+.paper{position:relative;min-height:520px;padding:44px 46px;border-radius:22px;background:#FBFAF7;color:#1A1A1A;font:16px/1.65 Georgia,'Times New Roman',serif;box-shadow:0 40px 80px -30px #000;overflow:hidden}
+.paper h1{font:800 24px/1.25 Manrope,sans-serif;margin-bottom:16px}
+.paper h2{font:800 16px/1.3 Manrope,sans-serif;margin:18px 0 6px}
+.paper p{margin-bottom:9px}.paper ul,.paper ol{margin:0 0 10px 20px}
+.paper mark{background:#FFF0A8;padding:0 3px;border-radius:3px}
+.paper .caret{display:inline-block;width:2px;height:1.1em;background:#5B43F0;vertical-align:-3px;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:0}}
+.paper .empty{color:#999;font-family:Manrope,sans-serif;text-align:center;margin-top:160px}
+.paperacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.paperacts .btn{height:46px;font-size:14px;padding:0 16px}
+/* ---------- strumenti ---------- */
+.tools2{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.t2{padding:20px;min-height:170px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;transition:transform .3s var(--ease)}
+.t2:hover{transform:translateY(-4px)}
+.t2 .ic{width:44px;height:44px;border-radius:13px;display:grid;place-items:center}
+.t2 b{display:block;font-size:16.5px}.t2 span{font-size:13.5px;color:var(--sub)}
+.t2.red{background:linear-gradient(150deg,#F0525E,#B5172A);border:0}.t2.red span{color:rgba(255,255,255,.85)}.t2.red .ic{background:rgba(255,255,255,.2);color:#fff}
+.c-red{background:rgba(232,25,44,.16);color:#FF6B78}.c-amber{background:rgba(255,181,71,.15);color:#FFB547}.c-green{background:rgba(52,211,153,.14);color:#34D399}.c-blue{background:rgba(96,165,250,.15);color:#93C5FD}.c-violet{background:rgba(156,140,255,.16);color:#B4A8FF}.c-pink{background:rgba(244,114,182,.16);color:#F9A8D4}
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:30px}
+.calc .card{padding:26px}
+.dres{margin-top:16px;padding:18px;border-radius:16px;background:var(--bg2);border:1px solid var(--line);display:none}
+.dres.on{display:block;animation:pop .4s var(--ease)}
+.dres b.d{font-size:28px;font-weight:800;letter-spacing:-.02em;display:block}
+.bar5{height:8px;border-radius:4px;background:var(--s3);overflow:hidden;margin-top:12px}.bar5 i{display:block;height:100%;background:var(--grad);transition:width 1s var(--ease)}
+/* uscita rapida: tutta la pagina diventa il meteo */
+#meteo{position:fixed;inset:0;z-index:99;display:none;flex-direction:column;padding:40px 28px;color:#fff;background:linear-gradient(180deg,#4F8DE0,#9CC3F2);font-family:system-ui,sans-serif}
+#meteo.on{display:flex}
+#meteo .m{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+#meteo .m b{font-size:96px;font-weight:200;line-height:1}
+#meteo .days{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;max-width:520px;margin:0 auto;width:100%}
+#meteo .days b{display:block;font-size:20px;margin-top:4px}
+/* ---------- guide e tutele ---------- */
+.gfilter{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:20px}.gfilter .inp{max-width:340px}
+.guides{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+.guide{padding:22px;cursor:pointer;transition:transform .3s var(--ease)}
+.guide:hover{transform:translateY(-3px)}
+.guide .g{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--acc2)}
+.guide h3{font-size:18.5px;line-height:1.25;margin-top:6px;font-weight:800}
+.guide p{font-size:14px;color:var(--sub);margin-top:6px}
+.guide .ms{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s var(--ease)}
+.guide.open .ms{grid-template-rows:1fr}
+.guide .ms>div{overflow:hidden}
+.guide .m{margin-top:10px;padding:12px;border-radius:12px;background:var(--bg2);font-size:13.5px;color:var(--ink2)}
+.guide .m b{display:block;color:#fff}
+.guide[hidden]{display:none}
+.tut{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tcard{perspective:1000px;height:240px;cursor:pointer}
+.tcard .in{position:relative;height:100%;transition:transform .7s var(--ease);transform-style:preserve-3d}
+.tcard.flip .in{transform:rotateY(180deg)}
+.tcard .f,.tcard .b{position:absolute;inset:0;padding:20px;border-radius:22px;backface-visibility:hidden;-webkit-backface-visibility:hidden;border:1px solid var(--line);overflow:hidden}
+.tcard .f{background:var(--s1);display:flex;flex-direction:column;justify-content:space-between}
+.tcard .f b{font-size:18px;line-height:1.2}.tcard .f span{font-size:13.5px;color:var(--sub)}
+.tcard .b{background:var(--s2);transform:rotateY(180deg);font-size:13px;color:var(--ink2);overflow-y:auto}
+.tcard .b h4{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--acc2);margin-bottom:6px}
+.tcard .b li{margin:0 0 5px 16px}
+.nums{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.num{padding:14px 18px;border-radius:16px;background:var(--s1);border:1px solid var(--line);display:flex;flex-direction:column;min-width:150px;transition:transform .25s}
+.num:hover{transform:translateY(-3px);border-color:var(--acc2)}
+.num b{font-size:22px;font-weight:800}.num span{font-size:12.5px;color:var(--sub)}
+.num.hl{background:var(--grad);border:0}.num.hl span{color:rgba(255,255,255,.9)}
+/* ---------- invito in chat ---------- */
+.chatinv{max-width:420px;margin:0 auto;padding:22px;display:flex;flex-direction:column;gap:10px}
+.cb{max-width:85%;padding:11px 14px;border-radius:18px;background:var(--s2);font-size:14.5px;opacity:0;transform:translateY(10px);transition:all .5s var(--ease)}
+.cb.me{align-self:flex-end;background:var(--grad);color:#fff}
+.cb.in{opacity:1;transform:none}
+.cb .app{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.cb .app i{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:rgba(255,255,255,.2);font-style:normal}
+.cb .inst{margin-top:10px;width:100%;height:40px;border-radius:12px;background:#fff;color:#2F2185;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn.dis{opacity:.4}
+@media (max-width:960px){.quiz,.ai2,.calc{grid-template-columns:1fr}.tools2,.guides,.tut{grid-template-columns:1fr 1fr}.mapbox{height:460px}.paper{padding:28px 24px}}
+@media (max-width:620px){.tools2,.guides,.tut{grid-template-columns:1fr}.kinds{grid-template-columns:1fr 1fr 1fr}}
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="hands" viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.5-7 10-7 10zM9.5 11.5l2 2 3-3.5"/></symbol>
-  <symbol id="pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 10-14 0c0 6 7 12 7 12zM12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></symbol>
-  <symbol id="doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></symbol>
-  <symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
-  <symbol id="people" viewBox="0 0 24 24"><path d="M9 11a3 3 0 100-6 3 3 0 000 6zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3 3 0 010 6M21 20c0-2.6-1.7-4.8-4-5.6"/></symbol>
-  <symbol id="chat" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2H9l-5 4z"/></symbol>
-  <symbol id="dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
-</svg>
-<div class="wrap">
-  <header><span class="logo"><svg fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#hands"/></svg></span><b>Vicina Extra</b><a href="/">Vicina</a></header>
-  <section class="hero">
-    <h1>Servizi sociali, aiuti e diritti vicino a te.</h1>
-    <p>Trova consultori, servizi sociali, centri per l’impiego, centri giovani e anziani. Scopri cosa ti spetta e come tutelarti. Gratis, senza pubblicità.</p>
-    <a class="dl" href="/VicinaExtra.apk"><svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#dl"/></svg>Scarica per Android</a>
-    <p class="note">File APK. Dopo il download aprilo e consenti l’installazione da questa fonte.</p>
-  </section>
-  <h2>Cosa trovi</h2>
-  <div class="grid">
-    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#pin"/></svg></i><b>Luoghi vicino a te</b><p>Servizi sociali, Comuni, consultori, centri antiviolenza, patronati, biblioteche, centri di quartiere, mense.</p></div>
-    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#doc"/></svg></i><b>Aiuti e diritti</b><p>16 guide: a chi spetta ogni aiuto, cosa serve e dove si chiede. Con le fonti ufficiali.</p></div>
-    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#shield"/></svg></i><b>Come tutelarti</b><p>Truffe, violenza nella coppia, sfratto, debiti, bullismo: i segnali, cosa fare, chi chiamare.</p></div>
-    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#people"/></svg></i><b>Non sentirti solo</b><p>Posti dove fare qualcosa con altre persone e linee di ascolto gratuite.</p></div>
-    <div class="card"><i><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#chat"/></svg></i><b>Assistente</b><p>Fai una domanda su servizi, aiuti e diritti e ricevi una risposta semplice.</p></div>
+<script src="/assets/sprite.js"></script>
+<canvas id="aurora" aria-hidden="true"></canvas><div class="grain" aria-hidden="true"></div><div id="cursor" aria-hidden="true"></div><div id="progress" aria-hidden="true"></div>
+
+<header class="top"><div class="wrap">
+  <a class="brand" href="/extra/" aria-label="Vicina Extra, inizio pagina"><span class="logo"><svg><use href="#i-hands"/></svg></span><span>Vicina Extra</span></a>
+  <nav class="switch" aria-label="Scegli l'app"><span class="pill" aria-hidden="true"></span><a href="/"><i></i>Vicina</a><a class="on" href="/extra/" aria-current="page"><i></i>Vicina Extra</a></nav>
+  <nav class="links" aria-label="Sezioni"><a href="#domande">Cosa ti spetta</a><a href="#luoghi">Luoghi</a><a href="#crea">Crea con l'AI</a><a href="#strumenti">Strumenti</a><a href="#guide">Guide</a></nav>
+  <a class="cta-top" href="#scarica" data-mag><svg class="i"><use href="#i-down"/></svg>Scarica</a>
+</div></header>
+
+<main>
+<section class="hero"><div class="wrap">
+  <div>
+    <span class="eyebrow" data-r><i class="dot"></i>Novità · versione <b data-rel="v">1.4</b> · ora anche su iPhone</span>
+    <h1 class="mega" data-r style="--d:1">Servizi, aiuti<br>e diritti, <span class="grad-t">vicino a te.</span></h1>
+    <p class="lead" data-r style="--d:2">Consultori, servizi sociali, centri per l'impiego, centri giovani e anziani, mense. Gli aiuti che ti spettano spiegati semplice, come tutelarti, e un assistente che scrive lettere e guide per te.</p>
+    <div class="livesearch" data-r style="--d:3"><svg class="i"><use href="#i-search"/></svg><input class="inp" id="ls" type="search" placeholder="Prova: affitto, NASpI, consultorio…" aria-label="Cerca un servizio o un aiuto" autocomplete="off"><div class="res" id="lsr" aria-live="polite"></div></div>
+    <div class="acts" data-r style="--d:4">
+      <a class="btn main" href="/VicinaExtra.apk" data-modal="m-android" data-mag><svg class="i"><use href="#i-android"/></svg><span class="bt">Scarica per Android<small>APK · gratis · <span data-rel-size="apk">6 MB</span></small></span></a>
+      <a class="btn ghost" href="#scarica" data-modal="m-ios" data-mag><svg class="i"><use href="#i-apple"/></svg><span class="bt">iPhone<small>IPA da firmare</small></span></a>
+    </div>
   </div>
-  <h2>In emergenza</h2>
-  <a class="row" href="/"><span class="sq"><svg width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#shield"/></svg></span><span><b>Vicina</b><span>L’app per l’SOS: avvisa le persone di cui ti fidi con la tua posizione.</span></span></a>
-  <footer>Vicina Extra non sostituisce il 112. Dati dei luoghi © contributori di OpenStreetMap. Codice: <a href="https://github.com/conaeduardo4-cmyk/vicina-extra">GitHub</a>.</footer>
+  <div class="stage" data-r="z">
+    <div class="float"><div class="phone" data-tilt="14" data-car="2600"><div class="scr"><img src="/img/x/home.webp" alt="La Home di Vicina Extra"><img src="/img/x/luoghi.webp" alt="I luoghi vicino a te"><img src="/img/x/aiuto.webp" alt="Una guida agli aiuti"><img src="/img/x/doc.webp" alt="Una lettera creata con l'AI"><img src="/img/x/agg.webp" alt="Gli aggiornamenti da Vicina"></div><span class="island"></span><span class="shine"></span></div></div>
+    <div class="chip-f" style="left:-30px;top:16%"><span class="ic"><svg class="i"><use href="#i-pin"/></svg></span><span><span data-count="20667">20.667</span> luoghi<small>in tutta Italia</small></span></div>
+    <div class="chip-f" style="right:-24px;top:48%"><span class="ic"><svg class="i"><use href="#i-spark"/></svg></span><span>Lettera pronta<small>creata con l'AI</small></span></div>
+    <div class="chip-f" style="left:-14px;bottom:12%"><span class="ic"><svg class="i"><use href="#i-doc"/></svg></span><span>16 guide agli aiuti<small>a chi spettano e dove</small></span></div>
+  </div>
 </div>
+<div class="wrap sw2"><div class="stats">
+  <div class="stat" data-r><b data-count="20667">0</b><span>luoghi utili in tutta Italia</span></div>
+  <div class="stat" data-r style="--d:1"><b data-count="16">0</b><span>guide agli aiuti e ai diritti</span></div>
+  <div class="stat" data-r style="--d:2"><b data-count="8">0</b><span>strumenti di uso immediato</span></div>
+  <div class="stat" data-r style="--d:3"><b data-count="0" data-suf=" €">0</b><span>gratis, senza pubblicità</span></div>
+</div></div></section>
+
+<div class="marquee" aria-hidden="true"><div class="mq" id="mq"></div></div>
+
+<!-- DOMANDE -->
+<section id="domande"><div class="wrap">
+  <div class="head" data-r><p class="kicker">Scopri cosa ti spetta</p><h2 class="big">Domande che cambiano<br><span class="grad-t">in base a te.</span></h2><p class="lead">Se hai meno di 18 anni non ti chiede di lavoro e casa: ti propone cosa fare nel tempo libero. Provalo: a destra vedi il percorso che fanno le domande.</p></div>
+  <div class="quiz">
+    <div class="card qbox" id="qbox" data-r="l"></div>
+    <div class="card qside" data-r="r"><b style="font-size:18px">Il percorso delle domande</b><div class="branch" id="branch"></div><p style="color:var(--sub);font-size:14px">Nell'app il risultato porta alle guide, ai luoghi vicini e ai numeri giusti. Le risposte restano sul telefono.</p></div>
+  </div>
+</div></section>
+
+<!-- LUOGHI -->
+<section id="luoghi" style="padding-top:40px"><div class="wrap">
+  <div class="head" data-r><p class="kicker">Luoghi</p><h2 class="big">Il servizio giusto,<br>a pochi passi.</h2><p class="lead">Più di 20.000 luoghi da OpenStreetMap, aggiornati ogni settimana: scegli una categoria e tocca un punto.</p></div>
+  <div class="mapbox" data-r id="mapbox">
+    <svg class="streets" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path d="M-20 140 L1020 300M-20 420 L1020 220M180 -20 L300 560M620 -20 L520 560M820 -20 L900 560M-20 300 C 300 260, 600 380, 1020 340" stroke="#1E2530" stroke-width="18" fill="none"/>
+      <path d="M-20 60 L1020 120M80 -20 L120 560M420 -20 L380 560M720 -20 L760 560M-20 480 L1020 460" stroke="#181E27" stroke-width="8" fill="none"/>
+      <path d="M560 -20 C 620 120, 700 240, 1020 260" stroke="#1B2A3A" stroke-width="40" fill="none" opacity=".7"/>
+    </svg>
+    <span class="me-dot"></span>
+    <div class="mapui"><div class="chips" id="mchips"></div></div>
+    <div class="mapcard" id="mcard"><span class="ic"><svg class="i"><use href="#i-pin"/></svg></span><span><b>Tocca un punto sulla mappa</b><span>Vedi cosa trovi in quel servizio</span></span></div>
+  </div>
+</div></section>
+
+<!-- CREA CON L'AI -->
+<section id="crea" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><div class="wrap">
+  <div class="head" data-r><p class="kicker">Nuovo · Crea con l'AI</p><h2 class="big">Lettere, guide e corsi<br><span class="grad-t">scritti su misura.</span></h2><p class="lead">Scrivi cosa ti serve: l'assistente prepara il documento. Poi lo stampi, lo mandi, lo copi o lo apri con Word, Drive o un'altra app. I dati tra [PARENTESI] li completi tu.</p></div>
+  <div class="ai2">
+    <div class="card" style="padding:22px" data-r="l">
+      <div class="kinds" id="kinds"></div>
+      <div class="prompts" id="prompts"></div>
+      <label class="field" style="margin-top:14px"><span>Oppure scrivi tu</span><textarea id="cq" rows="3" placeholder="Es. lettera al proprietario per un piano di rientro"></textarea></label>
+      <button class="btn main" id="cgo" style="width:100%;margin-top:12px"><svg class="i"><use href="#i-spark"/></svg>Crea il documento</button>
+      <p style="font-size:12.5px;color:var(--mute);margin-top:10px">Questa è un'anteprima con esempi già scritti: nell'app l'assistente scrive davvero quello che chiedi.</p>
+    </div>
+    <div data-r="r"><article class="paper" id="paper"><p class="empty">Scegli un esempio o scrivi una richiesta.</p></article>
+      <div class="paperacts"><button class="btn ghost" id="pprint"><svg class="i"><use href="#i-print"/></svg>Stampa</button><button class="btn ghost" id="pcopy"><svg class="i"><use href="#i-copy"/></svg>Copia</button><button class="btn ghost" id="pmail"><svg class="i"><use href="#i-send"/></svg>Email</button></div></div>
+  </div>
+</div></section>
+
+<!-- STRUMENTI -->
+<section id="strumenti"><div class="wrap">
+  <div class="head" data-r><p class="kicker">Strumenti</p><h2 class="big">Subito, quando serve.</h2><p class="lead">Otto strumenti in Home. Prova l'Uscita rapida: la pagina diventa un'app del meteo. Per tornare, tocca due volte.</p></div>
+  <div class="tools2" id="tools2"></div>
+  <div class="calc">
+    <div class="card" data-r="l"><b style="font-size:20px">Scadenze</b><p style="color:var(--sub);margin-top:4px">Entro quando devi fare la domanda? Calcolalo qui.</p>
+      <div class="field" style="margin-top:16px"><span>Cosa</span><select id="dk"><option value="68">Domanda di NASpI (68 giorni dalla fine del lavoro)</option><option value="68c">DIS-COLL (68 giorni dalla fine della collaborazione)</option><option value="6m">Assegno di maternità del Comune (6 mesi dalla nascita)</option><option value="isee">Rinnovo dell'ISEE (vale fino al 31 dicembre)</option></select></div>
+      <div class="field" style="margin-top:10px"><span id="dq">Quando è finito il lavoro?</span><input type="date" id="dd"></div>
+      <div class="dres" id="dres" aria-live="polite"></div></div>
+    <div class="card" data-r="r"><b style="font-size:20px">Parla con qualcuno</b><p style="color:var(--sub);margin-top:4px">Linee gratuite, persone pronte ad ascoltarti. In pericolo: 112.</p>
+      <div class="nums"><a class="num hl" href="tel:1522"><b>1522</b><span>Antiviolenza e stalking, 24h</span></a><a class="num" href="tel:0223272327"><b>Telefono Amico</b><span>02 2327 2327</span></a><a class="num" href="tel:800995988"><b>Filo d'Argento</b><span>Anziani · 800 995 988</span></a><a class="num" href="tel:19696"><b>19696</b><span>Telefono Azzurro</span></a><a class="num" href="tel:0677208977"><b>Samaritans</b><span>06 7720 8977</span></a></div></div>
+  </div>
+</div></section>
+
+<!-- GUIDE -->
+<section id="guide" style="padding-top:40px"><div class="wrap">
+  <div class="head" data-r><p class="kicker">Aiuti e diritti</p><h2 class="big"><span data-count="16">16</span> guide, spiegate semplice.</h2><p class="lead">Per ogni aiuto: a chi spetta, cosa serve, dove si chiede. Tocca una guida per vedere gli aiuti. Niente importi inventati: cambiano ogni anno.</p></div>
+  <div class="gfilter" data-r><input class="inp" id="gq" type="search" placeholder="Cerca: affitto, 104, bollette…" aria-label="Cerca tra le guide"><div class="chips" id="gcat"></div></div>
+  <div class="guides" id="guides"></div>
+</div></section>
+
+<!-- TUTELE -->
+<section id="tutele" style="padding-top:40px"><div class="wrap">
+  <div class="head" data-r><p class="kicker">Tutele</p><h2 class="big">Come tutelarti.</h2><p class="lead">Tocca una carta: dietro trovi i segnali e cosa fare.</p></div>
+  <div class="tut" id="tut"></div>
+</div></section>
+
+<!-- CON VICINA -->
+<section id="insieme" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><div class="wrap">
+  <div class="head center" data-r><p class="kicker">Con Vicina</p><h2 class="big">Due app, <span class="grad-t">una cerchia.</span></h2><p class="lead center">Vicina ti protegge nel pericolo, Vicina Extra prima e dopo. Si aprono a vicenda, si passano le informazioni, e l'assistente fa da ponte.</p></div>
+  <div class="grid g2" style="align-items:center">
+    <div class="card chatinv" data-r="l" id="chatinv">
+      <b style="font-size:14px;color:var(--sub)">Chat con Giulia · in Vicina</b>
+      <div class="cb">Ciao! Tutto ok ieri sera?</div>
+      <div class="cb me"><div class="app"><i>💜</i><span><b>Vicina Extra</b><br><span style="font-size:12px;opacity:.85">Servizi sociali, aiuti e diritti</span></span></div>Ti invito su Vicina Extra: servizi sociali, aiuti e diritti vicino a te.</div>
+      <div class="cb" style="background:linear-gradient(150deg,#7C6CFF,#5B43F0);color:#fff"><b>Su Android</b>: tocca Installa e l'app si installa subito.<button class="inst"><svg class="i"><use href="#i-down"/></svg>Installa</button></div>
+      <div class="cb">Fatto! L'ho installata 🙌</div>
+    </div>
+    <div class="grid" style="gap:10px">
+      <div class="card feat" data-r="r"><div class="ic"><svg class="i"><use href="#i-shield"/></svg></div><h3>SOS con Vicina</h3><p>Dalla Home di Extra fai partire l'SOS di Vicina, con i 5 secondi per annullare.</p></div>
+      <div class="card feat" data-r="r" style="--d:1"><div class="ic"><svg class="i"><use href="#i-flash"/></svg></div><h3>Aggiornamenti con l'AI</h3><p>Hai avuto un SOS? L'assistente legge cosa è successo e ti suggerisce i prossimi passi.</p></div>
+      <div class="card feat" data-r="r" style="--d:2"><div class="ic"><svg class="i"><use href="#i-send"/></svg></div><h3>Invita dalla chat</h3><p>Mandi l'invito nelle chat di Vicina: su Android si installa, su iPhone si scarica.</p></div>
+    </div>
+  </div>
+  <p style="text-align:center;margin-top:34px"><a class="btn ghost" href="/" data-mag>Scopri Vicina<svg class="i"><use href="#i-chev"/></svg></a></p>
+</div></section>
+
+<!-- SCARICA -->
+<section id="scarica"><div class="wrap">
+  <div class="head center" data-r><p class="kicker">Scarica Vicina Extra <span data-rel="v">1.4</span></p><h2 class="big">Gratis. Android e iPhone.</h2><p class="lead center">Aggiornata il <span data-rel="date">—</span>. Se hai già Vicina, la installi anche dalla scheda Vicina Extra dentro l'app.</p></div>
+  <div class="dl">
+    <div class="card plat" data-r="l">
+      <div class="ph"><span class="os"><svg class="i"><use href="#i-android"/></svg></span><div><h3>Android</h3><span class="tag">VERSIONE STABILE</span></div></div>
+      <div class="kv"><div><b data-rel="v">1.4</b><span>versione</span></div><div><b data-rel-size="apk">6 MB</b><span>file APK</span></div><div><b>7.0+</b><span>Android</span></div></div>
+      <ol class="how"><li>Tocca «Scarica APK» e conferma il download.</li><li>Apri il file e, se richiesto, consenti l'installazione.</li><li>Tocca «Installa». Se Play Protect blocca: «Altri dettagli» → «Installa comunque».</li></ol>
+      <a class="btn main" href="/VicinaExtra.apk" data-modal="m-android"><svg class="i"><use href="#i-down"/></svg>Scarica APK</a>
+    </div>
+    <div class="card plat" data-r="r">
+      <div class="ph"><span class="os"><svg class="i"><use href="#i-apple"/></svg></span><div><h3>iPhone</h3><span class="tag beta">NUOVA · NON FIRMATA</span></div></div>
+      <div class="kv"><div><b data-rel="v">1.4</b><span>versione</span></div><div><b data-rel-size="ipa">5 MB</b><span>file IPA</span></div><div><b>15+</b><span>iOS</span></div></div>
+      <ol class="how"><li>Scarica l'IPA su un computer o direttamente da Vicina.</li><li>Firmalo e installalo con Sideloadly, AltStore o SideStore.</li><li>Autorizza il profilo in Impostazioni → Generali → VPN e gestione dispositivi.</li></ol>
+      <a class="btn ghost" href="#" data-modal="m-ios"><svg class="i"><use href="#i-down"/></svg>Scarica IPA</a>
+    </div>
+  </div>
+  <div class="card notes" data-rel-box hidden><b>Novità della versione <span data-rel="v"></span></b><p data-rel="notes" style="margin-top:6px;white-space:pre-line"></p></div>
+</div></section>
+
+<section id="faq" style="padding-top:40px"><div class="wrap">
+  <div class="head center" data-r><p class="kicker">Domande</p><h2 class="big">Quello che ci chiedono.</h2></div>
+  <div class="faq" data-r>
+    <input class="inp" id="faq-q" type="search" placeholder="Cerca una domanda…" aria-label="Cerca tra le domande">
+    <div class="qa"><button aria-expanded="false"><span>Serve un account?</span><svg class="i"><use href="#i-plus"/></svg></button><div class="ans"><div><p>No. Se vuoi, accedi con l'account di Vicina: ritrovi nome, foto e banner, vedi gli aggiornamenti dei tuoi SOS e puoi invitare le persone dalle chat.</p></div></div></div>
+    <div class="qa"><button aria-expanded="false"><span>Da dove arrivano i luoghi?</span><svg class="i"><use href="#i-plus"/></svg></button><div class="ans"><div><p>Da OpenStreetMap, aggiornati ogni settimana. Possono mancare o essere vecchi: verifica sempre prima di andare. I servizi sociali del tuo Comune conoscono tutti i servizi della zona.</p></div></div></div>
+    <div class="qa"><button aria-expanded="false"><span>Le guide dicono quanto mi spetta?</span><svg class="i"><use href="#i-plus"/></svg></button><div class="ans"><div><p>No: importi e soglie cambiano ogni anno. Le guide spiegano a chi spetta un aiuto, cosa serve e dove si chiede. I requisiti precisi li verificano INPS, patronati e servizi sociali.</p></div></div></div>
+    <div class="qa"><button aria-expanded="false"><span>Cosa fa «Crea con l'AI»?</span><svg class="i"><use href="#i-plus"/></svg></button><div class="ans"><div><p>Scrive lettere, guide passo passo e piccoli corsi su quello che chiedi. Li stampi (anche in PDF), li mandi, li copi o li apri con Word e altre app. Rileggili sempre: l'AI può sbagliare.</p></div></div></div>
+    <div class="qa"><button aria-expanded="false"><span>Cos'è l'Uscita rapida?</span><svg class="i"><use href="#i-plus"/></svg></button><div class="ans"><div><p>Un tasto che copre subito l'app con una finta pagina del meteo e la chiude. Utile se qualcuno guarda il telefono. Quando la riapri riparte dalla Home.</p></div></div></div>
+    <div class="qa"><button aria-expanded="false"><span>I miei dati dove finiscono?</span><svg class="i"><use href="#i-plus"/></svg></button><div class="ans"><div><p>Risposte, luoghi salvati, documenti e chat con l'assistente restano sul telefono. Le domande all'assistente passano da un servizio di AI con la zona arrotondata alla città.</p></div></div></div>
+  </div>
+</div></section>
+
+<section class="final"><div class="wrap" data-r="z">
+  <span class="eyebrow"><i class="dot"></i>Gratis · Android e iPhone</span>
+  <h2 class="mega">Non sei da solo.<br><span class="grad-t">Ti aiutiamo a capire.</span></h2>
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><a class="btn main" href="/VicinaExtra.apk" data-modal="m-android" data-mag><svg class="i"><use href="#i-android"/></svg>Scarica per Android</a><a class="btn ghost" href="/" data-mag>Scopri Vicina</a></div>
+</div></section>
+</main>
+
+<footer><div class="wrap"><span><b style="color:var(--ink)">Vicina Extra</b> · versione <span data-rel="v">1.4</span> · © 2026 · Fatto da Eduardo Cona e Flavio D'Agostini</span><span><a href="/">Vicina</a> · <a href="https://github.com/conaeduardo4-cmyk/vicina-extra/releases">Tutte le versioni</a></span><span style="width:100%">Vicina Extra non è un servizio di emergenza e non sostituisce il 112. Dati dei luoghi © contributori di OpenStreetMap.</span></div></footer>
+
+<div id="meteo" aria-label="Meteo"><div style="display:flex;justify-content:space-between;font-size:18px"><b>Meteo</b><span>Oggi</span></div><div class="m"><svg viewBox="0 0 64 64" width="110" height="110" aria-hidden="true"><circle cx="26" cy="26" r="12" fill="#FFC94D"/><path d="M20 46h26a9 9 0 000-18 13 13 0 00-24 4 7 7 0 00-2 14z" fill="#E6EAF0"/></svg><b>18°</b><span>Poco nuvoloso</span></div><div class="days"><span>Mer<b>19°</b></span><span>Gio<b>17°</b></span><span>Ven<b>20°</b></span><span>Sab<b>21°</b></span></div></div>
+
+<div class="modal" id="m-android" role="dialog" aria-modal="true" aria-labelledby="ma-t"><div class="box">
+  <h3 id="ma-t">Installa Vicina Extra su Android</h3><p style="margin-top:6px">Il download parte subito. Poi:</p>
+  <ol><li>Apri <b data-rel-name="apk">VicinaExtra.apk</b> dalle notifiche o da Download.</li><li>Se richiesto, consenti l'installazione da questa fonte.</li><li>Tocca «Installa».</li></ol>
+  <div class="row"><button class="btn ghost" data-close>Annulla</button><a class="btn main" href="/VicinaExtra.apk" data-rel-href="apk" data-close>Ho capito, scarica</a></div>
+</div></div>
+<div class="modal" id="m-ios" role="dialog" aria-modal="true" aria-labelledby="mi-t"><div class="box">
+  <h3 id="mi-t">Vicina Extra per iPhone</h3><p style="margin-top:6px">Prima di scaricare:</p>
+  <ol><li>L'IPA <b>non è firmato</b>: si installa con Sideloadly, AltStore o SideStore e il tuo Apple ID.</li><li>Con un Apple ID gratuito dura <b>7 giorni</b>, poi va rifirmato.</li><li>È la prima versione per iPhone: <b>può avere bug</b>.</li></ol>
+  <label class="check"><input type="checkbox" id="ios-ok">Ho capito che è un IPA non firmato.</label>
+  <div class="row"><button class="btn ghost" data-close>Annulla</button><a class="btn main" href="/VicinaExtra.ipa" data-rel-href="ipa" data-needs="ios-ok">Scarica IPA</a></div>
+</div></div>
+
+<script src="/assets/site.js"></script>
+<script>
+(() => {
+  const { $, $$, RM } = SITE, I = ICON, D = {"g":[["soldi","Soldi e lavoro"],["casa","Casa"],["famiglia","Famiglia e figli"],["salute","Salute e disabilità"],["eta","Giovani e anziani"],["difficili","Situazioni difficili"]],"s":[{"id":"lavoro","g":"soldi","t":"Ho perso il lavoro","intro":"Ci sono sostegni economici e percorsi gratuiti per ritrovare lavoro. Alcuni hanno una scadenza: muoviti nei primi giorni.","m":[["NASpI (disoccupazione)","Un’indennità mensile per chi era dipendente e ha perso il lavoro senza volerlo (licenziamento, contratto scaduto, dimissioni per giusta causa)."],["DIS-COLL","L’indennità di disoccupazione per collaboratori (co.co.co.), assegnisti e dottorandi con borsa."],["Iscrizione al centro per l’impiego (DID)","Dichiari di essere disponibile a lavorare: ti dà accesso a corsi gratuiti, orientamento, offerte e ad alcuni sostegni."],["Supporto per la formazione e il lavoro","Un’indennità mensile mentre segui corsi, tirocini o progetti per il lavoro."]]},{"id":"reddito","g":"soldi","t":"Non arrivo a fine mese","intro":"Se i soldi non bastano per le spese di base non sei solo: ci sono sostegni dello Stato, del Comune e delle associazioni. Il primo passo è quasi sempre l’ISEE.","m":[["Assegno di inclusione","Un sostegno mensile per le famiglie con ISEE basso, con una carta per le spese."],["Contributi economici del Comune","Aiuti una tantum o per un periodo: per bollette, affitto, spese urgenti, buoni spesa."],["Empori solidali e pacchi alimentari","Spesa gratuita o quasi, con una tessera a punti o un pacco periodico."],["Bonus sociale bollette","Uno sconto su luce, gas e acqua che arriva da solo in bolletta."]]},{"id":"bollette","g":"soldi","t":"Le bollette sono troppo care","intro":"Il bonus sociale abbassa luce, gas e acqua e arriva da solo, basta avere l’ISEE aggiornato. Se sei già indietro con i pagamenti puoi chiedere di rateizzare.","m":[["Bonus sociale luce, gas e acqua","Uno sconto automatico in bolletta."],["Bonus per disagio fisico","Uno sconto sulla luce se in casa usi apparecchi medici elettrici salvavita."],["Rateizzazione delle bollette","Se una bolletta è molto più alta del solito o sei indietro, puoi chiedere di pagarla a rate."]]},{"id":"casa","g":"casa","t":"Faccio fatica con l’affitto","intro":"Se il canone pesa troppo o rischi di perdere la casa, chiedi aiuto il prima possibile: prima si interviene, più strade ci sono.","m":[["Contributo per l’affitto","Un aiuto per pagare il canone se hai un reddito basso."],["Fondo per la morosità incolpevole","Un aiuto per evitare lo sfratto se non paghi perché hai perso il lavoro o parte del reddito."],["Case popolari (ERP)","Alloggi a canone basso assegnati con una graduatoria."],["Emergenza abitativa","Una sistemazione temporanea se resti senza casa."]]},{"id":"senzacasa","g":"casa","t":"Sono senza casa","intro":"Anche senza casa hai diritti: puoi avere la residenza, il medico di base e l’aiuto dei servizi sociali. Ci sono posti dove mangiare e dormire gratis.","m":[["Mense e dormitori","Pasti caldi, docce, vestiti e posti letto gratuiti."],["Residenza fittizia","Ogni Comune ha un indirizzo «virtuale» per chi non ha casa. Con la residenza puoi avere medico di base, documenti e aiuti."],["Unità di strada","Operatori e volontari che girano di notte con coperte, pasti e ascolto, e possono trovarti un posto."]]},{"id":"figli","g":"famiglia","t":"Aspetto un figlio o ho figli","intro":"Dalla gravidanza in poi ci sono aiuti economici e servizi gratuiti per te e per i tuoi figli.","m":[["Assegno unico universale","Un assegno mensile per ogni figlio. L’importo dipende dall’ISEE; senza ISEE si prende la cifra minima."],["Bonus asilo nido","Un rimborso per le rette del nido, o un aiuto per l’assistenza a casa per bambini con malattie gravi."],["Assegno di maternità dei Comuni","Un assegno per le mamme che non hanno altre tutele di maternità."],["Consultorio familiare","Visite in gravidanza, corso pre-parto, allattamento, sostegno dopo la nascita e per la coppia. Gratis."],["Congedi per i genitori","Maternità, paternità e congedo parentale per stare con i figli piccoli, in parte pagati."]]},{"id":"genitore","g":"famiglia","t":"Mi sto separando o cresco i figli da solo","intro":"Una separazione è dura, ma ci sono servizi gratuiti per affrontarla e per proteggere i figli.","m":[["Mediazione familiare","Un professionista neutrale aiuta i genitori ad accordarsi su figli, casa e spese, senza litigare in tribunale."],["Avvocato gratuito (gratuito patrocinio)","Lo Stato paga l’avvocato se hai un reddito basso."],["Assegno unico per i figli","Spetta al genitore che vive con i figli, o diviso tra i due genitori."]]},{"id":"disabilita","g":"salute","t":"Ho una disabilità","intro":"Ci sono riconoscimenti che aprono la strada a sostegni economici, permessi e lavoro. Si chiedono con una sola domanda all’INPS.","m":[["Invalidità civile","Riconosce la tua condizione con una percentuale. In base alla percentuale e al reddito può dare assegno o pensione, esenzione dai ticket, protesi e ausili."],["Indennità di accompagnamento","Un sostegno mensile per chi non è autonomo, senza limiti di reddito."],["Indennità di frequenza","Un aiuto per bambini e ragazzi con disabilità che vanno a scuola, a terapie o a centri."],["Legge 104","Riconosce l’handicap. Se è grave dà diritto a 3 giorni di permesso retribuito al mese per te o per chi ti assiste, al congedo straordinario per il familiare e ad agevolazioni fiscali."],["Collocamento mirato (Legge 68)","Le aziende devono riservare posti di lavoro alle persone con disabilità."],["Contrassegno per il parcheggio (CUDE)","Ti fa usare i posti riservati e le zone a traffico limitato."]]},{"id":"caregiver","g":"salute","t":"Mi prendo cura di un familiare","intro":"Se assisti una persona cara non autosufficiente hai diritto a permessi, congedi e aiuti, e a un po’ di respiro per te.","m":[["Permessi Legge 104","3 giorni al mese di permesso retribuito per assistere il familiare."],["Congedo straordinario","Fino a 2 anni retribuiti, anche frazionati, nell’arco della vita lavorativa."],["Assistenza domiciliare e centri diurni","Operatori che vengono a casa o centri dove la persona passa la giornata: tu puoi lavorare o riposare."],["Contributi per chi assiste","Molte Regioni danno contributi per i caregiver familiari o per pagare un’assistente."]]},{"id":"cure","g":"salute","t":"Non riesco a pagare le cure","intro":"Molte cure sono gratuite o con ticket ridotto se hai un reddito basso, una malattia cronica o un’invalidità.","m":[["Esenzione dal ticket per reddito","Non paghi il ticket su visite ed esami."],["Esenzione per malattia o invalidità","Esenzione per le cure legate a malattie croniche e rare, o per invalidità."],["Bonus psicologo","Un contributo per pagare le sedute di psicoterapia."],["Centro di salute mentale e consultorio","Psicologi e psichiatri del servizio pubblico, gratis o con ticket."],["Ambulatori solidali","Visite gratuite con medici volontari, anche per chi non ha la tessera sanitaria."]]},{"id":"dipendenze","g":"salute","t":"Alcol, droghe o gioco","intro":"Chiedere aiuto per una dipendenza è un passo di coraggio. I servizi pubblici sono gratuiti e rispettano la tua riservatezza.","m":[["SerD (Servizio per le dipendenze)","Medici, psicologi ed educatori per alcol, droghe, gioco d’azzardo e altre dipendenze. Gratis."],["Gruppi di auto-aiuto","Incontri con persone che vivono lo stesso problema, per sostenersi a vicenda."]]},{"id":"ragazzi","g":"eta","t":"Ho meno di 18 anni","intro":"Anche da minorenne hai diritti e posti dove andare: per stare con gli altri, per parlare con qualcuno, per farti aiutare.","m":[["Centri giovani e di aggregazione","Spazi gratuiti per stare con gli amici, suonare, studiare, fare laboratori, con educatori."],["Spazio giovani del consultorio","Puoi parlare di corpo, relazioni, sessualità e contraccezione con persone preparate, in modo riservato."],["Telefono Azzurro e 114","Puoi parlare con qualcuno se sei in difficoltà, a casa, a scuola o online."],["Sport a basso costo","Palestre popolari, oratori e polisportive con quote piccole o gratis."]]},{"id":"giovani","g":"eta","t":"Ho tra 18 e 35 anni","intro":"Esperienze pagate, sconti, borse di studio e servizi per orientarti tra studio, lavoro e casa.","m":[["Servizio civile universale","Un anno in un progetto utile (assistenza, ambiente, cultura, protezione civile) con un rimborso mensile."],["Borse di studio per l’università","Soldi, posto letto e mensa per studenti con ISEE basso."],["Carta Giovani Nazionale","Sconti e agevolazioni su cultura, sport, viaggi."],["Carte per chi compie 18 anni","La Carta della cultura Giovani e la Carta del merito danno un bonus per libri, musica, cinema e corsi."],["Informagiovani","Sportelli gratuiti per lavoro, studio, viaggi e volontariato."]]},{"id":"anziani","g":"eta","t":"Ho più di 65 anni","intro":"Sostegni per chi ha un reddito basso, aiuto in casa e tanti luoghi dove non stare da soli.","m":[["Assegno sociale","Un sostegno mensile per chi ha un reddito basso o nullo."],["Carta acquisti","Una carta ricaricata ogni due mesi per spesa e bollette."],["Prestazione universale","Un aiuto in più per pagare l’assistenza (badante o servizi) per le persone molto anziane e non autosufficienti. È in prova."],["Assistenza domiciliare","Aiuto in casa per igiene, spesa, pasti e cure."],["Centri anziani e Filo d’Argento","Attività e compagnia vicino a casa; al telefono il Filo d’Argento di Auser (800 995 988)."]]},{"id":"violenza","g":"difficili","t":"Sto uscendo da una situazione di violenza","intro":"Non sei sola. Ci sono persone formate che ti aiutano gratis e sostegni per ricominciare.","m":[["Centri antiviolenza e 1522","Ascolto, consulenza legale e psicologica gratuita, case rifugio."],["Reddito di libertà","Un contributo mensile per aiutarti a diventare autonoma."],["Congedo per le vittime di violenza","Fino a 3 mesi di astensione dal lavoro, retribuiti."],["Avvocato gratuito","Per le vittime di violenza domestica e stalking l’avvocato è pagato dallo Stato, a prescindere dal reddito."]]},{"id":"legale","g":"difficili","t":"Mi serve un avvocato o un consiglio legale","intro":"Non serve essere ricchi per difendere i propri diritti: ci sono avvocati pagati dallo Stato e sportelli gratuiti.","m":[["Gratuito patrocinio","Lo Stato paga l’avvocato nelle cause civili e penali."],["Sportelli legali gratuiti","Un primo consiglio gratuito su casa, lavoro, famiglia, debiti."],["Sindacati e patronati","Per problemi di lavoro (paga, licenziamento, contratti) e con l’INPS."]]}],"t":[{"t":"Truffe a casa o al telefono","s":"Falsi tecnici, finti carabinieri, «nipoti» in difficoltà","seg":["Qualcuno ha fretta e ti mette paura («suo figlio ha avuto un incidente»)","Ti chiedono contanti, gioielli o codici","Dicono di essere tecnici, operatori o forze dell’ordine senza preavviso"],"fare":["Non aprire e non dare soldi: nessun ente vero chiede contanti a casa","Chiudi la chiamata e richiama tu un familiare o il numero ufficiale","Chiama il 112: verificano subito","Se è successo, denuncia: non è colpa tua"]},{"t":"Controllo o violenza in coppia","s":"Anche psicologica ed economica","seg":["Ti controlla il telefono, i soldi o con chi esci","Ti allontana da amici e famiglia","Ti insulta, ti umilia, ti minaccia o ti fa paura","Ti impedisce di lavorare o di avere un conto tuo"],"fare":["Parlane con un centro antiviolenza: è gratuito e riservato, anche senza denunciare","Conserva messaggi, foto, referti in un posto sicuro","Prepara un piano: una persona di fiducia, documenti e un po’ di soldi pronti","Se sei in pericolo adesso chiama il 112"]},{"t":"Discriminazione per disabilità","s":"Al lavoro, a scuola, nei servizi","seg":["Ti negano un servizio o l’accesso a un luogo","Al lavoro non ti danno gli adattamenti di cui hai bisogno","Ti trattano peggio degli altri per la tua condizione"],"fare":["Annota cosa è successo, quando e chi c’era","Chiedi per iscritto il motivo del rifiuto","Rivolgiti a un’associazione delle persone con disabilità, a un sindacato o a un patronato","Puoi segnalare il caso anche al Garante nazionale dei diritti delle persone con disabilità"]},{"t":"Rischio di sfratto","s":"Chi chiamare prima che sia tardi","seg":["Sei indietro con l’affitto e non riesci a recuperare","È arrivata una lettera dell’avvocato o del tribunale"],"fare":["Non aspettare: parla subito con un sindacato degli inquilini (SUNIA, SICET, UNIAT)","Chiedi ai servizi sociali del Comune del Fondo per la morosità incolpevole","Prova ad accordarti con il proprietario per un piano di rientro, per iscritto"]},{"t":"Debiti e prestiti pericolosi","s":"Usura, finanziarie, rate che non finiscono","seg":["Qualcuno ti presta soldi con interessi altissimi o senza contratto","Ricevi minacce per restituire","Paghi una rata per coprirne un’altra"],"fare":["Non firmare niente sotto pressione","Rivolgiti a uno sportello o a una fondazione antiusura: l’aiuto è gratuito","Se i debiti sono troppi esiste una procedura di legge per il sovraindebitamento: chiedi a un Organismo di composizione della crisi (OCC)","Se ti minacciano chiama il 112"]},{"t":"Bullismo e cyberbullismo","s":"Per ragazzi e per i genitori","seg":["Prese in giro continue, esclusione, minacce","Foto o messaggi su di te pubblicati senza permesso","Paura di andare a scuola o di usare il telefono"],"fare":["Parlane con un adulto di cui ti fidi","Salva le prove (screenshot) e blocca chi ti attacca","Segnala i contenuti alla piattaforma; dai 14 anni puoi chiedere tu stesso di toglierli","Puoi rivolgerti alla Polizia Postale (commissariatodips.it)"]},{"t":"Solitudine e momenti difficili","s":"Quando ti senti solo o non ce la fai","seg":["Passi giorni senza parlare con nessuno","Ti senti giù, inutile o senza via d’uscita"],"fare":["Chiama una linea di ascolto: c’è sempre qualcuno pronto a parlare con te","Prova un luogo vicino: centro anziani, centro giovani, associazioni, palestre popolari","Parlane con il tuo medico di base","Se pensi di farti del male, chiama subito il 112"]}],"c":[{"id":"consultori","t":"Consultori","one":"Consultorio","w":["Visite ginecologiche e contraccezione","Gravidanza, corso pre-parto e allattamento","Colloqui con psicologi e assistenti sociali","Spazio giovani, riservato anche ai minorenni"]},{"id":"antiviolenza","t":"Antiviolenza","one":"Centro antiviolenza","w":["Ascolto e accoglienza, anche senza denunciare","Consulenza legale e psicologica gratuita","Aiuto per uscire di casa in sicurezza (case rifugio)","Supporto per figli e figlie"]},{"id":"sociali","t":"Servizi sociali","one":"Servizi sociali","w":["Segretariato sociale: ti orientano tra gli aiuti","Sostegno economico e per la casa","Assistenza domiciliare per anziani e persone con disabilità","Aiuto a famiglie e minori"]},{"id":"comune","t":"Comune e Municipio","one":"Comune o Municipio","w":["Segretariato sociale e assistenti sociali","Anagrafe: residenza, carta d’identità, certificati","Bandi per casa, affitto e contributi","Uffici per famiglie, scuola e disabilità"]},{"id":"biblioteche","t":"Biblioteche","one":"Biblioteca","w":["Prestito gratuito di libri, film e giornali","Sale studio e Wi-Fi","Letture, gruppi, corsi e incontri","Aiuto con il computer e lo SPID in molte sedi"]},{"id":"quartiere","t":"Centri di quartiere","one":"Centro civico o sociale","w":["Corsi, laboratori e incontri spesso gratuiti","Feste, cinema, mercatini, iniziative del quartiere","Sportelli di ascolto e informazione","Un posto dove conoscere i vicini"]},{"id":"casa","t":"Casa","one":"Sportello casa","w":["Case popolari e graduatorie","Contributi per l’affitto","Emergenza abitativa","Sindacati degli inquilini per sfratti e contratti"]},{"id":"lavoro","t":"Lavoro","one":"Centro per l’impiego","w":["Iscrizione come disoccupato (DID)","Corsi di formazione gratuiti","Collocamento mirato per persone con disabilità","Orientamento e offerte di lavoro"]},{"id":"giovani","t":"Centri giovani","one":"Centro giovani","w":["Spazi per stare insieme, studiare e suonare","Laboratori e attività gratuite","Informagiovani: lavoro, studio, servizio civile","Educatori con cui parlare"]},{"id":"anziani","t":"Centri anziani","one":"Centro anziani","w":["Attività, gite e feste","Ginnastica dolce e corsi","Compagnia e nuove amicizie","Informazioni su servizi e aiuti"]},{"id":"disabilita","t":"Disabilità","one":"Associazione per la disabilità","w":["Informazioni su diritti, invalidità e Legge 104","Gruppi di auto-aiuto per persone e famiglie","Attività, sport e tempo libero accessibili","Aiuto con le pratiche"]},{"id":"accoglienza","t":"Mense e accoglienza","one":"Mensa o accoglienza","w":["Pasti caldi gratuiti","Posti per dormire e docce","Vestiti, pacchi alimentari, empori solidali","Ascolto e aiuto per ripartire"]},{"id":"oratori","t":"Oratori","one":"Oratorio","w":["Attività per bambini e ragazzi","Sport e campi estivi","Gruppi e incontri","Spazio aperto a tutti"]},{"id":"palestre","t":"Sport popolare","one":"Palestra popolare","w":["Sport a prezzi bassi o a offerta libera","Boxe, ginnastica, arti marziali, calcio","Un posto per conoscere persone"]},{"id":"volontariato","t":"Associazioni","one":"Associazione","w":["Puoi dare una mano come volontario","Puoi ricevere aiuto: ascolto, pacchi alimentari, vestiti","Attività e gruppi per stare insieme"]},{"id":"patronati","t":"Patronati e CAF","one":"Patronato o CAF","w":["ISEE gratuito","Domande all’INPS: invalidità, NASpI, Assegno unico, pensioni","Controllo dei tuoi diritti","Aiuto con i documenti"]}]};
+  SITE.release('conaeduardo4-cmyk/vicina-extra', { apk: /^VicinaExtra\.apk$/, ipa: /^VicinaExtra\.ipa$/ });
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const CI = { consultori: 'heart', antiviolenza: 'shield', sociali: 'building', comune: 'building', biblioteche: 'book', quartiere: 'people', casa: 'home', lavoro: 'work', giovani: 'music', anziani: 'clock', disabilita: 'access', accoglienza: 'hands', oratori: 'home', palestre: 'flash', volontariato: 'hands', patronati: 'doc' };
+
+  /* barra che scorre */
+  const MQ = D.c.map(c => [CI[c.id] || 'pin', c.t]); const one = MQ.map(([i, t]) => `<span>${I(i)}${esc(t)}</span>`).join(''); $('#mq').innerHTML = one + one;
+
+  /* ---------- ricerca dal vivo (sulle guide e sulle categorie vere) ---------- */
+  const ls = $('#ls'), lsr = $('#lsr');
+  const search = q => { q = q.trim().toLowerCase(); if (q.length < 2) { lsr.innerHTML = ''; return; }
+    const g = D.s.filter(s => (s.t + ' ' + s.intro + ' ' + s.m.map(m => m[0] + ' ' + m[1]).join(' ')).toLowerCase().includes(q)).slice(0, 3).map(s => `<a href="#guide" data-open="${s.id}"><span class="ic">${I('doc')}</span><span><b>${esc(s.t)}</b><span>${esc(s.m.map(m => m[0]).slice(0, 3).join(' · '))}</span></span><em>GUIDA</em></a>`);
+    const c = D.c.filter(c => (c.t + ' ' + c.one + ' ' + c.w.join(' ')).toLowerCase().includes(q)).slice(0, 2).map(c => `<a href="#luoghi" data-cat="${c.id}"><span class="ic">${I(CI[c.id] || 'pin')}</span><span><b>${esc(c.t)}</b><span>${esc(c.w[0])}</span></span><em>LUOGHI</em></a>`);
+    lsr.innerHTML = [...g, ...c].join('') || `<a href="#crea"><span class="ic">${I('spark')}</span><span><b>Chiedilo all'assistente</b><span>Ti risponde o ti scrive una guida su misura</span></span><em>AI</em></a>`; };
+  ls.addEventListener('input', () => search(ls.value));
+  lsr.addEventListener('click', e => { const a = e.target.closest('a'); if (a?.dataset.open) setTimeout(() => openGuide(a.dataset.open), 500); if (a?.dataset.cat) setTimeout(() => setCat(a.dataset.cat), 500); });
+  // scrive da sola finché non tocchi
+  if (!RM) { const W = ['affitto', 'NASpI', 'consultorio', 'bollette', 'Legge 104']; let wi = 0, ci = 0, del = false, stopped = false;
+    ls.addEventListener('focus', () => { if (!stopped) { stopped = true; ls.value = ''; lsr.innerHTML = ''; } });
+    const typ = () => { if (stopped) return; const w = W[wi]; ci += del ? -1 : 1; ls.value = w.slice(0, ci); search(ls.value);
+      if (!del && ci === w.length) { del = true; return setTimeout(typ, 1800); } if (del && ci === 0) { del = false; wi = (wi + 1) % W.length; } setTimeout(typ, del ? 40 : 110); };
+    setTimeout(typ, 1400); }
+
+  /* ---------- domande che cambiano ---------- */
+  const Q = {
+    eta: { q: 'Quanti anni hai?', a: [['u18', 'Meno di 18'], ['18', '18 – 29'], ['30', '30 – 64'], ['65', '65 o più']], next: v => v === 'u18' ? 'fun' : v === '65' ? 'vive' : 'lav' },
+    fun: { q: 'Cosa ti andrebbe di fare nel tempo libero?', multi: 1, a: [['sport', 'Sport'], ['musica', 'Musica, arte, teatro'], ['amici', 'Conoscere persone nuove'], ['aiutare', 'Aiutare gli altri']], next: () => 'umore' },
+    umore: { q: 'Come va in questo periodo?', a: [['bene', 'Abbastanza bene'], ['giu', 'Mi sento giù o da solo'], ['bulli', 'Problemi con altri ragazzi o online']], next: () => null },
+    lav: { q: 'Come va con il lavoro?', a: [['lavoro', 'Lavoro'], ['perso', 'Ho perso il lavoro'], ['cerco', 'Cerco lavoro'], ['cura', 'Mi occupo di un familiare']], next: () => 'casa' },
+    casa: { q: 'E con la casa?', a: [['ok', 'Tutto bene'], ['affitto', 'Faccio fatica con l\'affitto'], ['senza', 'Non ho una casa']], next: () => 'soldi' },
+    soldi: { q: 'Arrivi a fine mese?', a: [['ok', 'Sì'], ['fatica', 'A fatica'], ['no', 'No']], next: () => null },
+    vive: { q: 'Vivi da solo o da sola?', a: [['si', 'Sì'], ['no', 'No']], next: () => 'aiuto' },
+    aiuto: { q: 'Hai bisogno di aiuto in casa?', a: [['no', 'No'], ['si', 'Sì, spesso']], next: () => null }
+  };
+  let cur = 'eta', path = [], ans = {}, sel = [];
+  const result = () => { const g = [], f = [], n = [];
+    if (ans.eta === 'u18') { g.push('Ho meno di 18 anni'); (ans.fun || []).forEach(x => f.push({ sport: 'Sport popolare e oratori', musica: 'Sale prove nei centri giovani', amici: 'Centri di aggregazione', aiutare: 'Volontariato dai 14 anni' }[x])); if (ans.umore === 'bulli') n.push('Bullismo · 19696'); if (ans.umore === 'giu') n.push('Telefono Azzurro 19696'); }
+    else { if (ans.eta === '18') g.push('Ho tra 18 e 35 anni'); if (ans.eta === '65') { g.push('Ho più di 65 anni'); f.push('Centri anziani'); } if (ans.lav === 'perso' || ans.lav === 'cerco') g.push('Ho perso il lavoro'); if (ans.lav === 'cura') g.push('Mi prendo cura di un familiare');
+      if (ans.casa === 'affitto') g.push('Faccio fatica con l\'affitto'); if (ans.casa === 'senza') g.push('Sono senza casa'); if (ans.soldi && ans.soldi !== 'ok') g.push('Non arrivo a fine mese', 'Le bollette sono troppo care'); if (ans.vive === 'si') n.push('Filo d\'Argento 800 995 988'); if (ans.aiuto === 'si') g.push('Mi prendo cura di un familiare'); }
+    if (!g.length) g.push('Le bollette sono troppo care'); return { g: [...new Set(g)], f, n }; };
+  function rq() {
+    const box = $('#qbox'), steps = path.length + 1;
+    $('#branch').innerHTML = path.map(([k, v]) => `→ <b>${k}</b>: ${esc(Array.isArray(v) ? v.join(', ') : v)}`).join('<br>') + (cur ? `<br>→ <b>${cur}</b> …` : '<br>→ <b>risultato</b>');
+    if (!cur) { const r = result();
+      box.innerHTML = `<div class="qprog">${path.map(() => '<i class="on"></i>').join('')}</div><h3>${ans.eta === 'u18' ? 'Ecco cosa c\'è per te' : 'Ecco cosa fa per te'}</h3><div class="qres">
+        <div class="grp"><h4>Guide da guardare</h4>${r.g.map((t, i) => `<span class="pillx" style="animation-delay:${i * .08}s">${I('doc')}${esc(t)}</span>`).join('')}</div>
+        ${r.f.length ? `<div class="grp"><h4>Per il tempo libero</h4>${r.f.map((t, i) => `<span class="pillx" style="animation-delay:${i * .08}s">${I('spark')}${esc(t)}</span>`).join('')}</div>` : ''}
+        ${r.n.length ? `<div class="grp"><h4>Se ti serve parlarne</h4>${r.n.map(t => `<span class="pillx">${I('phone')}${esc(t)}</span>`).join('')}</div>` : ''}</div>
+        <button class="btn ghost" id="qre" style="margin-top:20px">Rispondi di nuovo</button>`;
+      $('#qre').onclick = () => { cur = 'eta'; path = []; ans = {}; rq(); }; return; }
+    const q = Q[cur];
+    box.innerHTML = `<div class="qprog">${Array.from({ length: Math.max(steps, 3) }, (_, i) => `<i class="${i < path.length ? 'on' : ''}"></i>`).join('')}</div><h3>${q.q}</h3>${q.multi ? '<p class="sub">Puoi sceglierne più di una.</p>' : ''}
+      <div class="opts">${q.a.map(([k, t]) => `<button class="opt" data-k="${k}">${q.multi ? `<span class="bx">${I('check')}</span>` : ''}${t}</button>`).join('')}</div>
+      ${q.multi ? '<button class="btn main" id="qn" style="margin-top:16px;width:100%">Avanti</button>' : ''}`;
+  }
+  $('#qbox').addEventListener('click', e => { const o = e.target.closest('.opt'); const q = Q[cur];
+    if (o && q.multi) { o.classList.toggle('on'); return; }
+    if (o) { ans[cur] = o.dataset.k; path.push([cur, o.textContent]); cur = q.next(o.dataset.k); rq(); return; }
+    if (e.target.closest('#qn')) { const v = $$('#qbox .opt.on').map(x => x.dataset.k); if (!v.length) return; ans[cur] = v; path.push([cur, $$('#qbox .opt.on').map(x => x.textContent)]); cur = q.next(v); rq(); } });
+  rq();
+
+  /* ---------- mappa con le categorie ---------- */
+  const MC = ['sociali', 'consultori', 'antiviolenza', 'patronati', 'giovani', 'anziani', 'biblioteche', 'accoglienza', 'lavoro', 'quartiere'];
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const NAMES = { sociali: ['Segretariato sociale', 'Servizi sociali Municipio'], consultori: ['Consultorio familiare', 'Spazio giovani ASL'], antiviolenza: ['Centro antiviolenza', 'Casa delle donne'], patronati: ['Patronato INCA', 'CAF ACLI'], giovani: ['Informagiovani', 'Centro di aggregazione'], anziani: ['Centro anziani', 'Circolo AUSER'], biblioteche: ['Biblioteca comunale', 'Biblioteca di quartiere'], accoglienza: ['Mensa Caritas', 'Emporio solidale'], lavoro: ['Centro per l\'impiego', 'Porta Futuro'], quartiere: ['Casa di quartiere', 'Centro civico'] };
+  const pins = []; MC.forEach(c => { for (let k = 0; k < 3; k++) pins.push({ c, x: 6 + rnd() * 88, y: 22 + rnd() * 54, n: NAMES[c][k % 2], d: (0.2 + rnd() * 2.4).toFixed(1).replace('.', ',') }); });
+  const mb = $('#mapbox'); mb.insertAdjacentHTML('beforeend', pins.map((p, i) => `<button class="mpin" style="left:${p.x}%;top:${p.y}%;transition-delay:${i * 15}ms" data-i="${i}" aria-label="${esc(p.n)}">${I(CI[p.c])}</button>`).join(''));
+  let mcat = '';
+  const setCat = c => { mcat = c === mcat ? '' : c; $$('#mchips .chip').forEach(b => b.classList.toggle('on', b.dataset.c === mcat)); $$('.mpin', mb).forEach(b => b.classList.toggle('off', !!mcat && pins[b.dataset.i].c !== mcat)); };
+  window.setCat = setCat;
+  $('#mchips').innerHTML = MC.map(c => `<button class="chip" data-c="${c}">${esc(D.c.find(x => x.id === c)?.t || c)}</button>`).join('');
+  $('#mchips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) setCat(b.dataset.c); });
+  mb.addEventListener('click', e => { const b = e.target.closest('.mpin'); if (!b) return; const p = pins[b.dataset.i], c = D.c.find(x => x.id === p.c);
+    $('#mcard').innerHTML = `<span class="ic">${I(CI[p.c])}</span><span><b>${esc(p.n)}</b><span>${esc(c.one)} · ${p.d} km · ${esc(c.w[0])}</span></span><span class="go">${I('map')}Percorso</span>`;
+    $('#mcard').animate([{ transform: 'translateY(16px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 400, easing: 'cubic-bezier(.2,.8,.2,1)' }); });
+
+  /* ---------- crea con l'AI (esempi già scritti, scritti a macchina) ---------- */
+  const KINDS = [['lettera', 'Lettera', 'A un ufficio o una persona'], ['guida', 'Guida', 'Passo passo'], ['corso', 'Corso', 'Lezioni ed esercizi']];
+  const EX = {
+    lettera: [['Contributo per l\'affitto al Comune', `# Richiesta di contributo per l'affitto\n\nAl Servizio sociale del Comune di [CITTÀ]\n\n## Oggetto: richiesta di contributo per il pagamento del canone\n\nIo sottoscritto/a [NOME E COGNOME], residente in [INDIRIZZO], chiedo di essere informato/a sui bandi aperti per il contributo all'affitto e di poter accedere al sostegno.\n\nDa [MESE] ho perso il lavoro e non riesco più a pagare il canone di [IMPORTO] euro al mese. Allego il contratto registrato e l'ISEE.\n\nResto a disposizione per un colloquio.\n\nCordiali saluti,\n[NOME E COGNOME]\n[LUOGO E DATA]`],
+      ['Piano di rientro al proprietario', `# Proposta di piano di rientro\n\nGentile [NOME DEL PROPRIETARIO],\n\nle scrivo per l'appartamento in [INDIRIZZO]. Per difficoltà economiche sono in ritardo con [NUMERO] mensilità, per un totale di [IMPORTO] euro.\n\nLe propongo di saldare l'arretrato versando, oltre al canone, [RATA] euro al mese per [MESI] mesi.\n\nSono disponibile a mettere l'accordo per iscritto.\n\nCordiali saluti,\n[NOME E COGNOME]`]],
+    guida: [['Preparare un colloquio di lavoro', `# Come preparare un colloquio di lavoro\n\nUna guida pratica per arrivare preparato, anche se è il primo.\n\n## Prima del colloquio\n1. Leggi l'annuncio e segna le 3 cose che chiedono di più.\n2. Prepara un esempio concreto per ognuna.\n3. Cerca l'azienda: cosa fa, dove si trova, come si presenta.\n\n## Cosa portare\n- Due copie del curriculum\n- Un documento d'identità\n- Una penna e un foglio per gli appunti\n\n## Durante\n1. Arriva 10 minuti prima.\n2. Ascolta la domanda fino alla fine prima di rispondere.\n3. Alla fine chiedi: **quali sono i prossimi passi?**\n\n## Dove chiedere aiuto\nIl centro per l'impiego e l'Informagiovani offrono simulazioni di colloquio gratuite.`]],
+    corso: [['Smartphone per la nonna', `# Corso base: usare lo smartphone\n\nPer chi inizia da zero: alla fine saprai chiamare, scrivere e fare una videochiamata.\n\n## Lezione 1: accendere e sbloccare\nObiettivo: usare il telefono senza paura.\nTieni premuto il tasto laterale per 3 secondi. Per sbloccare, scorri verso l'alto.\n**Esercizio:** spegni e riaccendi il telefono da solo.\n\n## Lezione 2: chiamare\nTocca l'icona verde del telefono, poi «Contatti».\n**Esercizio:** chiama un familiare.\n\n## Lezione 3: messaggi e foto\nApri i messaggi, scegli la persona, scrivi e tocca la freccia.\n**Esercizio:** manda una foto del tuo giardino.\n\n## Ripasso\n- Tasto laterale per accendere\n- Icona verde per chiamare\n- Freccia per inviare`]]
+  };
+  let kind = 'lettera', curText = '', typing = null;
+  const md = t => { let out = '', list = ''; const close = () => { if (list) { out += `</${list}>`; list = ''; } }; const inl = x => esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]/g, '<mark>[$1]</mark>');
+    for (const l of t.split('\n')) { let m; if ((m = /^#\s+(.*)/.exec(l))) { close(); out += `<h1>${inl(m[1])}</h1>`; } else if ((m = /^##\s+(.*)/.exec(l))) { close(); out += `<h2>${inl(m[1])}</h2>`; } else if ((m = /^-\s+(.*)/.exec(l))) { if (list !== 'ul') { close(); out += '<ul>'; list = 'ul'; } out += `<li>${inl(m[1])}</li>`; } else if ((m = /^\d+\.\s+(.*)/.exec(l))) { if (list !== 'ol') { close(); out += '<ol>'; list = 'ol'; } out += `<li>${inl(m[1])}</li>`; } else if (!l.trim()) close(); else { close(); out += `<p>${inl(l)}</p>`; } }
+    close(); return out; };
+  const rk = () => { $('#kinds').innerHTML = KINDS.map(([k, t, s]) => `<button class="kind${k === kind ? ' on' : ''}" data-k="${k}"><b>${t}</b><span>${s}</span></button>`).join('');
+    $('#prompts').innerHTML = EX[kind].map(([t], i) => `<button data-i="${i}">${I('spark')} ${esc(t)}</button>`).join(''); };
+  rk();
+  const write = text => { clearInterval(typing); curText = text; const p = $('#paper'); let i = 0; const step = RM ? text.length : 6;
+    typing = setInterval(() => { i = Math.min(text.length, i + step); p.innerHTML = md(text.slice(0, i)) + (i < text.length ? '<span class="caret"></span>' : ''); if (i >= text.length) clearInterval(typing); }, 16); };
+  $('#kinds').addEventListener('click', e => { const b = e.target.closest('.kind'); if (b) { kind = b.dataset.k; rk(); } });
+  $('#prompts').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $$('#prompts button').forEach(x => x.classList.toggle('on', x === b)); $('#paper').innerHTML = '<p class="empty"><span class="caret"></span> L\'assistente sta scrivendo…</p>'; setTimeout(() => write(EX[kind][b.dataset.i][1]), 700); });
+  $('#cgo').addEventListener('click', () => { const q = $('#cq').value.trim(); if (!q) { $('#cq').focus(); return; } const base = EX[kind][0][1].split('\n'); base[0] = '# ' + q.charAt(0).toUpperCase() + q.slice(1); $('#paper').innerHTML = '<p class="empty"><span class="caret"></span> L\'assistente sta scrivendo…</p>'; setTimeout(() => write(base.join('\n')), 900); });
+  $('#pcopy').addEventListener('click', async () => { if (!curText) return; try { await navigator.clipboard.writeText(curText.replace(/^#+\s*/gm, '').replace(/\*\*/g, '')); $('#pcopy').lastChild.textContent = 'Copiato!'; setTimeout(() => { $('#pcopy').lastChild.textContent = 'Copia'; }, 1500); } catch {} });
+  $('#pmail').addEventListener('click', () => { if (curText) location.href = 'mailto:?subject=' + encodeURIComponent(curText.split('\n')[0].replace(/^#\s*/, '')) + '&body=' + encodeURIComponent(curText.replace(/^#+\s*/gm, '').replace(/\*\*/g, '')); });
+  $('#pprint').addEventListener('click', () => { if (!curText) return; const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:0;height:0;border:0'; document.body.appendChild(f);
+    f.contentDocument.write(`<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Documento</title><style>body{font:12pt/1.6 Georgia,serif;margin:2cm}h1{font:bold 18pt Arial,sans-serif}h2{font:bold 13pt Arial,sans-serif}mark{background:#FFF0A8}</style></head><body>${md(curText)}</body></html>`); f.contentDocument.close();
+    setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); setTimeout(() => f.remove(), 2000); }, 250); });
+
+  /* ---------- strumenti ---------- */
+  const TL = [['SOS con Vicina', 'Avvisa la tua cerchia', 'shield', 'red', 'sos'], ['Uscita rapida', 'Prova: diventa il meteo', 'out', 'amber', 'exit'], ['Il più vicino', 'Chiama o vai subito', 'locate', 'blue', 'near'], ['Parla con qualcuno', 'Linee gratuite', 'phone', 'green', 'talk'],
+    ['Lettere pronte', 'Comune, bollette, affitto', 'edit', 'violet', 'crea'], ['Scadenze', 'NASpI, ISEE, maternità', 'clock', 'pink', 'dead'], ['Crea con l\'AI', 'Lettere, guide e corsi', 'spark', 'violet', 'crea'], ['Aggiornamenti', 'Da Vicina, con l\'AI', 'flash', 'red', 'agg']];
+  $('#tools2').innerHTML = TL.map(([t, s, ic, c, a], i) => `<button class="card t2${a === 'sos' ? ' red' : ''}" data-a="${a}" data-r style="--d:${i % 4}"><span class="ic ${a === 'sos' ? '' : 'c-' + c}">${I(ic)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('');
+  const io3 = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io3.unobserve(e.target); } })); $$('#tools2 [data-r]').forEach(x => io3.observe(x));
+  const meteo = $('#meteo');
+  $('#tools2').addEventListener('click', e => { const b = e.target.closest('.t2'); if (!b) return; const a = b.dataset.a;
+    if (a === 'exit') { meteo.classList.add('on'); document.body.style.overflow = 'hidden'; }
+    else if (a === 'sos') location.href = '/#prova';
+    else if (a === 'near') { document.getElementById('luoghi').scrollIntoView(); setTimeout(() => setCat('consultori'), 600); }
+    else if (a === 'talk' || a === 'dead') document.querySelector('.calc').scrollIntoView({ block: 'center' });
+    else if (a === 'crea') document.getElementById('crea').scrollIntoView();
+    else if (a === 'agg') document.getElementById('insieme').scrollIntoView(); });
+  meteo.addEventListener('dblclick', () => { meteo.classList.remove('on'); document.body.style.overflow = ''; });
+  let lastTap = 0; meteo.addEventListener('touchend', () => { const n = Date.now(); if (n - lastTap < 350) { meteo.classList.remove('on'); document.body.style.overflow = ''; } lastTap = n; });
+
+  /* scadenze */
+  const DQ = { '68': 'Quando è finito il lavoro?', '68c': 'Quando è finita la collaborazione?', '6m': 'Quando è nato il bambino?', isee: 'Quando hai fatto l\'ISEE?' };
+  $('#dd').max = new Date().toISOString().slice(0, 10);
+  const calc = () => { const k = $('#dk').value, v = $('#dd').value; $('#dq').textContent = DQ[k]; if (!v) { $('#dres').classList.remove('on'); return; }
+    const d0 = new Date(v + 'T12:00:00'); let due = new Date(d0), total;
+    if (k === '68' || k === '68c') { due.setDate(due.getDate() + 68); total = 68; } else if (k === '6m') { due.setMonth(due.getMonth() + 6); total = Math.round((due - d0) / 864e5); } else { due = new Date(d0.getFullYear(), 11, 31, 12); total = Math.round((due - d0) / 864e5) || 1; }
+    const left = Math.ceil((due - new Date().setHours(12, 0, 0, 0)) / 864e5), used = Math.min(100, Math.max(0, (1 - left / total) * 100));
+    $('#dres').innerHTML = `<span style="color:var(--sub);font-size:13px">${left < 0 ? 'Scaduta il' : 'Hai tempo fino al'}</span><b class="d">${due.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</b><span style="color:${left < 0 ? '#FF6B78' : left <= 14 ? '#FFB547' : '#34D399'};font-weight:800">${left < 0 ? 'Scaduta da ' + (-left) + ' giorni' : left === 0 ? 'Scade oggi' : 'Mancano ' + left + ' giorni'}</span><div class="bar5"><i style="width:0"></i></div>`;
+    $('#dres').classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => { $('#dres .bar5 i').style.width = used + '%'; })); };
+  $('#dk').addEventListener('change', calc); $('#dd').addEventListener('input', calc);
+
+  /* ---------- guide ---------- */
+  let gc = '';
+  $('#gcat').innerHTML = [['', 'Tutte'], ...D.g].map(([k, t]) => `<button class="chip${k === gc ? ' on' : ''}" data-c="${k}">${esc(t)}</button>`).join('');
+  const GT = Object.fromEntries(D.g);
+  $('#guides').innerHTML = D.s.map((s, i) => `<article class="card guide" data-id="${s.id}" data-g="${s.g}" data-r style="--d:${i % 3}" tabindex="0" role="button" aria-expanded="false"><span class="g">${esc(GT[s.g] || '')}</span><h3>${esc(s.t)}</h3><p>${esc(s.intro)}</p><div class="ms"><div>${s.m.map(([t, d]) => `<div class="m"><b>${esc(t)}</b>${esc(d)}</div>`).join('')}</div></div></article>`).join('');
+  const io4 = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io4.unobserve(e.target); } })); $$('#guides [data-r]').forEach(x => io4.observe(x));
+  const gf = () => { const q = $('#gq').value.trim().toLowerCase(); $$('#guides .guide').forEach(g => { g.hidden = !((!gc || g.dataset.g === gc) && (!q || g.textContent.toLowerCase().includes(q))); }); };
+  $('#gcat').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; gc = b.dataset.c; $$('#gcat .chip').forEach(x => x.classList.toggle('on', x === b)); gf(); });
+  $('#gq').addEventListener('input', gf);
+  const tog = g => { g.classList.toggle('open'); g.setAttribute('aria-expanded', g.classList.contains('open')); };
+  $('#guides').addEventListener('click', e => { const g = e.target.closest('.guide'); if (g) tog(g); });
+  $('#guides').addEventListener('keydown', e => { const g = e.target.closest('.guide'); if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); tog(g); } });
+  const openGuide = id => { const g = $(`.guide[data-id="${id}"]`); if (!g) return; g.hidden = false; g.classList.add('open', 'in'); g.scrollIntoView({ block: 'center' }); };
+
+  /* ---------- tutele: carte che si girano ---------- */
+  $('#tut').innerHTML = D.t.map((t, i) => `<div class="tcard" data-r style="--d:${i % 4}" tabindex="0" role="button" aria-label="${esc(t.t)}: tocca per i dettagli"><div class="in"><div class="f"><span style="width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(124,108,255,.18);color:var(--acc2)">${I('shield')}</span><span><b>${esc(t.t)}</b><br><span>${esc(t.s)}</span></span><span style="font-size:12px;font-weight:800;color:var(--acc2)">Tocca per girare ↻</span></div><div class="b"><h4>Come riconoscerla</h4><ul>${t.seg.map(x => `<li>${esc(x)}</li>`).join('')}</ul><h4 style="margin-top:10px">Cosa fare</h4><ul>${t.fare.slice(0, 3).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></div></div>`).join('');
+  $$('#tut [data-r]').forEach(x => io4.observe(x));
+  $('#tut').addEventListener('click', e => { e.target.closest('.tcard')?.classList.toggle('flip'); });
+  $('#tut').addEventListener('keydown', e => { const c = e.target.closest('.tcard'); if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); c.classList.toggle('flip'); } });
+
+  /* ---------- invito in chat: i messaggi arrivano uno dopo l'altro ---------- */
+  const ci = $('#chatinv'); new IntersectionObserver((es, o) => es.forEach(e => { if (!e.isIntersecting) return; o.disconnect(); $$('.cb', ci).forEach((b, i) => setTimeout(() => b.classList.add('in'), RM ? 0 : 300 + i * 900)); }), { threshold: .4 }).observe(ci);
+})();
+</script>
 </body>
 </html>
