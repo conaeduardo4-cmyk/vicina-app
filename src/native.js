@@ -212,9 +212,9 @@ export const native = !isNative ? webNative : {
     },
     // foglio di condivisione di iOS: «Salva su File», SideStore, AltStore…
     async shareFile(uri, title) { await Share.share({ title, files: [uri], dialogTitle: title }); },
-    async install(url, onProgress) {
+    async install(url, onProgress, name) {
       const h = await ApkUpdater.addListener('progress', e => onProgress?.(e.percent));
-      try { await ApkUpdater.downloadAndInstall({ url }); } finally { h.remove(); }
+      try { await ApkUpdater.downloadAndInstall(name ? { url, name } : { url }); } finally { h.remove(); }
     }
   },
 

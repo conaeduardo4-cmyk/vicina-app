@@ -63,6 +63,8 @@ public class ApkUpdaterPlugin extends Plugin {
     @PluginMethod
     public void downloadAndInstall(final PluginCall call) {
         final String url = call.getString("url");
+        // nome del file: «vicina-update.apk» per gli aggiornamenti, un altro nome per installare l'app sorella
+        final String name = call.getString("name", "vicina-update.apk").replaceAll("[^A-Za-z0-9._-]", "_");
         if (url == null || !url.startsWith("https://")) { call.reject("Indirizzo dell'aggiornamento non valido"); return; }
         if (busy) { call.reject("Download già in corso"); return; }
         busy = true;
@@ -73,7 +75,7 @@ public class ApkUpdaterPlugin extends Plugin {
                 try {
                     File dir = new File(getContext().getCacheDir(), "updates");
                     if (!dir.exists() && !dir.mkdirs()) throw new Exception("Spazio non disponibile");
-                    File f = new File(dir, "vicina-update.apk");
+                    File f = new File(dir, name);
                     if (f.exists()) f.delete();
 
                     // segue i reindirizzamenti (GitHub → server dei file)

@@ -394,6 +394,75 @@ export function boot(api, native) {
       : `<button class="tile" data-a="${esc(a)}"><i class="t-ic ${TILE_C[c] ?? ''}">${I(ic)}</i><b>${shy(esc(t))}</b></button>`).join('');
     requestAnimationFrame(() => fitLabels(box));
   }
+  /* ================= Vicina Extra: l'app sorella ================= */
+  // Le due app si aprono a vicenda con un link e si passano le informazioni (sul telefono, senza server).
+  const EXTRA = { pkg: 'it.vicina.extra', scheme: 'vicinaextra://', apk: 'https://github.com/conaeduardo4-cmyk/vicina-extra/releases/latest/download/VicinaExtra.apk', web: 'https://vicina.netlify.app/extra' };
+  const xPack = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const xUnpack = s => { try { return JSON.parse(decodeURIComponent(escape(atob(String(s).replace(/-/g, '+').replace(/_/g, '/'))))); } catch { return null; } };
+  const fromExtra = () => { try { return JSON.parse(ls.get('extra:info') || 'null'); } catch { return null; } };
+  // quello che mandiamo a Vicina Extra: se sei pronta per un'emergenza e quante persone hai nella cerchia
+  const forExtra = () => { let ready = null, circle = null; try { ready = readyItems().filter(x => x[0]).length; } catch {} try { circle = recipients().size; } catch {} return { app: 'vicina', v: 1, ready, total: 5, circle, at: Date.now() }; };
+  let xInstalled = false, xFrom = 's-home';
+  async function openExtra(path) {
+    const url = EXTRA.scheme + path + (path.includes('?') ? '&' : '?') + 'd=' + xPack(forExtra());
+    if (await native.appInstalled?.(EXTRA.pkg)) { try { await native.openUrl(url); return; } catch {} }
+    openExtraScreen();
+  }
+  async function installExtra(btn) {
+    if (!native.update?.autoInstall) { native.openUrl(EXTRA.web); return; }
+    const lab = btn.innerHTML; btn.disabled = true;
+    try {
+      if (!(await native.update.canInstall())) { toast('Consenti a Vicina di installare app, poi tocca di nuovo «Installa»'); await native.update.openInstallSettings(); return; }
+      await native.update.install(EXTRA.apk, p => { btn.textContent = `Scarico Vicina Extra… ${Math.round(p)}%`; }, 'vicina-extra.apk');
+    } catch (e) { toast(e?.message || 'Download non riuscito, riprova'); }
+    finally { btn.disabled = false; btn.innerHTML = lab; }
+  }
+  const xShots = ['home', 'luoghi', 'aiuti', 'lettere'].map(n => `altra/extra-${n}.webp`);
+  const xRow = (ic, c, t, s, a = '', u = '') => `<${a ? 'button' : 'div'} class="v4-row"${a ? ` data-a="${a}"` : ''}${u ? ` data-u="${u}"` : ''}><i class="sq ${c}">${I(ic)}</i><div class="fl"><b>${t}</b><span>${s}</span></div>${a ? I('chev', 'chev') : ''}</${a ? 'button' : 'div'}>`;
+  async function rExtra() {
+    xInstalled = !!(await native.appInstalled?.(EXTRA.pkg));
+    const x = fromExtra(), go = xInstalled ? 'x-open' : '';
+    $('#x-chip').textContent = xInstalled ? 'Installata' : native.update?.autoInstall ? 'Non installata' : 'App per Android';
+    $('#x-chip').classList.toggle('ok', xInstalled);
+    $('#x-body').innerHTML = `
+      <div class="x-hero">
+        <div class="fl"><p class="x-eye">L'APP SORELLA</p><h1 class="x-title">Vicina Extra</h1><p class="x-lead">Servizi sociali, aiuti e diritti vicino a te: consultori, centri antiviolenza, servizi del Comune, lavoro, casa, e come tutelarti.</p></div>
+        <div class="x-phone" aria-hidden="true"><div class="x-scr">${xShots.map((u, i) => `<img src="${u}" alt="" style="--i:${i};--n:${xShots.length}" loading="lazy">`).join('')}</div><span class="x-notch"></span></div>
+      </div>
+      ${xInstalled ? `<button class="btn x-btn" data-a="x-open" data-u="home">${I('heart')}Apri Vicina Extra</button>` : `<button class="btn x-btn" data-a="x-install">${I('share')}${native.update?.autoInstall ? 'Installa Vicina Extra' : 'Scarica Vicina Extra'}</button>`}
+      ${x ? `<div class="v4-card">${xRow('check', 'green', 'Collegata' + (x.got ? ' · ' + new Date(x.got).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : ''), (x.saved ? x.saved + ' luoghi salvati · ' : '') + (x.sit?.length ? 'guide scelte per te qui sotto' : 'le due app si sono scambiate le informazioni'))}
+        ${(x.sit || []).map(([id, t]) => xRow('book', 'violet', esc(t), 'Apri la guida in Vicina Extra', go || 'open-extra', 'aiuto/' + esc(id))).join('')}</div>` : ''}
+      <h2 class="x-h">Vai subito a</h2>
+      <div class="v4-card">
+        ${xRow('shield', 'violet', 'Centri antiviolenza', 'Il più vicino, con telefono e percorso', go || 'open-extra', 'luoghi/antiviolenza')}
+        ${xRow('people', 'blue', 'Servizi sociali', 'Segretariato sociale e Comune', go || 'open-extra', 'luoghi/sociali')}
+        ${xRow('heart', 'red', 'Consultori', 'Gratis, anche per i minorenni', go || 'open-extra', 'luoghi/consultori')}
+        ${xRow('spark', 'amber', 'Cosa ti spetta', 'Poche domande, gli aiuti per te', go || 'open-extra', 'domande')}
+      </div>
+      <h2 class="x-h">Come funziona</h2>
+      <div class="x-steps">${[
+        ['pin', 'Trova i servizi vicino a te', 'Consultori, servizi sociali, patronati, centri giovani e anziani, mense: con telefono, orari e percorso.'],
+        ['book', 'Scopri cosa ti spetta', 'Rispondi a poche domande: ti mostra gli aiuti adatti, a chi spettano, cosa serve e dove chiederli.'],
+        ['shield', 'Sai come tutelarti', 'Truffe, violenza nella coppia, sfratto, debiti, bullismo: i segnali e chi chiamare.'],
+        ['chat', 'Chiedi all’assistente', 'Una risposta semplice su servizi, aiuti e diritti, in ogni guida.']
+      ].map(([ic, t, s], i) => `<div class="x-step" style="--d:${i}"><i class="x-ic x-ic${i}">${I(ic)}</i><div class="fl"><b>${i + 1}. ${t}</b><span>${s}</span></div></div>`).join('')}</div>
+      <h2 class="x-h">Le due app insieme</h2>
+      <div class="v4-card">
+        ${xRow('alert', 'red', 'SOS anche da Vicina Extra', 'Lo strumento «SOS con Vicina» fa partire l’allarme qui.')}
+        ${xRow('share', 'blue', 'Si passano le informazioni', 'Quando apri l’una dall’altra: se sei pronta per un’emergenza, le guide per te, i luoghi salvati.')}
+        ${xRow('user', 'green', 'Stesso account', 'Nome, foto e banner sono gli stessi.')}
+      </div>
+      <p class="v4-note center">L'APK arriva dalle release ufficiali su GitHub.</p>`;
+  }
+  function openExtraScreen() { if (curScreen !== 's-extra') { xFrom = curScreen; show('s-extra', 'in-push'); } rExtra(); }
+  const xBack = () => { const k = TABS_BY_SCREEN[xFrom]; if (k) tab(k, 'in-pop'); else show(xFrom || 's-home', 'in-pop'); };
+  // link vicina://extra?d=… da Vicina Extra: salviamo le sue informazioni e mostriamo la scheda
+  function extraLink(url) {
+    const m = /[?&]d=([^&#]+)/.exec(url), d = m ? xUnpack(m[1]) : null;
+    if (d && d.app === 'extra') { ls.set('extra:info', JSON.stringify({ ...d, got: Date.now() })); toast('Collegata a Vicina Extra'); }
+    return d;
+  }
+
   let htFrom = 's-home';
   function sheetHomeTools() {
     closeSheet();
@@ -1610,6 +1679,7 @@ export function boot(api, native) {
         ${meRow('upd-open', 'share', updNewer() ? 'red' : 'blue', 'Aggiornamenti', updNewer() ? '<span class="tag red">Nuova</span>' : vers)}
       </div>
       <div class="v4-card">
+        ${meRow('open-extra', 'heart', 'violet', 'Vicina Extra', 'App sorella')}
         ${meRow('guide', 'book', 'violet', 'Guida rapida')}
         ${meRow('ai', 'ai', 'red', 'Assistente')}
         ${meRow('terms-read', 'alert', 'amber', 'Termini d\'uso e limiti')}
@@ -2128,6 +2198,8 @@ export function boot(api, native) {
     if (!/^vicina:/i.test(url || '')) return;
     if (/^vicina:\/\/auth/i.test(url)) { native.closeAuth?.(); api.oauthFinish?.(url).catch(e => toast(oauthMsg(e))); return; }
     if (url === lastLink.u && Date.now() - lastLink.t < 4000) return;
+    if (/[?&]d=/.test(url)) extraLink(url);
+    if (/^vicina:\/\/extra/i.test(url)) { lastLink = { u: url, t: Date.now() }; if (st.uid && st.p) openExtraScreen(); return; }
     lastLink = { u: url, t: Date.now() };
     const addCode = /^vicina:\/\/add\//i.test(url) ? parseInvite(url) : null;
     if (addCode) {
@@ -2273,7 +2345,10 @@ export function boot(api, native) {
         case 'open': closeSheet(); closeIncoming(); openThread(id); break;
         case 'cf': st.cf = t.dataset.k || 'all'; rCircle(); break;
         case 'home-tools': sheetHomeTools(); break;
-        case 'open-extra': native.openApp('it.vicina.extra', 'https://vicina.netlify.app/extra'); break;
+        case 'open-extra': openExtraScreen(); break;
+        case 'x-back': xBack(); break;
+        case 'x-open': openExtra(t.dataset.u || 'vicina'); break;
+        case 'x-install': installExtra(t); break;
         case 'ht-add': homeToolsEdit('add', t.dataset.k); break;
         case 'ht-del': homeToolsEdit('del', t.dataset.k); break;
         case 'ht-up': homeToolsEdit('up', t.dataset.k); break;
@@ -2480,6 +2555,7 @@ export function boot(api, native) {
     if ($('#zoom')?.classList.contains('on')) { $('#zoom .zoom-x')?.click(); return true; }
     if ($('#s-ai').classList.contains('on')) { tab(st.tab || 'home', 'in-pop'); return true; }
     if ($('#s-htools').classList.contains('on')) { htBack(); return true; }
+    if ($('#s-extra').classList.contains('on')) { xBack(); return true; }
     if ($('#s-ailist').classList.contains('on')) { show('s-ai', 'in-pop'); rAI(); return true; }
     if ($('#s-prof').classList.contains('on')) { $('[data-a="pf-back"]')?.click(); return true; }
     if ($('#s-edit').classList.contains('on')) { $('[data-a="ed-cancel"]')?.click(); return true; }
